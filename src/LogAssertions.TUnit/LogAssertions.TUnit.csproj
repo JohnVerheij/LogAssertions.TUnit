@@ -11,8 +11,8 @@
     <IsPackable>true</IsPackable>
     <PackageId>LogAssertions.TUnit</PackageId>
     <ProductName>LogAssertions.TUnit</ProductName>
-    <Version>0.2.1</Version>
-    <PackageValidationBaselineVersion>0.2.0</PackageValidationBaselineVersion>
+    <Version>0.2.2</Version>
+    <PackageValidationBaselineVersion>0.2.1</PackageValidationBaselineVersion>
     <Authors>John Verheij</Authors>
     <Copyright>Copyright (c) 2026 John Verheij</Copyright>
     <Description>TUnit-native fluent log-assertion DSL using [AssertionExtension] over Microsoft.Extensions.Logging.Testing.FakeLogCollector. Provides Assert.That(collector).HasLogged()/HasNotLogged() with filter and terminator chaining; emits captured-records snapshot in failure messages.</Description>

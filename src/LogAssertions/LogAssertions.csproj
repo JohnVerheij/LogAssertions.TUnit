@@ -11,8 +11,8 @@
     <IsPackable>true</IsPackable>
     <PackageId>LogAssertions</PackageId>
     <ProductName>LogAssertions</ProductName>
-    <Version>0.2.1</Version>
-    <PackageValidationBaselineVersion>0.2.0</PackageValidationBaselineVersion>
+    <Version>0.2.2</Version>
+    <PackageValidationBaselineVersion>0.2.1</PackageValidationBaselineVersion>
     <Authors>John Verheij</Authors>
     <Copyright>Copyright (c) 2026 John Verheij</Copyright>
     <Description>Framework-agnostic core for fluent log assertions over Microsoft.Extensions.Logging.Testing.FakeLogCollector. Provides ILogRecordFilter + LogFilter composable filter primitives, the failure-message rendering, the FakeLogCollector inspection extensions (Filter, CountMatching, DumpTo), and the LogCollectorBuilder factory. Test-framework-specific entry points live in adapter packages (LogAssertions.TUnit ships today; xUnit, NUnit, MSTest adapters are possible if there is demand).</Description>
