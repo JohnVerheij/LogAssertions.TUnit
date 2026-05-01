@@ -19,6 +19,7 @@ A TUnit-native fluent log-assertion DSL on top of `Microsoft.Extensions.Logging.
 - [Why this package](#why-this-package)
 - [Install](#install)
 - [Package layout](#package-layout)
+- [Namespaces (and a `GlobalUsings.cs` recommendation)](#namespaces-and-a-globalusingscs-recommendation)
 - [Quick start](#quick-start)
 - [Entry points](#entry-points)
   - [Shorthand entry points](#shorthand-entry-points)
@@ -75,6 +76,31 @@ This repo ships **two** NuGet packages:
 | [`LogAssertions.TUnit`](https://www.nuget.org/packages/LogAssertions.TUnit/) | TUnit-specific entry points: `HasLogged()`, `HasNotLogged()`, `HasLoggedSequence()` and shorthands | `LogAssertions` + `TUnit.Assertions` |
 
 You install `LogAssertions.TUnit`; `LogAssertions` comes transitively. Adapters for other test frameworks (NUnit, xUnit, MSTest) are *not* shipped today — they'd reuse the `LogAssertions` core. If you'd find one useful, [open a feature request](https://github.com/JohnVerheij/LogAssertions.TUnit/issues/new?template=feature_request.yml).
+
+## Namespaces (and a `GlobalUsings.cs` recommendation)
+
+The two packages place types in two namespaces with deliberately-different scopes:
+
+| Type / member | Namespace | Auto-imported? |
+|---|---|---|
+| `HasLogged()`, `HasNotLogged()`, `HasLoggedSequence()` (the source-generated entry points) | `TUnit.Assertions.Extensions` | **Yes** — TUnit auto-imports this namespace |
+| `HasLoggedOnce()`, `HasLoggedExactly()`, ... (shorthand entry points, since 0.2.2) | `TUnit.Assertions.Extensions` | **Yes** — same auto-import path |
+| `LogCollectorBuilder.Create(...)` (the `(factory, collector)` factory) | `LogAssertions` | **No** — needs `using LogAssertions;` |
+| `LogFilter.AtLevel(...)`, `ILogRecordFilter`, `Filter`/`CountMatching`/`DumpTo` extensions | `LogAssertions` | **No** — needs `using LogAssertions;` |
+| `AssertAllAsync(...)` batch terminator | `TUnit.Assertions.Extensions` | **Yes** — same auto-import path |
+
+**Practical consequence:** test files that *only* call assertion entry points need no `using` from this package. Files that use `LogCollectorBuilder` or build composable filters via `LogFilter` need `using LogAssertions;`.
+
+**Recommended:** put both into a single `GlobalUsings.cs` in your test project so every test file sees them without ceremony:
+
+```csharp
+// tests/MyApp.Tests/GlobalUsings.cs
+global using LogAssertions;                              // LogCollectorBuilder, LogFilter, etc.
+global using Microsoft.Extensions.Logging;               // LogLevel
+global using Microsoft.Extensions.Logging.Testing;       // FakeLogCollector, FakeLoggerProvider
+```
+
+This eliminates the IDE0005 ("unnecessary using") chatter that otherwise appears in test files that don't directly use `LogCollectorBuilder` but live alongside ones that do.
 
 ## Quick start
 
@@ -333,6 +359,8 @@ await Assert.That(collector).HasLogged().AtLevel(LogLevel.Warning).Between(1, 5)
 await Assert.That(collector).HasLogged().WithEventId(42).Never();
 ```
 
+**`Never()` vs `HasNotLogged()` — when to use which.** They produce identical assertions; the only difference is reading order. **Prefer `HasNotLogged()`** when "this should not happen" is the primary intent of the test (the negative is the headline). **Use `.Never()`** when you've already started building a positive filter chain and only at the end realise you expect zero matches — saves rewriting the prefix. Don't agonise over the choice; either reads clearly to a future maintainer.
+
 ---
 
 ## Sequence assertions — `HasLoggedSequence`
@@ -360,13 +388,17 @@ Semantics:
 
 ## Combining assertions with `.And` / `.Or`
 
-Because the assertion types derive from TUnit's `Assertion<T>`, the standard TUnit chaining works:
+Because the assertion types derive from TUnit's `Assertion<T>`, the standard TUnit chaining works. **`.And` is genuinely useful for log assertions** — chain a positive and a negative invariant in one expression:
 
 ```csharp
 await Assert.That(collector)
     .HasLogged().AtLevel(LogLevel.Information).AtLeast(1)
     .And.HasNotLogged().AtLevel(LogLevel.Error);
 ```
+
+For three-or-more conditions, prefer the dedicated [`AssertAllAsync`](#batch-assertions--assertallasync) batch terminator — it aggregates failures into a single message rather than failing fast on the first.
+
+**`.Or` is rarely useful for log assertions.** "Either no errors were logged OR a specific recovery was logged" is a contrived shape; in practice tests want both, not either. The mechanism is available via TUnit if you need it, but the cookbook below shows no examples because the use case is genuinely uncommon. If you find yourself reaching for `.Or`, consider whether `MatchingAny(...)` (an OR of *filters*, not whole assertions) expresses the intent more clearly.
 
 ---
 
@@ -543,9 +575,9 @@ await Assert.That(otherCollector).HasLoggedExactly(1).WithFilter(CriticalDbError
 
 ```csharp
 await Assert.That(collector).AssertAllAsync(
-    async c => await c.HasLogged().AtLevel(LogLevel.Information).AtLeast(1),
-    async c => await c.HasNotLogged().AtLevelOrAbove(LogLevel.Error),
-    async c => await c.HasLoggedSequence()
+    c => c.HasLogged().AtLevel(LogLevel.Information).AtLeast(1),
+    c => c.HasNotLogged().AtLevelOrAbove(LogLevel.Error),
+    c => c.HasLoggedSequence()
         .WithEventName("Startup")
         .Then().WithEventName("Shutdown"));
 ```
@@ -629,6 +661,10 @@ These need new primitives (timestamp + polling + cursor) but are coherent additi
 - **Sequence variants:** `ThenImmediately()` (strict adjacency), `NotInterleaved()` (no other records from same category between matches), `InOrder()` terminator on `HasLogged` (multiple matches in chronological order, not necessarily adjacent).
 - **Cursor / direction:** `FromNewest()` / `FromOldest()` direction control, `SinceLastAssert()` watermark, `Pin()` snapshot pinning, `HasLoggedDistinct(int)` (dedupe + count).
 - **`HasNotLoggedSequence()`** — mirror of `HasLoggedSequence`, asserts a specific sequence did NOT occur.
+- **`DescribedAs(string label)` on filters** (queued from real consumer feedback) — when a `Where(predicate)` or composed `MatchingAny`/`All` is used, let the caller attach a human-readable label that shows in failure diagnostics instead of the generic `"Custom predicate"` / `"(... AND ...)"` rendering.
+- **`DumpToTestOutput()` extension** (queued from real consumer feedback) — TUnit-aware variant of `DumpTo(TextWriter)` that routes captured records to TUnit's `TestContext.OutputWriter` automatically, eliminating the `using var sw = new StringWriter(); ... Console.WriteLine(sw)` boilerplate during test development.
+- **External-consumer smoke-test project in CI** (process improvement queued from real consumer feedback) — a deliberately-namespaced test project (e.g. `External.Consumer.Tests`) that references `LogAssertions.TUnit` only via PackageReference and verifies every public entry point resolves without inheriting visibility from the `LogAssertions.TUnit.*` namespace tree. Would have caught the v0.2.0/v0.2.1 shorthand-resolution bug fixed in v0.2.2 before it shipped.
+- **Package-shipped `<Using Include="LogAssertions" />` via `build/LogAssertions.props`** — alternative to the documented `GlobalUsings.cs` recommendation. Would auto-add `LogAssertions` as a global using to every consuming project on install (no consumer code change needed for `LogCollectorBuilder` / `LogFilter` to resolve). Trade-off: more invasive (silently adds a global to consumers), strict-using-policy teams might object. Consumer can opt-out via `<Using Remove="LogAssertions" />`. Defer until multiple consumers report the explicit-using as friction; the documented `GlobalUsings.cs` route is the lower-surprise default.
 
 ### Possible v0.4.0+ (separate packages, more substantial work)
 

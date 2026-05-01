@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] — Docs polish from real consumer feedback (no API change)
+
+All changes in this release are documentation. Both packages still publish in lockstep so consumers who pin transitively don't end up on mismatched core/adapter versions.
+
+### Changed (README only)
+
+- **New "Namespaces" section** explaining the asymmetric `using` situation: the assertion entry points (`HasLogged`, `HasLoggedOnce`, `AssertAllAsync`, ...) live in `TUnit.Assertions.Extensions` and auto-import via TUnit's mechanism, while `LogCollectorBuilder`, `LogFilter`, `ILogRecordFilter`, and the `FakeLogCollector` inspection extensions live in `LogAssertions` and require an explicit `using LogAssertions;`. Includes a recommended `GlobalUsings.cs` snippet that consolidates both for any consuming test project — eliminates IDE0005 ("unnecessary using") chatter in mixed-usage codebases.
+- **`AssertAllAsync` cookbook example updated** to use the v0.2.1 sync overload (`c => c.HasLogged()...`) as the primary form. The verbose `async c => await c.HasLogged()...` form is still mentioned as a fallback for cases that mix non-assertion async work between checks.
+- **`.And` / `.Or` section rewritten** to stop hand-waving. Confirms `.And` is genuinely useful for chaining a positive + negative invariant in one expression, and explicitly says `.Or` is rarely useful for log assertions (consider `MatchingAny(...)` over filters instead). Recommends `AssertAllAsync` for three-or-more conditions.
+- **`Never()` vs `HasNotLogged()` clarification** added to the terminators section: prefer `HasNotLogged()` when "this should not happen" is the test's primary intent; use `.Never()` when an existing positive filter chain ends up needing a zero-count expectation. Either reads clearly; the choice is style.
+- **Roadmap (Limitations and future work) extended** with three new v0.3.0 candidate items, all queued from real consumer feedback:
+  - `DescribedAs(string)` on filters — human-readable label in failure diagnostics for `Where(...)` and composed filters.
+  - `DumpToTestOutput()` extension — TUnit-aware variant of `DumpTo(TextWriter)` routing to `TestContext.OutputWriter`.
+  - External-consumer smoke-test project in CI — a separately-namespaced test project that references `LogAssertions.TUnit` only via PackageReference, would have caught the v0.2.0/v0.2.1 shorthand-resolution bug before it shipped.
+
+### Background
+
+This release is the first one driven entirely by real-consumer feedback (production-adjacent adoption review). No code changes; the v0.2.2 surface stands. The rationale for shipping these as a docs-only patch rather than rolling them into v0.3.0 is to keep nuget.org's package page reflecting current ergonomics for anyone evaluating the package today, while v0.3.0's substantive engineering work waits for actual demand.
+
 ## [0.2.2] — Shorthand entry-point auto-discovery (BREAKING namespace move)
 
 ### Changed (breaking, but resolves real consumer-experience friction)
@@ -209,7 +228,8 @@ Why the split: positions the package family for hypothetical future adapters (`L
 
 This package implements the user-space pattern that the TUnit maintainer pointed at when declining [thomhurst/TUnit#5627](https://github.com/thomhurst/TUnit/issues/5627). The `[AssertionExtension]` infrastructure that makes this clean shipped in TUnit 1.41.0 via [thomhurst/TUnit#5785](https://github.com/thomhurst/TUnit/pull/5785).
 
-[Unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.2.3
 [0.2.2]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.2.2
 [0.2.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.2.1
 [0.2.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.2.0
