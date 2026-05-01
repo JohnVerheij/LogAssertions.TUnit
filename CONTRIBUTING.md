@@ -4,11 +4,11 @@ Thanks for considering a contribution. This document covers the small set of con
 
 ## Reporting bugs
 
-Use the [bug report template](.github/ISSUE_TEMPLATE/bug_report.yml). The template asks for the LogAssertions.TUnit version, TUnit version, .NET SDK version, expected vs actual behaviour, and a minimal reproduction. The smaller and more self-contained the repro, the faster the fix.
+Use the [bug report template](https://github.com/JohnVerheij/LogAssertions.TUnit/issues/new?template=bug_report.yml). The template asks for the LogAssertions.TUnit version, TUnit version, .NET SDK version, expected vs actual behaviour, and a minimal reproduction. The smaller and more self-contained the repro, the faster the fix.
 
 ## Proposing features
 
-Use the [feature request template](.github/ISSUE_TEMPLATE/feature_request.yml). Describe the test scenario the feature enables, the proposed API shape (in code), and any alternatives you considered. Indicate whether you'd like to submit a PR yourself.
+Use the [feature request template](https://github.com/JohnVerheij/LogAssertions.TUnit/issues/new?template=feature_request.yml). Describe the test scenario the feature enables, the proposed API shape (in code), and any alternatives you considered. Indicate whether you'd like to submit a PR yourself.
 
 For larger ideas (new entry points, breaking changes, cross-cutting refactors), open a [Discussion](https://github.com/JohnVerheij/LogAssertions.TUnit/discussions) first to align on direction before investing implementation time.
 
