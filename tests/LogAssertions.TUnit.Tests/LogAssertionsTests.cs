@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -1057,5 +1058,415 @@ internal sealed class LogAssertionsTests
         await Assert.That(msg).Contains("props: ItemId=X-9");
         await Assert.That(msg).Contains("scope: OrderId=42");
         await Assert.That(msg).DoesNotContain("{OriginalFormat}");
+    }
+
+    // --- Edge cases: nested scopes ---
+
+    /// <summary>
+    /// Verifies that with multiple scopes simultaneously active (outer + inner),
+    /// <c>WithScopeProperty</c> matches when the key is present in any of the active scopes.
+    /// FakeLogRecord exposes all currently-active scopes on the calling logger, and the filter
+    /// walks every scope; chaining two <c>WithScopeProperty</c> calls AND-combines them.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task NestedScopesAreAllInspectedAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+        using ILoggerFactory factory = LoggerFactory.Create(b => b.AddProvider(new FakeLoggerProvider(collector)));
+        ILogger logger = factory.CreateLogger("Test");
+
+        var outer = new Dictionary<string, object?>(StringComparer.Ordinal) { ["Outer"] = "yes" };
+        var inner = new Dictionary<string, object?>(StringComparer.Ordinal) { ["Inner"] = 42 };
+        using (logger.BeginScope(outer))
+        using (logger.BeginScope(inner))
+            TestLogMessages.StartedProcessing(logger);
+
+        await Assert.That(collector).HasLogged().WithScopeProperty("Outer", "yes").Once();
+        await Assert.That(collector).HasLogged().WithScopeProperty("Inner", 42).Once();
+        await Assert.That(collector).HasLogged()
+            .WithScopeProperty("Outer", "yes").WithScopeProperty("Inner", 42).Once();
+    }
+
+    /// <summary>
+    /// Verifies that when outer and inner scopes carry the same key with different values,
+    /// <c>WithScopeProperty(key, value)</c> matches against either value independently — the
+    /// predicate walks every active scope. A consumer relying on this can be confident that
+    /// pushing a context value in a nested scope shadows the outer for tests, not just for
+    /// runtime structured logging.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task SameScopeKeyInOuterAndInnerScopeAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+        using ILoggerFactory factory = LoggerFactory.Create(b => b.AddProvider(new FakeLoggerProvider(collector)));
+        ILogger logger = factory.CreateLogger("Test");
+
+        var outer = new Dictionary<string, object?>(StringComparer.Ordinal) { ["Layer"] = "outer" };
+        var inner = new Dictionary<string, object?>(StringComparer.Ordinal) { ["Layer"] = "inner" };
+        using (logger.BeginScope(outer))
+        using (logger.BeginScope(inner))
+            TestLogMessages.StartedProcessing(logger);
+
+        await Assert.That(collector).HasLogged().WithScopeProperty("Layer", "outer").Once();
+        await Assert.That(collector).HasLogged().WithScopeProperty("Layer", "inner").Once();
+    }
+
+    // --- Edge cases: unicode ---
+
+    /// <summary>
+    /// Verifies <c>Containing</c> handles unicode correctly under both ordinal and
+    /// ordinal-ignore-case comparisons. Pins the contract that string-comparison behaviour
+    /// is delegated to the BCL without our code interposing surprising normalisation.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task UnicodeMessagesMatchExpectedAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+        using ILoggerFactory factory = LoggerFactory.Create(b => b.AddProvider(new FakeLoggerProvider(collector)));
+        ILogger logger = factory.CreateLogger("Test");
+        TestLogMessages.UnicodeMessage(logger, "abc");
+
+        await Assert.That(collector).HasLogged().Containing("ünïcödé", StringComparison.Ordinal).Once();
+        await Assert.That(collector).HasLogged().Containing("ÜNÏCÖDÉ", StringComparison.OrdinalIgnoreCase).Once();
+        await Assert.That(collector).HasNotLogged().Containing("ÜNÏCÖDÉ", StringComparison.Ordinal);
+    }
+
+    // --- Edge cases: concurrency ---
+
+    /// <summary>
+    /// Verifies records emitted concurrently from multiple threads are all captured in the
+    /// snapshot. <see cref="FakeLogCollector"/> is documented as thread-safe; this test pins
+    /// our reliance on that contract — a regression in MEL that broke FakeLogCollector
+    /// concurrency would surface here rather than in production-suspecting silence.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task ConcurrentLoggerCallsCaptureAllRecordsAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+        using ILoggerFactory factory = LoggerFactory.Create(b => b.AddProvider(new FakeLoggerProvider(collector)));
+        ILogger logger = factory.CreateLogger("Test");
+
+        const int threads = 4;
+        const int iterations = 250;
+
+        Task[] tasks = [.. Enumerable.Range(0, threads).Select(_ => Task.Run(() =>
+        {
+            for (var i = 0; i < iterations; i++)
+                TestLogMessages.StartedProcessing(logger);
+        }, cancellationToken))];
+        await Task.WhenAll(tasks).ConfigureAwait(false);
+
+        await Assert.That(collector).HasLogged().AtLevel(LogLevel.Information).Exactly(threads * iterations);
+    }
+
+    // --- Edge cases: large snapshot ---
+
+    /// <summary>
+    /// Verifies the assertion path scales to large captured-record sets without pathological
+    /// slowdown. 1,000 records is large enough to expose O(n²) bugs in filter evaluation but
+    /// small enough to stay well under the 10-second test timeout.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task LargeSnapshotIsHandledAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+        using ILoggerFactory factory = LoggerFactory.Create(b => b.AddProvider(new FakeLoggerProvider(collector)));
+        ILogger logger = factory.CreateLogger("Test");
+
+        const int total = 1000;
+        for (var i = 0; i < total; i++)
+            TestLogMessages.StartedProcessing(logger);
+
+        await Assert.That(collector).HasLogged().AtLevel(LogLevel.Information).Exactly(total);
+        await Assert.That(collector).HasNotLogged().AtLevel(LogLevel.Error);
+    }
+
+    // --- Edge cases: sequence corner cases ---
+
+    /// <summary>
+    /// Verifies a step with zero filters in <c>HasLoggedSequence</c> is silently skipped — the
+    /// sequence walk advances to the next step without consuming a record. Pins the documented
+    /// behaviour: empty step never affects matching.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task SequenceEmptyStepIsSkippedAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+        using ILoggerFactory factory = LoggerFactory.Create(b => b.AddProvider(new FakeLoggerProvider(collector)));
+        ILogger logger = factory.CreateLogger("Test");
+        TestLogMessages.First(logger);
+        TestLogMessages.Third(logger);
+
+        await Assert.That(collector).HasLoggedSequence()
+            .AtLevel(LogLevel.Information)
+            .Then()                              // empty step — skipped
+            .Then().AtLevel(LogLevel.Warning);
+    }
+
+    /// <summary>
+    /// Verifies <c>HasLoggedSequence</c> handles a long chain (5+ steps) without losing track
+    /// of position. The walk is order-preserving and skips records between matches, so the test
+    /// seeds noise records (Debug entries) between expected matches to confirm the skip logic
+    /// holds across many steps.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task SequenceLongChainAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+        using ILoggerFactory factory = LoggerFactory.Create(b =>
+        {
+            b.SetMinimumLevel(LogLevel.Trace);
+            b.AddProvider(new FakeLoggerProvider(collector));
+        });
+        ILogger logger = factory.CreateLogger("Test");
+
+        for (var i = 1; i <= 5; i++)
+        {
+            TestLogMessages.CycleStarted(logger, i);
+            TestLogMessages.DebugSample(logger);
+            TestLogMessages.CycleFinished(logger, i);
+        }
+
+        await Assert.That(collector).HasLoggedSequence()
+            .AtLevel(LogLevel.Information).Containing("Cycle 1 started", StringComparison.Ordinal)
+            .Then().AtLevel(LogLevel.Information).Containing("Cycle 2 started", StringComparison.Ordinal)
+            .Then().AtLevel(LogLevel.Information).Containing("Cycle 3 started", StringComparison.Ordinal)
+            .Then().AtLevel(LogLevel.Information).Containing("Cycle 4 started", StringComparison.Ordinal)
+            .Then().AtLevel(LogLevel.Information).Containing("Cycle 5 finished", StringComparison.Ordinal);
+    }
+
+    // --- Edge cases: filter ordering invariance ---
+
+    /// <summary>
+    /// Verifies filter ordering does not change semantics — the same filter set in any order
+    /// produces the same match. Pins the AND-combine contract documented for the filter chain;
+    /// guards against a regression where one filter type's evaluation accidentally short-circuits
+    /// another.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task FilterOrderDoesNotChangeMatchAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = CreateCollectorWithSampleRecords();
+
+        await Assert.That(collector).HasLogged()
+            .AtLevel(LogLevel.Warning).Containing("validation failed", StringComparison.Ordinal).Once();
+        await Assert.That(collector).HasLogged()
+            .Containing("validation failed", StringComparison.Ordinal).AtLevel(LogLevel.Warning).Once();
+    }
+
+    // --- Edge cases: case sensitivity ---
+
+    /// <summary>
+    /// Verifies <c>WithCategory</c> uses ordinal (case-sensitive) comparison. A category named
+    /// "MyCategory" does not match "mycategory" or "MYCATEGORY". Pins the documented
+    /// no-implicit-culture rule.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task WithCategoryIsCaseSensitiveAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+        using ILoggerFactory factory = LoggerFactory.Create(b => b.AddProvider(new FakeLoggerProvider(collector)));
+        ILogger logger = factory.CreateLogger("MyCategory");
+        TestLogMessages.StartedProcessing(logger);
+
+        await Assert.That(collector).HasLogged().WithCategory("MyCategory").Once();
+        await Assert.That(collector).HasNotLogged().WithCategory("mycategory");
+        await Assert.That(collector).HasNotLogged().WithCategory("MYCATEGORY");
+    }
+
+    // --- Edge cases: WithProperty for absent key ---
+
+    /// <summary>
+    /// Verifies <c>WithProperty</c> against an absent key returns no match for non-null
+    /// expected values. Pins the typical case: assertions about a structured property value
+    /// must not pass on records that don't carry that property at all.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task WithPropertyAbsentKeyDoesNotMatchAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+        using ILoggerFactory factory = LoggerFactory.Create(b => b.AddProvider(new FakeLoggerProvider(collector)));
+        ILogger logger = factory.CreateLogger("Test");
+        TestLogMessages.ItemFailed(logger, "X");
+
+        await Assert.That(collector).HasNotLogged().WithProperty("MissingKey", "X");
+        await Assert.That(collector).HasNotLogged()
+            .WithProperty("MissingKey", v => string.Equals(v, "X", StringComparison.Ordinal));
+    }
+
+    // --- Edge cases: WithMessageTemplate against parameterless log ---
+
+    /// <summary>
+    /// Verifies <c>WithMessageTemplate</c> matches a parameterless log entry's template (which
+    /// equals the formatted message). MEL's source generator populates <c>{OriginalFormat}</c>
+    /// regardless of parameter count, so the filter is meaningful even for parameterless calls.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task WithMessageTemplateMatchesParameterlessLogAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+        using ILoggerFactory factory = LoggerFactory.Create(b => b.AddProvider(new FakeLoggerProvider(collector)));
+        ILogger logger = factory.CreateLogger("Test");
+        TestLogMessages.StartedProcessing(logger);
+
+        await Assert.That(collector).HasLogged().WithMessageTemplate("Started processing").Once();
+        await Assert.That(collector).HasNotLogged().WithMessageTemplate("Started");
+    }
+
+    // --- Edge cases: failure-snapshot rendering corner cases ---
+
+    /// <summary>
+    /// Verifies the failure-snapshot renders multiple structured properties on a single record
+    /// joined by a comma — not as separate <c>props:</c> lines, not as a single concatenated
+    /// blob. Pins the comma-separator branch in the props rendering.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task FailureSnapshotRendersMultiplePropertiesAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+        using ILoggerFactory factory = LoggerFactory.Create(b => b.AddProvider(new FakeLoggerProvider(collector)));
+        ILogger logger = factory.CreateLogger("Test");
+        TestLogMessages.OrderForCustomer(logger, 42, "alice");
+
+        AssertionException? ex = await Assert.That(async () => await Assert.That(collector).HasLogged().AtLevel(LogLevel.Critical))
+            .Throws<AssertionException>();
+        await Assert.That(ex).IsNotNull();
+
+        var msg = ex!.Message;
+        // Both properties present on a single comma-separated props line.
+        // The MEL source generator's ordering of StructuredState entries is not stable
+        // across versions, so this test does not pin which property appears first.
+        await Assert.That(msg).Contains("props: ");
+        await Assert.That(msg).Contains("OrderId=42");
+        await Assert.That(msg).Contains("Customer=alice");
+        await Assert.That(msg).Contains(", ");
+    }
+
+    /// <summary>
+    /// Verifies the failure-snapshot renders multiple active scopes joined by <c>" | "</c>
+    /// on a single <c>scope:</c> line, in push order (outer → inner). Pins the pipe-separator
+    /// branch in the scopes rendering.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task FailureSnapshotRendersMultipleScopesAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+        using ILoggerFactory factory = LoggerFactory.Create(b => b.AddProvider(new FakeLoggerProvider(collector)));
+        ILogger logger = factory.CreateLogger("Test");
+
+        var outer = new Dictionary<string, object?>(StringComparer.Ordinal) { ["RequestId"] = "abc" };
+        var inner = new Dictionary<string, object?>(StringComparer.Ordinal) { ["OrderId"] = 42 };
+        using (logger.BeginScope(outer))
+        using (logger.BeginScope(inner))
+            TestLogMessages.StartedProcessing(logger);
+
+        AssertionException? ex = await Assert.That(async () => await Assert.That(collector).HasLogged().AtLevel(LogLevel.Critical))
+            .Throws<AssertionException>();
+        await Assert.That(ex).IsNotNull();
+
+        var msg = ex!.Message;
+        await Assert.That(msg).Contains("scope: ");
+        await Assert.That(msg).Contains("RequestId=abc");
+        await Assert.That(msg).Contains("OrderId=42");
+        await Assert.That(msg).Contains(" | ");
+    }
+
+    /// <summary>
+    /// Verifies the failure-snapshot renders an opaque scope (one that does not implement the
+    /// key-value-pair shape) via its <see cref="object.ToString"/> representation. Pins the
+    /// fallthrough branch in <c>AppendScope</c> after both <c>TryAppendKeyValuePairs</c>
+    /// overloads return false.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task FailureSnapshotRendersOpaqueScopeAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+        using ILoggerFactory factory = LoggerFactory.Create(b => b.AddProvider(new FakeLoggerProvider(collector)));
+        ILogger logger = factory.CreateLogger("Test");
+
+        using (logger.BeginScope(new OpaqueScope()))
+            TestLogMessages.StartedProcessing(logger);
+
+        AssertionException? ex = await Assert.That(async () => await Assert.That(collector).HasLogged().AtLevel(LogLevel.Critical))
+            .Throws<AssertionException>();
+        await Assert.That(ex).IsNotNull();
+        await Assert.That(ex!.Message).Contains("scope: opaque-scope-token");
+    }
+
+    /// <summary>
+    /// Verifies the failure-snapshot renders 4-character abbreviations for every standard
+    /// <see cref="LogLevel"/>. Pins the <c>LevelAbbreviation</c> switch — a regression that
+    /// dropped one of the level arms would surface here. The pre-existing
+    /// <see cref="ExceptionMessageContainsAllPartsAsync"/> only covers <c>warn</c>; this
+    /// covers the rest.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task FailureSnapshotAbbreviatesEveryLogLevelAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+        using ILoggerFactory factory = LoggerFactory.Create(b =>
+        {
+            b.SetMinimumLevel(LogLevel.Trace);
+            b.AddProvider(new FakeLoggerProvider(collector));
+        });
+        ILogger logger = factory.CreateLogger("Test");
+        TestLogMessages.TraceSample(logger);
+        TestLogMessages.DebugSample(logger);
+        TestLogMessages.StartedProcessing(logger);    // info
+        TestLogMessages.ValidationFailed(logger);     // warn
+        TestLogMessages.OperationFailed(logger, new InvalidOperationException("x")); // fail
+        TestLogMessages.CriticalSample(logger);
+
+        AssertionException? ex = await Assert.That(async () => await Assert.That(collector).HasNotLogged().AtLevel(LogLevel.Information))
+            .Throws<AssertionException>();
+        await Assert.That(ex).IsNotNull();
+
+        var msg = ex!.Message;
+        await Assert.That(msg).Contains("[trce]");
+        await Assert.That(msg).Contains("[dbug]");
+        await Assert.That(msg).Contains("[info]");
+        await Assert.That(msg).Contains("[warn]");
+        await Assert.That(msg).Contains("[fail]");
+        await Assert.That(msg).Contains("[crit]");
+    }
+
+    /// <summary>
+    /// Stand-in for an opaque scope object. Doesn't implement
+    /// <see cref="IEnumerable{T}"/> over <see cref="KeyValuePair{TKey, TValue}"/>, so the
+    /// failure-snapshot must render it through <see cref="object.ToString"/>.
+    /// </summary>
+    private sealed class OpaqueScope
+    {
+        public override string ToString() => "opaque-scope-token";
     }
 }
