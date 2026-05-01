@@ -584,6 +584,7 @@ var retries = collector.Filter(
 
   Concrete: if your production lib targets `net8.0`, set your test project's `<TargetFramework>` to `net10.0`, install `LogAssertions.TUnit`, and the production `<ProjectReference>` continues to resolve cleanly.
 - **Explicit `StringComparison`.** Every string-matching API requires the caller to pass a `StringComparison` (or uses `Ordinal` internally where unambiguous). No silent culture defaults.
+- **Source Link + deterministic builds.** Both packages ship with [`Microsoft.SourceLink.GitHub`](https://github.com/dotnet/sourcelink), a separate `.snupkg` symbol package, and embedded sources (`EmbedUntrackedSources`). When a debugger steps into the assertion code, the source is fetched directly from this GitHub repo at the exact commit the package was built from — useful when you're investigating why a filter didn't match the record you expected. Builds are deterministic by default (the SDK's `<Deterministic>true</Deterministic>`); the snapshot test project is the one exception (Verify needs absolute PDB paths, so its build is non-deterministic — that project's binaries are not shipped).
 
 ---
 
