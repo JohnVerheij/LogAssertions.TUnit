@@ -64,7 +64,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="../../README.md" Pack="true" PackagePath="/" />
+    <!-- Use the per-package short README for the nuget.org page. The root README.md is
+         the comprehensive reference rendered by GitHub on the repo home; nuget.org
+         needs a focused 'can I use this in 60 seconds' view, so the package ships a
+         shorter README that links out to the full reference on GitHub. -->
+    <None Include="README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 
 </Project>
