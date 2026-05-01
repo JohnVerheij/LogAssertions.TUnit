@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] — `AssertAllAsync` ergonomic overload (additive)
+
+### Added
+
+- New `AssertAllAsync` overload that accepts `Func<IAssertionSource<TActual>, Assertion<FakeLogCollector>>` (sync return) instead of `Func<IAssertionSource<TActual>, Task>` (awaited delegate). Drops the `async`/`await` boilerplate from every entry:
+
+  ```csharp
+  // Before (still supported):
+  await Assert.That(c).AssertAllAsync(
+      async c => await c.HasLogged().AtLevel(LogLevel.Information).AtLeast(1),
+      async c => await c.HasNotLogged().AtLevel(LogLevel.Error));
+
+  // After (preferred for the common case):
+  await Assert.That(c).AssertAllAsync(
+      c => c.HasLogged().AtLevel(LogLevel.Information).AtLeast(1),
+      c => c.HasNotLogged().AtLevel(LogLevel.Error));
+  ```
+
+  The compiler picks the right overload based on the lambda's return type — `Assertion<T>` for the new sync form, `Task` for the existing async form. Failure-aggregation semantics are identical between the two overloads. The existing overload remains for cases where the lambda needs to mix in non-assertion async work.
+
+### Internal
+
+- Aggregation logic factored into a private `ThrowIfAnyFailed` helper shared between the two overloads — keeps both code paths in lockstep on aggregate-message format and single-failure-rethrow semantics.
+- Both packages' `PackageValidationBaselineVersion` is now pinned to `0.2.0` (was `0.1.0` for `LogAssertions.TUnit`; not set on `LogAssertions` because 0.2.0 was its first release). ApiCompat baseline checks now compare against the previous shipped version of each package.
+
+### Tests
+
+- 3 new tests in `LogAssertions.TUnit.Tests` covering the new overload's happy path, failure aggregation, and null-arg guards (94 main tests total + 14 framework-agnostic + 2 snapshot = 110).
+- The existing `AssertAllRejectsNullArgsAsync` test updated with explicit cast disambiguation since `null!` is now ambiguous between the two overloads.
+
 ## [0.2.0] — Composable filters, shorthands, batch assertions, package split, and Linux coverage fix
 
 ### Package split — new `LogAssertions` (core) package
@@ -154,6 +184,7 @@ Why the split: positions the package family for hypothetical future adapters (`L
 
 This package implements the user-space pattern that the TUnit maintainer pointed at when declining [thomhurst/TUnit#5627](https://github.com/thomhurst/TUnit/issues/5627). The `[AssertionExtension]` infrastructure that makes this clean shipped in TUnit 1.41.0 via [thomhurst/TUnit#5785](https://github.com/thomhurst/TUnit/pull/5785).
 
-[Unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.2.1
 [0.2.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.2.0
 [0.1.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.1.0

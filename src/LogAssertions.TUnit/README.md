@@ -84,6 +84,14 @@ await Assert.That(collector).HasLoggedSequence()
     .Then().WithEventName("Shutdown");
 ```
 
+**Assert several invariants and report all failures together:**
+```csharp
+await Assert.That(collector).AssertAllAsync(
+    c => c.HasLogged().AtLevel(LogLevel.Information).AtLeast(1),
+    c => c.HasNotLogged().AtLevelOrAbove(LogLevel.Error),
+    c => c.HasLoggedSequence().WithEventName("Startup").Then().WithEventName("Shutdown"));
+```
+
 ## Failure diagnostics
 
 On a failed assertion, the exception message includes the expected match count, the actual count, and a snapshot of every captured record (level abbreviation, category, message, structured properties, scopes, exception). No need for `Console.WriteLine` debugging — every dimension you can filter on is also rendered in the failure message.

@@ -11,7 +11,8 @@
     <IsPackable>true</IsPackable>
     <PackageId>LogAssertions</PackageId>
     <ProductName>LogAssertions</ProductName>
-    <Version>0.2.0</Version>
+    <Version>0.2.1</Version>
+    <PackageValidationBaselineVersion>0.2.0</PackageValidationBaselineVersion>
     <Authors>John Verheij</Authors>
     <Copyright>Copyright (c) 2026 John Verheij</Copyright>
     <Description>Framework-agnostic core for fluent log assertions over Microsoft.Extensions.Logging.Testing.FakeLogCollector. Provides ILogRecordFilter + LogFilter composable filter primitives, the failure-message rendering, the FakeLogCollector inspection extensions (Filter, CountMatching, DumpTo), and the LogCollectorBuilder factory. Test-framework-specific entry points live in adapter packages (LogAssertions.TUnit ships today; xUnit, NUnit, MSTest adapters are possible if there is demand).</Description>
@@ -22,17 +23,18 @@
     <PackageReleaseNotes>See CHANGELOG.md</PackageReleaseNotes>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
 
-    <!-- Pre-1.0 / first-release suppressions:
+    <!-- Pre-1.0 suppressions:
          Proj0212/Proj0213: PackageIcon and PackageIconUrl omitted; will be added by 1.0.0.
-         Proj0241: PackageValidationBaselineVersion cannot be set on the first shipped version
-         (no previous version exists). Will be pinned to 0.2.0 from 0.3.0 onward. -->
-    <NoWarn>$(NoWarn);Proj0212;Proj0213;Proj0241</NoWarn>
+         (Proj0241 dropped at 0.2.1 — PackageValidationBaselineVersion is now pinned to
+         0.2.0, the previous shipped version of this package.) -->
+    <NoWarn>$(NoWarn);Proj0212;Proj0213</NoWarn>
 
     <!-- Symbol package + API compat (strict mode quad per dpfa Proj0249/0250/0251/0252) -->
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <EnablePackageValidation>true</EnablePackageValidation>
     <EnableStrictModeForCompatibleFrameworksInPackage>true</EnableStrictModeForCompatibleFrameworksInPackage>
+    <EnableStrictModeForBaselineValidation>true</EnableStrictModeForBaselineValidation>
     <ApiCompatGenerateSuppressionFile>true</ApiCompatGenerateSuppressionFile>
     <ApiCompatEnableRuleCannotChangeParameterName>true</ApiCompatEnableRuleCannotChangeParameterName>
     <ApiCompatEnableRuleAttributesMustMatch>true</ApiCompatEnableRuleAttributesMustMatch>
