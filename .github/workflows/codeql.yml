@@ -1,22 +1,12 @@
 name: CodeQL
 
+# CodeQL requires GitHub Advanced Security on private repos (paid). While this repo is
+# private, the workflow is registered but only runnable manually via `workflow_dispatch`
+# so it does not red-X every PR. Once the repo is flipped to public, restore the
+# `push` and `pull_request` triggers (see git history of this file for the original
+# trigger configuration).
 on:
-  push:
-    branches: [main]
-    paths:
-      - '**.cs'
-      - '**.csproj'
-      - '**.props'
-      - '**.targets'
-      - '.github/workflows/codeql.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - '**.cs'
-      - '**.csproj'
-      - '**.props'
-      - '**.targets'
-      - '.github/workflows/codeql.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -30,10 +20,6 @@ concurrency:
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
-    # Skip CodeQL while the repo is private — code scanning requires GitHub Advanced
-    # Security on private repos (paid). Once the repo is flipped to public, code scanning
-    # is free and this condition becomes effectively always-true.
-    if: github.event.repository.private == false
     runs-on: ubuntu-latest
     timeout-minutes: 15
 

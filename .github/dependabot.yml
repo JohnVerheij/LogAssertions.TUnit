@@ -9,8 +9,6 @@ updates:
       time: "06:00"
       timezone: Europe/Amsterdam
     open-pull-requests-limit: 5
-    labels:
-      - dependencies
     commit-message:
       prefix: deps
       include: scope
@@ -23,9 +21,6 @@ updates:
       time: "06:00"
       timezone: Europe/Amsterdam
     open-pull-requests-limit: 3
-    labels:
-      - dependencies
-      - github-actions
     commit-message:
       prefix: ci
       include: scope
