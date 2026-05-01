@@ -15,23 +15,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `HasLogged()` — defaults to "at least 1 matching record"
   - `HasNotLogged()` — fixed at "zero matching records"
   - `HasLoggedSequence()` — order-preserving sequence matching with `Then()` step terminator
-- Twelve filter methods (chain any combination, all AND together within a step):
-  - `AtLevel(LogLevel)` — exact level match
-  - `AtLevelOrAbove(LogLevel)` — level >= threshold
-  - `AtLevelOrBelow(LogLevel)` — level <= threshold
-  - `Containing(string, StringComparison)` — message contains substring (comparison explicit by design)
-  - `WithMessage(Func<string, bool>)` — message satisfies predicate
-  - `WithException<TException>()` — record's exception is assignable to `TException`
-  - `WithExceptionMessage(string)` — record's exception message contains substring (ordinal)
-  - `WithProperty(string key, string? value)` — structured-state key matches value (ordinal)
-  - `WithCategory(string)` — logger category equals string (ordinal)
-  - `WithEventId(int)` — `EventId.Id` matches
-  - `WithEventName(string)` — `EventId.Name` matches (ordinal)
-  - `WithScope<TScope>()` — record emitted while a scope of type `TScope` was active
-  - `Where(Func<FakeLogRecord, bool>)` — escape hatch for arbitrary record predicates
+- Fourteen filter methods (chain any combination, all AND together within a step):
+  - **Level:** `AtLevel(LogLevel)`, `AtLevelOrAbove(LogLevel)`, `AtLevelOrBelow(LogLevel)`
+  - **Message:** `Containing(string, StringComparison)` (comparison explicit by design), `WithMessage(Func<string, bool>)`, `WithMessageTemplate(string)` (matches the pre-substitution template via MEL's `{OriginalFormat}` entry)
+  - **Exception:** `WithException<TException>()`, `WithExceptionMessage(string)`
+  - **Structured state:** `WithProperty(string key, string? value)` (ordinal), `WithProperty(string key, Func<string?, bool> predicate)` (predicate over formatted value)
+  - **Scope:** `WithScope<TScope>()` (by scope type), `WithScopeProperty(string key, object? value)` (`object.Equals` on scope-property value), `WithScopeProperty(string key, Func<object?, bool> predicate)` — recognises dictionary scopes and `LoggerMessage.DefineScope` scopes; anonymous-object scopes intentionally not supported (would require reflection, breaking AOT)
+  - **Identity:** `WithCategory(string)`, `WithEventId(int)`, `WithEventName(string)`
+  - **Escape hatch:** `Where(Func<FakeLogRecord, bool>)`
 - Six terminators on `HasLogged()`:
   - `Once()`, `Exactly(int)`, `AtLeast(int)`, `AtMost(int)`, `Between(int, int)`, `Never()`
-- Captured-records snapshot in failure messages (level, category, message, exception)
+- Failure-message snapshot rendering:
+  - 4-character level abbreviations matching the MEL console formatter (`trce`, `dbug`, `info`, `warn`, `fail`, `crit`, `none`)
+  - Indented `props:` line listing each record's structured properties (excluding the magic `{OriginalFormat}` entry — already implied by the message line)
+  - Indented `scope:` line rendering each active scope's content as `key=value` pairs (or `ToString()` for opaque scopes)
+  - Indented `exception:` line with type name and message
 - `.And` / `.Or` chaining via TUnit's `Assertion<T>` base class
 
 ### Quality bar (zero suppressions except one explicit philosophical override)

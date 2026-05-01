@@ -140,28 +140,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
             .Append(CultureInfo.InvariantCulture, $"Captured records ({snapshot.Count} total):")
             .AppendLine();
 
-        if (snapshot.Count == 0)
-        {
-            sb.AppendLine("  (no records)");
-        }
-        else
-        {
-            foreach (var record in snapshot)
-            {
-                sb.Append("  [").Append(record.Level).Append("] ");
-                if (!string.IsNullOrEmpty(record.Category))
-                    sb.Append(record.Category).Append(": ");
-                sb.Append(record.Message);
-                if (record.Exception is not null)
-                {
-                    sb.Append(" | ").Append(record.Exception.GetType().Name)
-                        .Append(": ").Append(record.Exception.Message);
-                }
-
-                sb.AppendLine();
-            }
-        }
-
+        AppendCapturedRecords(sb, snapshot);
         return sb.ToString();
     }
 }
