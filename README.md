@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/JohnVerheij/LogAssertions.TUnit/actions/workflows/ci.yml/badge.svg)](https://github.com/JohnVerheij/LogAssertions.TUnit/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/JohnVerheij/LogAssertions.TUnit/actions/workflows/codeql.yml/badge.svg)](https://github.com/JohnVerheij/LogAssertions.TUnit/actions/workflows/codeql.yml)
+[![codecov](https://codecov.io/gh/JohnVerheij/LogAssertions.TUnit/branch/main/graph/badge.svg)](https://codecov.io/gh/JohnVerheij/LogAssertions.TUnit)
 [![NuGet](https://img.shields.io/nuget/v/LogAssertions.TUnit.svg)](https://www.nuget.org/packages/LogAssertions.TUnit/)
 [![Downloads](https://img.shields.io/nuget/dt/LogAssertions.TUnit.svg)](https://www.nuget.org/packages/LogAssertions.TUnit/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -46,7 +47,7 @@ public async Task Validation_failure_is_logged()
     await Assert.That(collector)
         .HasLogged()
         .AtLevel(LogLevel.Warning)
-        .Containing("validation failed")
+        .Containing("validation failed", StringComparison.Ordinal)
         .WithCategory("MyApp.MyValidator")
         .Once();
 
@@ -68,7 +69,7 @@ public async Task Validation_failure_is_logged()
 | Filter | Behaviour |
 |---|---|
 | `AtLevel(LogLevel)` | Exact level match |
-| `Containing(string)` | Message contains substring (ordinal) |
+| `Containing(string, StringComparison)` | Message contains substring (comparison explicit by design) |
 | `WithMessage(Func<string, bool>)` | Message satisfies predicate |
 | `WithException<TException>()` | Record's exception is assignable to `TException` |
 | `WithProperty(string key, string? value)` | Structured-state key matches value (ordinal) |
@@ -107,9 +108,9 @@ For tests that need to verify a series of records appeared in order:
 
 ```csharp
 await Assert.That(collector).HasLoggedSequence()
-    .AtLevel(LogLevel.Information).Containing("Started")
-    .Then().AtLevel(LogLevel.Warning).Containing("validation failed")
-    .Then().AtLevel(LogLevel.Information).Containing("Stopped");
+    .AtLevel(LogLevel.Information).Containing("Started", StringComparison.Ordinal)
+    .Then().AtLevel(LogLevel.Warning).Containing("validation failed", StringComparison.Ordinal)
+    .Then().AtLevel(LogLevel.Information).Containing("Stopped", StringComparison.Ordinal);
 ```
 
 The walk is order-preserving but not contiguous — records between matches are skipped. Each `Then()` commits the current step's filters and starts a new step.

@@ -52,6 +52,9 @@ TestResults/
 # Stryker
 StrykerOutput/
 
+# Verify (snapshot test framework) — never commit *.received.*
+*.received.*
+
 # Rider
 .idea/
 *.sln.iml

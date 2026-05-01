@@ -31,6 +31,16 @@
         "resolved": "17.13.61",
         "contentHash": "9ysRZR7xkVFsbwWjk0dx5tefySxhNMMwxmIr3G6UaFeugYE+TEghaTsmGiwT39maa2WFvH4zvjnEfDaCLq+Dtw=="
       },
+      "PublicApiGenerator": {
+        "type": "Direct",
+        "requested": "[11.4.6, )",
+        "resolved": "11.4.6",
+        "contentHash": "dg+b2XIWu2n+ifCo91UHrFAXJvpAHTU4GlNbPUewDqAmiGFo1wV0DSdJiC++HMWtHfcCYBIwRkT2Fhi9vv3new==",
+        "dependencies": {
+          "Mono.Cecil": "0.11.6",
+          "System.CodeDom": "6.0.0"
+        }
+      },
       "Roslynator.Analyzers": {
         "type": "Direct",
         "requested": "[4.13.1, )",
@@ -55,6 +65,37 @@
           "TUnit.Assertions": "1.41.0",
           "TUnit.Engine": "1.41.0"
         }
+      },
+      "Verify.TUnit": {
+        "type": "Direct",
+        "requested": "[31.16.2, )",
+        "resolved": "31.16.2",
+        "contentHash": "pPsu9mFKat+D3zvnZ0Uh9xsQqe+NEb50boqHk1/73/xHCi1diLpE4H69bEs5aMifwxQp7NY8gYOH2fC/ATYvsA==",
+        "dependencies": {
+          "Argon": "0.33.5",
+          "DiffEngine": "19.1.3",
+          "SimpleInfoName": "3.2.0",
+          "TUnit.Core": "1.37.36",
+          "Verify": "31.16.2"
+        }
+      },
+      "Argon": {
+        "type": "Transitive",
+        "resolved": "0.33.5",
+        "contentHash": "J6821zxO+EqMzO9C/V5uiWc2eBGyzN7Z8Z0xq3Q1/e6IxYcHDA32OgiZX5/7/f8rVPQQa7aYtm6f0UfnrgKNBg=="
+      },
+      "DiffEngine": {
+        "type": "Transitive",
+        "resolved": "19.1.3",
+        "contentHash": "4Tsn/JeL5GF4RJhW1yTtUPMqYWck1eOfJwE3CrlQsOlrFc9WyUxZPgywB7zvRPi6pVKShzcch0WbTkWe3GB7HA==",
+        "dependencies": {
+          "EmptyFiles": "8.18.1"
+        }
+      },
+      "EmptyFiles": {
+        "type": "Transitive",
+        "resolved": "8.18.1",
+        "contentHash": "5gA7ICU+CafaHJLbrL/lOEABwkmXS6089WoCbn+NkIul2ATAGGzQsD4cXOFmYmQp6b9Jd/f4bb2EK+14dY75Pw=="
       },
       "EnumerableAsyncProcessor": {
         "type": "Transitive",
@@ -233,6 +274,21 @@
           "Microsoft.Testing.Platform": "2.2.1"
         }
       },
+      "Mono.Cecil": {
+        "type": "Transitive",
+        "resolved": "0.11.6",
+        "contentHash": "f33RkDtZO8VlGXCtmQIviOtxgnUdym9xx/b1p9h91CRGOsJFxCFOFK1FDbVt1OCf1aWwYejUFa2MOQyFWTFjbA=="
+      },
+      "SimpleInfoName": {
+        "type": "Transitive",
+        "resolved": "3.2.0",
+        "contentHash": "K8ivHRbPWfncijk62Dan/r/z55gwq3aFzqB6yFlD9X0bbpIaacHyHH2cpcIdz0FECUpERUZTwxts0z4gRWpQpA=="
+      },
+      "System.CodeDom": {
+        "type": "Transitive",
+        "resolved": "6.0.0",
+        "contentHash": "CPc6tWO1LAer3IzfZufDBRL+UZQcj5uS207NHALQzP84Vp/z6wF0Aa0YZImOQY8iStY0A2zI/e3ihKNPfUm8XA=="
+      },
       "TUnit.Core": {
         "type": "Transitive",
         "resolved": "1.41.0",
@@ -248,6 +304,16 @@
           "Microsoft.Testing.Platform": "2.2.1",
           "Microsoft.Testing.Platform.MSBuild": "2.2.1",
           "TUnit.Core": "1.41.0"
+        }
+      },
+      "Verify": {
+        "type": "Transitive",
+        "resolved": "31.16.2",
+        "contentHash": "5FfUZ61HNRr10S/SvXT4NAf61jUw1B+jgxKDN74hHGVW7K+QyZ/M7lyz6fqVF4RHYU6kSZhtVtKWFgrs3yuBQg==",
+        "dependencies": {
+          "Argon": "0.33.5",
+          "DiffEngine": "19.1.3",
+          "SimpleInfoName": "3.2.0"
         }
       },
       "logassertions.tunit": {
