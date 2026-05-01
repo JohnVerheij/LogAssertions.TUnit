@@ -5,10 +5,12 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>LogAssertions.TUnit</RootNamespace>
     <AssemblyName>LogAssertions.TUnit</AssemblyName>
+    <IsPublishable>false</IsPublishable>
 
     <!-- Package identity -->
     <IsPackable>true</IsPackable>
     <PackageId>LogAssertions.TUnit</PackageId>
+    <ProductName>LogAssertions.TUnit</ProductName>
     <Version>0.1.0</Version>
     <Authors>John Verheij</Authors>
     <Copyright>Copyright (c) 2026 John Verheij</Copyright>
@@ -20,11 +22,24 @@
     <PackageReleaseNotes>See CHANGELOG.md</PackageReleaseNotes>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
 
-    <!-- Symbol package + API compat -->
+    <!-- Initial-release-only suppressions (single NoWarn to satisfy dpfa Proj0011):
+         - Proj0212/Proj0213: PackageIcon and PackageIconUrl omitted on 0.1.0; will be added by 1.0.0.
+         - Proj0241: PackageValidationBaselineVersion cannot be set on initial release
+           (no previous version exists). Will be pinned to 0.1.0 from 0.2.0 onward. -->
+    <NoWarn>$(NoWarn);Proj0212;Proj0213;Proj0241</NoWarn>
+
+    <!-- Symbol package + API compat (strict mode quad per dpfa Proj0249/0250/0251/0252) -->
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <EnablePackageValidation>true</EnablePackageValidation>
+    <EnableStrictModeForCompatibleFrameworksInPackage>true</EnableStrictModeForCompatibleFrameworksInPackage>
+    <ApiCompatGenerateSuppressionFile>true</ApiCompatGenerateSuppressionFile>
+    <ApiCompatEnableRuleCannotChangeParameterName>true</ApiCompatEnableRuleCannotChangeParameterName>
+    <ApiCompatEnableRuleAttributesMustMatch>true</ApiCompatEnableRuleAttributesMustMatch>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <!-- SBOM generation per dpfa Proj0243 (Microsoft.Sbom.Targets pack-time generation) -->
+    <GenerateSBOM>true</GenerateSBOM>
 
     <!-- AOT / trimming — lib code uses no reflection, safe for AOT-mode test contexts -->
     <IsAotCompatible>true</IsAotCompatible>
@@ -33,9 +48,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Alphabetical per dpfa Proj0015 -->
     <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" />
-    <PackageReference Include="TUnit.Assertions" />
+    <PackageReference Include="Microsoft.Sbom.Targets" PrivateAssets="all" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="all" />
+    <PackageReference Include="TUnit.Assertions" />
   </ItemGroup>
 
   <ItemGroup>

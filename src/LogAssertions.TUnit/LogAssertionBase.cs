@@ -27,13 +27,28 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     /// <param name="context">The assertion context supplied by TUnit.</param>
     protected LogAssertionBase(AssertionContext<FakeLogCollector> context) : base(context) { }
 
+    /// <summary>
+    /// Records a predicate and its description. Default implementation appends to the shared
+    /// filter chain used by single-match assertions; <see cref="HasLoggedSequenceAssertion"/>
+    /// overrides this to route predicates into the current sequence step.
+    /// </summary>
+    /// <param name="predicate">The predicate to add.</param>
+    /// <param name="description">Human-readable description for the expectation message.</param>
+    /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+    protected virtual void AddPredicate(Func<FakeLogRecord, bool> predicate, string description)
+    {
+        ArgumentNullException.ThrowIfNull(predicate);
+        ArgumentNullException.ThrowIfNull(description);
+        _predicates.Add(predicate);
+        _filterDescriptions.Add(description);
+    }
+
     /// <summary>Filters to records at the specified <paramref name="level"/>.</summary>
     /// <param name="level">The exact log level to match.</param>
     /// <returns>This assertion for chaining.</returns>
     public TSelf AtLevel(LogLevel level)
     {
-        _predicates.Add(r => r.Level == level);
-        _filterDescriptions.Add(string.Format(CultureInfo.InvariantCulture, "Level = {0}", level));
+        AddPredicate(r => r.Level == level, string.Format(CultureInfo.InvariantCulture, "Level = {0}", level));
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".AtLevel({level})");
         return (TSelf)this;
     }
@@ -45,8 +60,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf Containing(string substring)
     {
         ArgumentNullException.ThrowIfNull(substring);
-        _predicates.Add(r => r.Message.Contains(substring, StringComparison.Ordinal));
-        _filterDescriptions.Add($"Message contains \"{substring}\"");
+        AddPredicate(r => r.Message.Contains(substring, StringComparison.Ordinal), $"Message contains \"{substring}\"");
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".Containing(\"{substring}\")");
         return (TSelf)this;
     }
@@ -58,8 +72,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf WithMessage(Func<string, bool> predicate)
     {
         ArgumentNullException.ThrowIfNull(predicate);
-        _predicates.Add(r => predicate(r.Message));
-        _filterDescriptions.Add("Message matches predicate");
+        AddPredicate(r => predicate(r.Message), "Message matches predicate");
         Context.ExpressionBuilder.Append(".WithMessage(predicate)");
         return (TSelf)this;
     }
@@ -72,8 +85,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     /// <returns>This assertion for chaining.</returns>
     public TSelf WithException<TException>() where TException : Exception
     {
-        _predicates.Add(r => r.Exception is TException);
-        _filterDescriptions.Add($"Exception is {typeof(TException).Name}");
+        AddPredicate(r => r.Exception is TException, $"Exception is {typeof(TException).Name}");
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithException<{typeof(TException).Name}>()");
         return (TSelf)this;
     }
@@ -89,9 +101,9 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf WithProperty(string key, string? value)
     {
         ArgumentNullException.ThrowIfNull(key);
-        _predicates.Add(r =>
-            string.Equals(r.GetStructuredStateValue(key), value, StringComparison.Ordinal));
-        _filterDescriptions.Add($"{key} = \"{value}\"");
+        AddPredicate(
+            r => string.Equals(r.GetStructuredStateValue(key), value, StringComparison.Ordinal),
+            $"{key} = \"{value}\"");
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithProperty(\"{key}\", \"{value}\")");
         return (TSelf)this;
     }
@@ -106,9 +118,66 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf WithCategory(string category)
     {
         ArgumentNullException.ThrowIfNull(category);
-        _predicates.Add(r => string.Equals(r.Category, category, StringComparison.Ordinal));
-        _filterDescriptions.Add($"Category = \"{category}\"");
+        AddPredicate(r => string.Equals(r.Category, category, StringComparison.Ordinal), $"Category = \"{category}\"");
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithCategory(\"{category}\")");
+        return (TSelf)this;
+    }
+
+    /// <summary>Filters to records whose <see cref="FakeLogRecord.Id"/> ID equals <paramref name="eventId"/>.</summary>
+    /// <param name="eventId">The numeric event ID to match.</param>
+    /// <returns>This assertion for chaining.</returns>
+    public TSelf WithEventId(int eventId)
+    {
+        AddPredicate(
+            r => r.Id.Id == eventId,
+            string.Format(CultureInfo.InvariantCulture, "EventId = {0}", eventId));
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithEventId({eventId})");
+        return (TSelf)this;
+    }
+
+    /// <summary>
+    /// Filters to records whose <see cref="FakeLogRecord.Id"/> name equals <paramref name="eventName"/> (ordinal).
+    /// </summary>
+    /// <param name="eventName">The event name (the second argument of <see cref="EventId"/>) to match. Must be non-null.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="eventName"/> is <see langword="null"/>.</exception>
+    public TSelf WithEventName(string eventName)
+    {
+        ArgumentNullException.ThrowIfNull(eventName);
+        AddPredicate(
+            r => string.Equals(r.Id.Name, eventName, StringComparison.Ordinal),
+            $"EventName = \"{eventName}\"");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithEventName(\"{eventName}\")");
+        return (TSelf)this;
+    }
+
+    /// <summary>
+    /// Filters to records emitted while a scope of type <typeparamref name="TScope"/> was active
+    /// on the calling logger (matched against <see cref="FakeLogRecord.Scopes"/>).
+    /// </summary>
+    /// <typeparam name="TScope">The scope state type to match.</typeparam>
+    /// <returns>This assertion for chaining.</returns>
+    public TSelf WithScope<TScope>()
+    {
+        AddPredicate(
+            r => r.Scopes.OfType<TScope>().Any(),
+            $"Scope of type {typeof(TScope).Name} active");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithScope<{typeof(TScope).Name}>()");
+        return (TSelf)this;
+    }
+
+    /// <summary>
+    /// Escape-hatch filter that applies an arbitrary <paramref name="predicate"/> to each record.
+    /// Use only when no other filter expresses the constraint cleanly.
+    /// </summary>
+    /// <param name="predicate">A predicate applied to each <see cref="FakeLogRecord"/>. Must be non-null.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="predicate"/> is <see langword="null"/>.</exception>
+    public TSelf Where(Func<FakeLogRecord, bool> predicate)
+    {
+        ArgumentNullException.ThrowIfNull(predicate);
+        AddPredicate(predicate, "Custom predicate");
+        Context.ExpressionBuilder.Append(".Where(predicate)");
         return (TSelf)this;
     }
 
