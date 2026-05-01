@@ -6,12 +6,15 @@
     <AssemblyName>LogAssertions.TUnit.Tests</AssemblyName>
 
     <IsPackable>false</IsPackable>
+    <IsPublishable>false</IsPublishable>
+    <IsTestProject>true</IsTestProject>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="TUnit" />
+    <!-- Alphabetical per dpfa Proj0015 -->
     <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" />
+    <PackageReference Include="TUnit" />
   </ItemGroup>
 
   <ItemGroup>

@@ -36,4 +36,20 @@ internal static partial class TestLogMessages
 
     [LoggerMessage(EventId = 9, Level = LogLevel.Warning, Message = "Item {ItemId} failed")]
     public static partial void ItemFailed(ILogger logger, string itemId);
+
+    [LoggerMessage(EventId = 100, EventName = "Bootstrap", Level = LogLevel.Information, Message = "App started")]
+    public static partial void AppStarted(ILogger logger);
+
+    [LoggerMessage(EventId = 200, EventName = "Shutdown", Level = LogLevel.Information, Message = "App stopped")]
+    public static partial void AppStopped(ILogger logger);
+
+    [LoggerMessage(EventId = 50, Level = LogLevel.Information, Message = "Cycle {CycleNumber} started")]
+    public static partial void CycleStarted(ILogger logger, int cycleNumber);
+
+    [LoggerMessage(EventId = 51, Level = LogLevel.Warning, Message = "Cycle {CycleNumber} validation failed")]
+    public static partial void CycleValidationFailed(ILogger logger, int cycleNumber);
+
+    [LoggerMessage(EventId = 52, Level = LogLevel.Information, Message = "Cycle {CycleNumber} finished")]
+    public static partial void CycleFinished(ILogger logger, int cycleNumber);
 }
+

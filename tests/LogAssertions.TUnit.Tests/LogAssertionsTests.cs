@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -589,5 +589,177 @@ internal sealed class LogAssertionsTests
 
         await Assert.That(collector).HasLogged().AtLevel(LogLevel.Information).AtLeast(1)
             .And.HasNotLogged().AtLevel(LogLevel.Critical);
+    }
+
+    // --- WithEventId / WithEventName filters ---
+
+    /// <summary>
+    /// Verifies <c>WithEventId(int)</c> matches records by their numeric event ID and
+    /// <c>WithEventName(string)</c> matches by event name. Seeds two records with distinct
+    /// (id, name) pairs and pins both filters can isolate each.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task WithEventIdAndWithEventNameFilterCorrectlyAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+        using ILoggerFactory factory = LoggerFactory.Create(b =>
+        {
+            b.SetMinimumLevel(LogLevel.Trace);
+            b.AddProvider(new FakeLoggerProvider(collector));
+        });
+        ILogger logger = factory.CreateLogger("EventTest");
+        TestLogMessages.AppStarted(logger);   // EventId 100, Name "Bootstrap"
+        TestLogMessages.AppStopped(logger);   // EventId 200, Name "Shutdown"
+
+        await Assert.That(collector).HasLogged().WithEventId(100).Once();
+        await Assert.That(collector).HasLogged().WithEventId(200).Once();
+        await Assert.That(collector).HasNotLogged().WithEventId(999);
+
+        await Assert.That(collector).HasLogged().WithEventName("Bootstrap").Once();
+        await Assert.That(collector).HasLogged().WithEventName("Shutdown").Once();
+        await Assert.That(collector).HasNotLogged().WithEventName("Missing");
+    }
+
+    // --- WithScope filter ---
+
+    /// <summary>
+    /// Marker scope state type used to verify <c>WithScope&lt;TScope&gt;</c> matches by type identity.
+    /// Defined as a record so equality is structural; the assertion only checks type membership.
+    /// </summary>
+    /// <param name="OperationId">An identifier for the active operation; not asserted on.</param>
+    private sealed record OperationScope(string OperationId);
+
+    /// <summary>
+    /// Verifies <c>WithScope&lt;TScope&gt;</c> matches records emitted while a scope of the
+    /// specified type was active on the logger. Two log calls bracketed by a scope vs. one
+    /// outside it pin the scope-presence semantics.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task WithScopeMatchesRecordsInsideScopeAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+        using ILoggerFactory factory = LoggerFactory.Create(b =>
+        {
+            b.SetMinimumLevel(LogLevel.Trace);
+            b.AddProvider(new FakeLoggerProvider(collector));
+        });
+        ILogger logger = factory.CreateLogger("ScopeTest");
+
+        TestLogMessages.AppStarted(logger);   // outside any scope
+        using (logger.BeginScope(new OperationScope("op-42")))
+        {
+            TestLogMessages.CycleStarted(logger, 1);
+            TestLogMessages.CycleFinished(logger, 1);
+        }
+        TestLogMessages.AppStopped(logger);   // outside any scope
+
+        await Assert.That(collector).HasLogged().WithScope<OperationScope>().Exactly(2);
+        await Assert.That(collector).HasNotLogged().WithScope<OperationScope>().WithEventId(100);
+    }
+
+    // --- Where escape-hatch filter ---
+
+    /// <summary>
+    /// Verifies <c>Where(Func&lt;FakeLogRecord, bool&gt;)</c> applies a caller-supplied
+    /// predicate directly to each record. Pins the escape-hatch contract: anything not
+    /// expressible as a built-in filter can still be matched without extending the API.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task WhereAppliesCustomRecordPredicateAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = CreateCollectorWithSampleRecords();
+
+        await Assert.That(collector).HasLogged()
+            .Where(r => r.Level >= LogLevel.Warning && r.Message.Length > 0)
+            .Exactly(2); // Warning + Error from the seed
+    }
+
+    // --- HasLoggedSequence with Then ---
+
+    /// <summary>
+    /// Verifies <c>HasLoggedSequence</c> matches records in order, with <c>Then()</c> committing
+    /// each step. The seed simulates a typical cycle (Start → ValidationFail → Finished); the
+    /// assertion pins that the order-preserving walk advances exactly once per matched record.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task HasLoggedSequenceMatchesOrderedRecordsAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+        using ILoggerFactory factory = LoggerFactory.Create(b =>
+        {
+            b.SetMinimumLevel(LogLevel.Trace);
+            b.AddProvider(new FakeLoggerProvider(collector));
+        });
+        ILogger logger = factory.CreateLogger("SeqTest");
+        TestLogMessages.CycleStarted(logger, 1);
+        TestLogMessages.CycleValidationFailed(logger, 1);
+        TestLogMessages.CycleFinished(logger, 1);
+
+        await Assert.That(collector).HasLoggedSequence()
+            .AtLevel(LogLevel.Information).Containing("started")
+            .Then().AtLevel(LogLevel.Warning).Containing("validation failed")
+            .Then().AtLevel(LogLevel.Information).Containing("finished");
+    }
+
+    /// <summary>
+    /// Verifies <c>HasLoggedSequence</c> fails when an expected step never matches. Pins the
+    /// failure-path contract — without it, the positive sequence test could be a false positive
+    /// against an implementation that always returns success.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task HasLoggedSequenceFailsWhenStepNotMatchedAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+        using ILoggerFactory factory = LoggerFactory.Create(b =>
+        {
+            b.SetMinimumLevel(LogLevel.Trace);
+            b.AddProvider(new FakeLoggerProvider(collector));
+        });
+        ILogger logger = factory.CreateLogger("SeqTest");
+        TestLogMessages.CycleStarted(logger, 1);
+        TestLogMessages.CycleFinished(logger, 1); // No validation-failed record between
+
+        await Assert.That(async () => await Assert.That(collector).HasLoggedSequence()
+                .AtLevel(LogLevel.Information).Containing("started")
+                .Then().AtLevel(LogLevel.Warning)
+                .Then().AtLevel(LogLevel.Information).Containing("finished"))
+            .Throws<AssertionException>();
+    }
+
+    /// <summary>
+    /// Verifies <c>HasLoggedSequence</c> respects strict order: a sequence that exists in the
+    /// records but in the wrong order fails. The collector here has Information then Warning,
+    /// but the assertion asks for Warning-then-Information — pins that the walk only advances
+    /// forward through records.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task HasLoggedSequenceFailsWhenRecordsInWrongOrderAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+        using ILoggerFactory factory = LoggerFactory.Create(b =>
+        {
+            b.SetMinimumLevel(LogLevel.Trace);
+            b.AddProvider(new FakeLoggerProvider(collector));
+        });
+        ILogger logger = factory.CreateLogger("SeqTest");
+        TestLogMessages.CycleStarted(logger, 1);            // Information
+        TestLogMessages.CycleValidationFailed(logger, 1);   // Warning
+
+        await Assert.That(async () => await Assert.That(collector).HasLoggedSequence()
+                .AtLevel(LogLevel.Warning)
+                .Then().AtLevel(LogLevel.Information))
+            .Throws<AssertionException>();
     }
 }

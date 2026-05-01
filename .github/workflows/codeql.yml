@@ -30,6 +30,10 @@ concurrency:
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
+    # Skip CodeQL while the repo is private — code scanning requires GitHub Advanced
+    # Security on private repos (paid). Once the repo is flipped to public, code scanning
+    # is free and this condition becomes effectively always-true.
+    if: github.event.repository.private == false
     runs-on: ubuntu-latest
     timeout-minutes: 15
 

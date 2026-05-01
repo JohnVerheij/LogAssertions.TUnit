@@ -73,6 +73,10 @@ public async Task Validation_failure_is_logged()
 | `WithException<TException>()` | Record's exception is assignable to `TException` |
 | `WithProperty(string key, string? value)` | Structured-state key matches value (ordinal) |
 | `WithCategory(string)` | Logger category equals string (ordinal) |
+| `WithEventId(int)` | `EventId.Id` equals value |
+| `WithEventName(string)` | `EventId.Name` equals string (ordinal) |
+| `WithScope<TScope>()` | A scope of type `TScope` was active when the record was emitted |
+| `Where(Func<FakeLogRecord, bool>)` | Escape hatch: arbitrary predicate over the full record |
 
 All filters return `this` for chaining and combine with AND semantics — every predicate must hold for a record to count as a match.
 
@@ -96,6 +100,19 @@ All filters return `this` for chaining and combine with AND semantics — every 
 await Assert.That(collector).HasLogged().AtLevel(LogLevel.Information).AtLeast(1)
     .And.HasNotLogged().AtLevel(LogLevel.Error);
 ```
+
+### Sequence assertions — `HasLoggedSequence` with `Then()`
+
+For tests that need to verify a series of records appeared in order:
+
+```csharp
+await Assert.That(collector).HasLoggedSequence()
+    .AtLevel(LogLevel.Information).Containing("Started")
+    .Then().AtLevel(LogLevel.Warning).Containing("validation failed")
+    .Then().AtLevel(LogLevel.Information).Containing("Stopped");
+```
+
+The walk is order-preserving but not contiguous — records between matches are skipped. Each `Then()` commits the current step's filters and starts a new step.
 
 ## Failure diagnostics
 
@@ -130,11 +147,11 @@ This eliminates the historical pattern of adding temporary `Console.WriteLine` c
 
 ## Limitations / future work
 
-These are not in v0.1.0 but are reasonable additions if there's demand:
+The 0.1.0 surface (10 filters + 5 terminators + sequence assertions) covers the common cases. Possible additions if demand surfaces:
 
-- **`HasLoggedInOrder(...)` for sequence assertions** — verifying a series of records appear in order
-- **`.WithEventId(int)` filter** — for tests that pin specific event IDs
-- **`.WithScope<T>(...)` filter** — for tests that need to verify the active scope when a record was logged
+- **`WithTimestamp(...)` filter** — currently considered fragile in tests; not planned
+- **`HasLoggedSequenceContiguously(...)` variant** — strict adjacency rather than order-preserving
+- **Source-generated assertions for project-specific log message methods** — would let `.HasLogged().ValidationFailed("msg")` chain against a `[LoggerMessage]` declaration
 
 If you'd find any of these useful, [open a feature request](https://github.com/JohnVerheij/LogAssertions.TUnit/issues/new?template=feature_request.yml).
 
