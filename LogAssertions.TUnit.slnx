@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/LogAssertions.TUnit/LogAssertions.TUnit.csproj" />
+  <Project Path="tests/LogAssertions.TUnit.Tests/LogAssertions.TUnit.Tests.csproj" />
+</Solution>
