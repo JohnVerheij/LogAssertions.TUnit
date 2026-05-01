@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Framework-agnostic test project for the LogAssertions core package.
+
+    Intentionally references ONLY LogAssertions, NOT LogAssertions.TUnit. The TUnit
+    test runner is referenced for [Test]/[Category]/Assert.That infrastructure, but
+    every test in this project exercises the core types (LogFilter, LogCollectorBuilder,
+    FakeLogCollectorInspectionExtensions, LogAssertionRendering) directly without going
+    through any LogAssertions.TUnit assertion entry point. If the core ever picked up
+    a TUnit dependency by accident, this project would fail to compile.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>LogAssertions.Tests</RootNamespace>
+    <AssemblyName>LogAssertions.Tests</AssemblyName>
+
+    <IsPackable>false</IsPackable>
+    <IsPublishable>false</IsPublishable>
+    <IsTestProject>true</IsTestProject>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Alphabetical per dpfa Proj0015 -->
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" />
+    <PackageReference Include="TUnit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/LogAssertions/LogAssertions.csproj" />
+  </ItemGroup>
+
+</Project>
