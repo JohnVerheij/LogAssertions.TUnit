@@ -12,6 +12,14 @@ indent_size = 4
 [*.{md,yml,yaml}]
 indent_size = 2
 
+# Verify (snapshot test framework) writes transient .received.* files when a snapshot
+# diverges. They are gitignored and never committed; treat them as generated and
+# silence dpfa Proj3000 (UTF-8 BOM) since Verify writes them with whatever encoding
+# the underlying source produces (e.g. PublicApiGenerator output).
+[*.received.*]
+generated_code = true
+dotnet_diagnostic.Proj3000.severity = none
+
 [*.{json,csproj,props,targets}]
 indent_size = 2
 

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -457,7 +458,8 @@ internal sealed class LogAssertionsTests
     /// the terminator description (<c>"exactly 1 log record(s)"</c>), the actual count
     /// (<c>"0 record(s) matched"</c>), the captured-records header
     /// (<c>"Captured records (5 total):"</c>), and at least one record level marker
-    /// (<c>"[Warning]"</c>). A mutation that drops any of these breaks dev-time diagnosis.
+    /// (<c>"[warn]"</c>, the 4-character abbreviation matching the MEL console formatter).
+    /// A mutation that drops any of these breaks dev-time diagnosis.
     /// </summary>
     /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
     [Test]
@@ -473,7 +475,7 @@ internal sealed class LogAssertionsTests
         await Assert.That(ex!.Message).Contains("exactly 1 log record(s)");
         await Assert.That(ex.Message).Contains("0 record(s) matched");
         await Assert.That(ex.Message).Contains("Captured records (5 total):");
-        await Assert.That(ex.Message).Contains("[Warning]");
+        await Assert.That(ex.Message).Contains("[warn]");
     }
 
     // --- No filters + terminators ---
@@ -856,5 +858,204 @@ internal sealed class LogAssertionsTests
         await Assert.That(collector).HasLogged().WithExceptionMessage("boom").Once();
         await Assert.That(collector).HasLogged().WithException<InvalidOperationException>().WithExceptionMessage("boom").Once();
         await Assert.That(collector).HasNotLogged().WithExceptionMessage("nope");
+    }
+
+    // --- WithMessageTemplate filter ---
+
+    /// <summary>
+    /// Verifies <c>WithMessageTemplate</c> matches the pre-substitution form recorded under the
+    /// MEL <c>{OriginalFormat}</c> key, distinct from the formatted message. <c>ItemFailed</c>
+    /// is logged with parameter <c>"X-9"</c>: the formatted message is <c>"Item X-9 failed"</c>
+    /// but the template is <c>"Item {ItemId} failed"</c>. Asserting on the template lets tests
+    /// pin the call-site without coupling to the substituted value.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task WithMessageTemplateMatchesOriginalFormatAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+        using ILoggerFactory factory = LoggerFactory.Create(b => b.AddProvider(new FakeLoggerProvider(collector)));
+        ILogger logger = factory.CreateLogger("Test");
+        TestLogMessages.ItemFailed(logger, "X-9");
+
+        await Assert.That(collector).HasLogged().WithMessageTemplate("Item {ItemId} failed").Once();
+        await Assert.That(collector).HasNotLogged().WithMessageTemplate("Item X-9 failed");
+        await Assert.That(collector).HasNotLogged().WithMessageTemplate("Other template");
+    }
+
+    // --- WithProperty predicate overload ---
+
+    /// <summary>
+    /// Verifies the predicate overload of <c>WithProperty</c>: applies a <c>Func&lt;string?, bool&gt;</c>
+    /// to the formatted property value (FakeLogRecord stores structured-state values as strings).
+    /// Use case is range or pattern matching where exact equality is too strict — here we accept
+    /// any cycle number that parses to an even integer.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task WithPropertyPredicateAppliesToFormattedValueAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+        using ILoggerFactory factory = LoggerFactory.Create(b => b.AddProvider(new FakeLoggerProvider(collector)));
+        ILogger logger = factory.CreateLogger("Test");
+        TestLogMessages.CycleStarted(logger, 1);
+        TestLogMessages.CycleStarted(logger, 2);
+        TestLogMessages.CycleStarted(logger, 3);
+
+        await Assert.That(collector).HasLogged()
+            .WithProperty("CycleNumber", v => int.TryParse(v, System.Globalization.CultureInfo.InvariantCulture, out var n) && n % 2 == 0).Once();
+        await Assert.That(collector).HasLogged()
+            .WithProperty("CycleNumber", v => v is not null).Exactly(3);
+    }
+
+    /// <summary>
+    /// Verifies the predicate overload of <c>WithProperty</c> rejects null arguments. Pins the
+    /// <c>ArgumentNullException.ThrowIfNull</c> guards on both <c>key</c> and <c>predicate</c>
+    /// so an accidental null surfaces immediately rather than via a misleading non-match.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task WithPropertyPredicateRejectsNullArgsAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+
+        await Assert.That(async () => await Assert.That(collector).HasLogged().WithProperty(null!, _ => true))
+            .Throws<ArgumentNullException>();
+        await Assert.That(async () => await Assert.That(collector).HasLogged().WithProperty("k", (Func<string?, bool>)null!))
+            .Throws<ArgumentNullException>();
+    }
+
+    // --- WithScopeProperty filter ---
+
+    /// <summary>
+    /// Verifies <c>WithScopeProperty</c> matches records emitted within a dictionary-shaped
+    /// scope (the most common AOT-friendly pattern). The collector is seeded with one record
+    /// inside a scope of <c>OrderId=42, RequestId="abc"</c>, exercising both string and integer
+    /// values. <see cref="object.Equals(object?, object?)"/> semantics apply, so boxed integers
+    /// must match the boxed expected value's underlying type.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task WithScopePropertyMatchesDictionaryScopeAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+        using ILoggerFactory factory = LoggerFactory.Create(b => b.AddProvider(new FakeLoggerProvider(collector)));
+        ILogger logger = factory.CreateLogger("Test");
+
+        var scope = new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["OrderId"] = 42,
+            ["RequestId"] = "abc",
+        };
+        using (logger.BeginScope(scope))
+            TestLogMessages.StartedProcessing(logger);
+
+        await Assert.That(collector).HasLogged().WithScopeProperty("OrderId", 42).Once();
+        await Assert.That(collector).HasLogged().WithScopeProperty("RequestId", "abc").Once();
+        await Assert.That(collector).HasNotLogged().WithScopeProperty("OrderId", 99);
+        await Assert.That(collector).HasNotLogged().WithScopeProperty("Missing", "anything");
+    }
+
+    /// <summary>
+    /// Verifies <c>WithScopeProperty</c> matches records emitted within a message-template
+    /// scope (<c>logger.BeginScope("X {Key}", value)</c>). Internally MEL produces a
+    /// <c>FormattedLogValues</c> instance which exposes the key-value pairs we read.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task WithScopePropertyMatchesFormattedScopeAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+        using ILoggerFactory factory = LoggerFactory.Create(b => b.AddProvider(new FakeLoggerProvider(collector)));
+        ILogger logger = factory.CreateLogger("Test");
+
+        using (TestLogMessages.OrderScope(logger, 42))
+            TestLogMessages.StartedProcessing(logger);
+
+        await Assert.That(collector).HasLogged().WithScopeProperty("OrderId", 42).Once();
+    }
+
+    /// <summary>
+    /// Verifies records logged outside any scope are not matched by <c>WithScopeProperty</c>,
+    /// and that the predicate overload accepts a custom value test. Ensures filtering does not
+    /// accidentally match the absence of a scope.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task WithScopePropertyPredicateAndAbsentScopeAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+        using ILoggerFactory factory = LoggerFactory.Create(b => b.AddProvider(new FakeLoggerProvider(collector)));
+        ILogger logger = factory.CreateLogger("Test");
+
+        TestLogMessages.StartedProcessing(logger);
+
+        var scoped = new Dictionary<string, object?>(StringComparer.Ordinal) { ["Count"] = 17 };
+        using (logger.BeginScope(scoped))
+            TestLogMessages.ValidationFailed(logger);
+
+        await Assert.That(collector).HasLogged().WithScopeProperty("Count", v => v is int n && n > 10).Once();
+        await Assert.That(collector).HasNotLogged().WithScopeProperty("Count", v => v is int n && n > 100);
+        await Assert.That(collector).HasNotLogged().WithScopeProperty("AnyKey", _ => true).WithCategory("Test")
+            .Containing("Started", StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Verifies <c>WithScopeProperty</c> rejects null arguments on both overloads.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task WithScopePropertyRejectsNullArgsAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+
+        await Assert.That(async () => await Assert.That(collector).HasLogged().WithScopeProperty(null!, "x"))
+            .Throws<ArgumentNullException>();
+        await Assert.That(async () => await Assert.That(collector).HasLogged().WithScopeProperty(null!, _ => true))
+            .Throws<ArgumentNullException>();
+        await Assert.That(async () => await Assert.That(collector).HasLogged().WithScopeProperty("k", (Func<object?, bool>)null!))
+            .Throws<ArgumentNullException>();
+    }
+
+    // --- Failure-message format ---
+
+    /// <summary>
+    /// Verifies the failure-message format pins three contracts: 4-character level abbreviations
+    /// (matching the MEL console formatter — <c>info</c>, <c>warn</c>, <c>fail</c>), an indented
+    /// <c>props:</c> line listing structured properties (excluding the magic
+    /// <c>{OriginalFormat}</c> key), and an indented <c>scope:</c> line rendering scope content
+    /// as <c>key=value</c> pairs. These are the user-visible debugging surfaces; changing them
+    /// is a breaking-output change and must remain test-pinned.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task FailureMessageRendersAbbreviatedLevelPropsAndScopeAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+        using ILoggerFactory factory = LoggerFactory.Create(b => b.AddProvider(new FakeLoggerProvider(collector)));
+        ILogger logger = factory.CreateLogger("Test");
+
+        var scope = new Dictionary<string, object?>(StringComparer.Ordinal) { ["OrderId"] = 42 };
+        using (logger.BeginScope(scope))
+            TestLogMessages.ItemFailed(logger, "X-9");
+
+        AssertionException? ex = await Assert.That(async () => await Assert.That(collector).HasLogged().AtLevel(LogLevel.Critical))
+            .Throws<AssertionException>();
+        await Assert.That(ex).IsNotNull();
+
+        var msg = ex!.Message;
+        await Assert.That(msg).Contains("[warn]");
+        await Assert.That(msg).Contains("Item X-9 failed");
+        await Assert.That(msg).Contains("props: ItemId=X-9");
+        await Assert.That(msg).Contains("scope: OrderId=42");
+        await Assert.That(msg).DoesNotContain("{OriginalFormat}");
     }
 }

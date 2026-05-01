@@ -10,16 +10,22 @@ using TUnit.Assertions.Core;
 namespace LogAssertions.TUnit;
 
 /// <summary>
-/// Shared base class for <see cref="HasLoggedAssertion"/> and <see cref="HasNotLoggedAssertion"/>.
-/// Implements the filter chain (<c>AtLevel</c>, <c>Containing</c>, <c>WithMessage</c>,
-/// <c>WithException</c>, <c>WithProperty</c>, <c>WithCategory</c>) and the failure-message
-/// snapshot rendering. Derived classes own the count-expectation semantics and the
-/// <c>[AssertionExtension]</c> attribute that registers the entry-point name.
+/// Shared base class for <see cref="HasLoggedAssertion"/>, <see cref="HasNotLoggedAssertion"/>,
+/// and <see cref="HasLoggedSequenceAssertion"/>. Implements the filter chain (level, message,
+/// exception, structured-state, scope, event, and arbitrary-predicate filters) and the
+/// failure-message snapshot rendering. Derived classes own count-expectation semantics and
+/// the <c>[AssertionExtension]</c> attribute that registers the entry-point name.
 /// </summary>
 /// <typeparam name="TSelf">The derived assertion type, returned from filter methods to enable fluent chaining.</typeparam>
 public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     where TSelf : LogAssertionBase<TSelf>
 {
+    /// <summary>
+    /// Magic key used by Microsoft.Extensions.Logging to surface the original (pre-substitution)
+    /// message template in the structured-state list (e.g. <c>"Order {OrderId} processed"</c>).
+    /// </summary>
+    private const string OriginalFormatKey = "{OriginalFormat}";
+
     private readonly List<Func<FakeLogRecord, bool>> _predicates = [];
     private readonly List<string> _filterDescriptions = [];
 
@@ -105,6 +111,25 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     }
 
     /// <summary>
+    /// Filters to records whose original message template (the pre-substitution form, e.g.
+    /// <c>"Order {OrderId} processed"</c>) equals <paramref name="template"/> exactly (ordinal).
+    /// Resolved from the structured-state entry under the <c>{OriginalFormat}</c> key that
+    /// Microsoft.Extensions.Logging populates automatically.
+    /// </summary>
+    /// <param name="template">The exact message template to match. Must be non-null.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="template"/> is <see langword="null"/>.</exception>
+    public TSelf WithMessageTemplate(string template)
+    {
+        ArgumentNullException.ThrowIfNull(template);
+        AddPredicate(
+            r => string.Equals(r.GetStructuredStateValue(OriginalFormatKey), template, StringComparison.Ordinal),
+            string.Format(CultureInfo.InvariantCulture, "Template = \"{0}\"", template));
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithMessageTemplate(\"{template}\")");
+        return (TSelf)this;
+    }
+
+    /// <summary>
     /// Filters to records whose <see cref="FakeLogRecord.Exception"/> is assignable to
     /// <typeparamref name="TException"/>.
     /// </summary>
@@ -136,7 +161,8 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
 
     /// <summary>
     /// Filters to records containing a structured-state entry with the specified
-    /// <paramref name="key"/> and <paramref name="value"/>.
+    /// <paramref name="key"/> and <paramref name="value"/> (ordinal string comparison on the
+    /// formatted value).
     /// </summary>
     /// <param name="key">The structured-state key. Must be non-null.</param>
     /// <param name="value">The expected string value (ordinal comparison); may be <see langword="null"/>.</param>
@@ -149,6 +175,69 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
             r => string.Equals(r.GetStructuredStateValue(key), value, StringComparison.Ordinal),
             $"{key} = \"{value}\"");
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithProperty(\"{key}\", \"{value}\")");
+        return (TSelf)this;
+    }
+
+    /// <summary>
+    /// Filters to records containing a structured-state entry with the specified <paramref name="key"/>
+    /// whose formatted string value satisfies <paramref name="predicate"/>. Use for ranges or
+    /// pattern-based matches; for exact equality prefer the string-value overload.
+    /// </summary>
+    /// <param name="key">The structured-state key. Must be non-null.</param>
+    /// <param name="predicate">A predicate applied to the formatted string value. Must be non-null.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+    public TSelf WithProperty(string key, Func<string?, bool> predicate)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(predicate);
+        AddPredicate(
+            r => predicate(r.GetStructuredStateValue(key)),
+            $"{key} matches predicate");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithProperty(\"{key}\", predicate)");
+        return (TSelf)this;
+    }
+
+    /// <summary>
+    /// Filters to records emitted while a scope on the calling logger contained a property with
+    /// the specified <paramref name="key"/> and <paramref name="value"/> (compared via
+    /// <see cref="object.Equals(object?, object?)"/>). Recognises scopes that implement
+    /// <see cref="IEnumerable{T}"/> over <see cref="KeyValuePair{TKey, TValue}"/> with string
+    /// keys, which covers the two AOT-friendly idioms: dictionary scopes and the
+    /// <see cref="LoggerExtensions.BeginScope(ILogger, string, object?[])"/> message-template form.
+    /// Anonymous-object scopes are not inspected (they require reflection to read).
+    /// </summary>
+    /// <param name="key">The scope-property key. Must be non-null.</param>
+    /// <param name="value">The expected scope-property value; may be <see langword="null"/>.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
+    public TSelf WithScopeProperty(string key, object? value)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        AddPredicate(
+            r => ScopePropertyMatches(r, key, v => Equals(v, value)),
+            $"Scope {key} = {value ?? "null"}");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithScopeProperty(\"{key}\", {value ?? "null"})");
+        return (TSelf)this;
+    }
+
+    /// <summary>
+    /// Filters to records emitted while a scope on the calling logger contained a property with
+    /// the specified <paramref name="key"/> whose value satisfies <paramref name="predicate"/>.
+    /// See <see cref="WithScopeProperty(string, object?)"/> for the recognised scope shapes.
+    /// </summary>
+    /// <param name="key">The scope-property key. Must be non-null.</param>
+    /// <param name="predicate">A predicate applied to the scope-property value. Must be non-null.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+    public TSelf WithScopeProperty(string key, Func<object?, bool> predicate)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(predicate);
+        AddPredicate(
+            r => ScopePropertyMatches(r, key, predicate),
+            $"Scope {key} matches predicate");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithScopeProperty(\"{key}\", predicate)");
         return (TSelf)this;
     }
 
@@ -255,7 +344,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
 
     /// <summary>
     /// Renders the matching summary plus a snapshot of every captured record (level, category,
-    /// message, exception) for use in failure messages.
+    /// message, structured properties, scopes, exception) for use in failure messages.
     /// </summary>
     /// <param name="matchCount">The number of matching records.</param>
     /// <param name="snapshot">All captured records.</param>
@@ -272,28 +361,213 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
             .Append(CultureInfo.InvariantCulture, $"Captured records ({snapshot.Count} total):")
             .AppendLine();
 
+        AppendCapturedRecords(sb, snapshot);
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Appends the captured-records section of the failure message: one summary line per
+    /// record (<c>[lvl] category: message</c>) followed by indented detail lines for any
+    /// structured properties, active scopes, and exception (when present).
+    /// </summary>
+    /// <param name="sb">The target string builder.</param>
+    /// <param name="snapshot">All captured records.</param>
+    /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+    protected static void AppendCapturedRecords(StringBuilder sb, IReadOnlyList<FakeLogRecord> snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(sb);
+        ArgumentNullException.ThrowIfNull(snapshot);
+
         if (snapshot.Count == 0)
         {
             sb.AppendLine("  (no records)");
+            return;
         }
-        else
-        {
-            foreach (FakeLogRecord record in snapshot)
-            {
-                sb.Append("  [").Append(record.Level).Append("] ");
-                if (!string.IsNullOrEmpty(record.Category))
-                    sb.Append(record.Category).Append(": ");
-                sb.Append(record.Message);
-                if (record.Exception is not null)
-                {
-                    sb.Append(" | ").Append(record.Exception.GetType().Name)
-                        .Append(": ").Append(record.Exception.Message);
-                }
 
-                sb.AppendLine();
+        foreach (FakeLogRecord record in snapshot)
+        {
+            sb.Append("  [").Append(LevelAbbreviation(record.Level)).Append("] ");
+            if (!string.IsNullOrEmpty(record.Category))
+                sb.Append(record.Category).Append(": ");
+            sb.Append(record.Message).AppendLine();
+
+            AppendStructuredState(sb, record);
+            AppendScopes(sb, record);
+
+            if (record.Exception is not null)
+            {
+                sb.Append("    exception: ")
+                    .Append(record.Exception.GetType().Name)
+                    .Append(": ")
+                    .Append(record.Exception.Message)
+                    .AppendLine();
             }
         }
+    }
 
-        return sb.ToString();
+    /// <summary>
+    /// 4-character abbreviation of a log level, matching the conventional
+    /// Microsoft.Extensions.Logging console formatter (<c>trce</c>, <c>dbug</c>, <c>info</c>,
+    /// <c>warn</c>, <c>fail</c>, <c>crit</c>). Anything outside the standard range falls back
+    /// to the level's invariant <c>ToString()</c>.
+    /// </summary>
+    /// <param name="level">The log level to abbreviate.</param>
+    /// <returns>The 4-character abbreviation.</returns>
+    private static string LevelAbbreviation(LogLevel level) => level switch
+    {
+        LogLevel.Trace => "trce",
+        LogLevel.Debug => "dbug",
+        LogLevel.Information => "info",
+        LogLevel.Warning => "warn",
+        LogLevel.Error => "fail",
+        LogLevel.Critical => "crit",
+        LogLevel.None => "none",
+        _ => level.ToString(),
+    };
+
+    /// <summary>
+    /// Appends an indented <c>props:</c> line listing the record's structured-state entries,
+    /// excluding the magic <c>{OriginalFormat}</c> entry (the raw template, already implied
+    /// by the message line). Emits nothing if no structured state is present.
+    /// </summary>
+    /// <param name="sb">The target string builder.</param>
+    /// <param name="record">The record to render.</param>
+    private static void AppendStructuredState(StringBuilder sb, FakeLogRecord record)
+    {
+        if (record.StructuredState is null || record.StructuredState.Count == 0)
+            return;
+
+        var first = true;
+        foreach (var kvp in record.StructuredState)
+        {
+            if (string.Equals(kvp.Key, OriginalFormatKey, StringComparison.Ordinal))
+                continue;
+
+            sb.Append(first ? "    props: " : ", ")
+                .Append(kvp.Key).Append('=').Append(kvp.Value ?? "null");
+            first = false;
+        }
+
+        if (!first)
+            sb.AppendLine();
+    }
+
+    /// <summary>
+    /// Appends an indented <c>scope:</c> line listing each active scope. Scopes that expose
+    /// key-value pairs are rendered as <c>key=value</c> pairs; opaque scope objects are rendered
+    /// via <see cref="object.ToString"/>. Emits nothing if no scopes are present.
+    /// </summary>
+    /// <param name="sb">The target string builder.</param>
+    /// <param name="record">The record to render.</param>
+    private static void AppendScopes(StringBuilder sb, FakeLogRecord record)
+    {
+        if (record.Scopes.Count == 0)
+            return;
+
+        var first = true;
+        foreach (var scope in record.Scopes)
+        {
+            sb.Append(first ? "    scope: " : " | ");
+            AppendScope(sb, scope);
+            first = false;
+        }
+
+        if (!first)
+            sb.AppendLine();
+    }
+
+    /// <summary>
+    /// Appends a single scope's representation: as <c>key=value</c> pairs when the scope is
+    /// enumerable as <see cref="KeyValuePair{TKey, TValue}"/>, otherwise as the scope's
+    /// <see cref="object.ToString"/> (or <c>"null"</c> when the scope is null).
+    /// </summary>
+    /// <param name="sb">The target string builder.</param>
+    /// <param name="scope">The scope object.</param>
+    private static void AppendScope(StringBuilder sb, object? scope)
+    {
+        if (scope is null)
+        {
+            sb.Append("null");
+            return;
+        }
+
+        if (TryAppendKeyValuePairs<object?>(sb, scope) || TryAppendKeyValuePairs<object>(sb, scope))
+            return;
+
+        sb.Append(scope);
+    }
+
+    /// <summary>
+    /// Attempts to render <paramref name="scope"/> as comma-separated <c>key=value</c> pairs by
+    /// casting to <see cref="IEnumerable{T}"/> over <see cref="KeyValuePair{TKey, TValue}"/>
+    /// with string keys and a generic value type. Skips the magic <c>{OriginalFormat}</c> entry.
+    /// </summary>
+    /// <typeparam name="TValue">The value type of the scope's key-value pairs.</typeparam>
+    /// <param name="sb">The target string builder.</param>
+    /// <param name="scope">The scope object.</param>
+    /// <returns><see langword="true"/> when at least one pair was rendered.</returns>
+    private static bool TryAppendKeyValuePairs<TValue>(StringBuilder sb, object scope)
+    {
+        if (scope is not IEnumerable<KeyValuePair<string, TValue>> kvps)
+            return false;
+
+        var any = false;
+        foreach (var kvp in kvps)
+        {
+            if (string.Equals(kvp.Key, OriginalFormatKey, StringComparison.Ordinal))
+                continue;
+
+            if (any)
+                sb.Append(", ");
+            sb.Append(kvp.Key).Append('=').Append(kvp.Value is null ? "null" : kvp.Value.ToString());
+            any = true;
+        }
+
+        return any;
+    }
+
+    /// <summary>
+    /// Tests whether any of the record's scopes contains a key-value pair where the key equals
+    /// <paramref name="key"/> (ordinal) and the value satisfies <paramref name="predicate"/>.
+    /// Recognises both <c>object</c> and <c>object?</c> value-type variants of the
+    /// <see cref="IEnumerable{T}"/>-of-<see cref="KeyValuePair{TKey, TValue}"/> shape.
+    /// </summary>
+    /// <param name="record">The record to inspect.</param>
+    /// <param name="key">The scope-property key.</param>
+    /// <param name="predicate">The predicate applied to the matched value.</param>
+    /// <returns><see langword="true"/> when at least one scope matched.</returns>
+    private static bool ScopePropertyMatches(FakeLogRecord record, string key, Func<object?, bool> predicate)
+    {
+        foreach (var scope in record.Scopes)
+        {
+            if (scope is null)
+                continue;
+
+            if (TryMatchScope<object?>(scope, key, predicate) || TryMatchScope<object>(scope, key, predicate))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Inspects a single scope cast to <see cref="IEnumerable{T}"/> over
+    /// <see cref="KeyValuePair{TKey, TValue}"/> with string keys, returning <see langword="true"/>
+    /// when the scope contains an entry whose key equals <paramref name="key"/> (ordinal) and
+    /// whose value satisfies <paramref name="predicate"/>.
+    /// </summary>
+    /// <typeparam name="TValue">The value type of the scope's key-value pairs.</typeparam>
+    /// <param name="scope">The scope object.</param>
+    /// <param name="key">The scope-property key.</param>
+    /// <param name="predicate">The predicate applied to the matched value.</param>
+    /// <returns><see langword="true"/> when the scope matches.</returns>
+    private static bool TryMatchScope<TValue>(object scope, string key, Func<object?, bool> predicate)
+    {
+        if (scope is not IEnumerable<KeyValuePair<string, TValue>> kvps)
+            return false;
+
+        return kvps
+            .Where(kvp => string.Equals(kvp.Key, key, StringComparison.Ordinal))
+            .Any(kvp => predicate(kvp.Value));
     }
 }

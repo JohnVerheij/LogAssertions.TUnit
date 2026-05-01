@@ -51,5 +51,14 @@ internal static partial class TestLogMessages
 
     [LoggerMessage(EventId = 52, Level = LogLevel.Information, Message = "Cycle {CycleNumber} finished")]
     public static partial void CycleFinished(ILogger logger, int cycleNumber);
+
+    /// <summary>
+    /// Allocation-free factory for a formatted-template scope of shape <c>"Order {OrderId}"</c>.
+    /// Used by tests that need to exercise the message-template scope idiom without tripping
+    /// CA1848 (which fires on the allocating <see cref="LoggerExtensions.BeginScope(ILogger, string, object?[])"/>
+    /// extension).
+    /// </summary>
+    public static readonly Func<ILogger, int, IDisposable?> OrderScope =
+        LoggerMessage.DefineScope<int>("Order {OrderId}");
 }
 

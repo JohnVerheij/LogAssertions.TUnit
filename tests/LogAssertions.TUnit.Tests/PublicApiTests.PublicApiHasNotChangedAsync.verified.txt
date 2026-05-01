@@ -52,8 +52,13 @@ namespace LogAssertions.TUnit
             where TException : System.Exception { }
         public TSelf WithExceptionMessage(string substring) { }
         public TSelf WithMessage(System.Func<string, bool> predicate) { }
+        public TSelf WithMessageTemplate(string template) { }
+        public TSelf WithProperty(string key, System.Func<string?, bool> predicate) { }
         public TSelf WithProperty(string key, string? value) { }
         public TSelf WithScope<TScope>() { }
+        public TSelf WithScopeProperty(string key, System.Func<object?, bool> predicate) { }
+        public TSelf WithScopeProperty(string key, object? value) { }
+        protected static void AppendCapturedRecords(System.Text.StringBuilder sb, System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord> snapshot) { }
         protected static string BuildFailureMessage(int matchCount, System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord> snapshot) { }
     }
 }
