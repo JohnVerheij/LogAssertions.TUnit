@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write   # for GitHub Release creation
+  id-token: write   # for NuGet Trusted Publishing OIDC token exchange
   packages: write   # not strictly required for nuget.org but kept for symmetry
 
 concurrency:
@@ -57,9 +58,20 @@ jobs:
       - name: Pack
         run: dotnet pack src/LogAssertions.TUnit/LogAssertions.TUnit.csproj --configuration Release --no-build --output ./artifacts
 
+      # NuGet Trusted Publishing: exchanges the GitHub Actions OIDC token for a
+      # short-lived NuGet API key, written to the local NuGet config so the
+      # subsequent `dotnet nuget push` picks it up automatically. No long-lived
+      # secret is stored in this repository; the trust relationship is configured
+      # on nuget.org under Account -> Trusted Publishing.
+      - name: NuGet login (Trusted Publishing)
+        uses: NuGet/login@v1
+        id: nuget-login
+        with:
+          user: JohnVerheij
+
       - name: Push to NuGet
         env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
         run: |
           dotnet nuget push ./artifacts/*.nupkg \
             --api-key "$NUGET_API_KEY" \
