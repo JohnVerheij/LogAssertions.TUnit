@@ -1,12 +1,22 @@
 name: CodeQL
 
-# CodeQL requires GitHub Advanced Security on private repos (paid). While this repo is
-# private, the workflow is registered but only runnable manually via `workflow_dispatch`
-# so it does not red-X every PR. Once the repo is flipped to public, restore the
-# `push` and `pull_request` triggers (see git history of this file for the original
-# trigger configuration).
 on:
-  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '**.cs'
+      - '**.csproj'
+      - '**.props'
+      - '**.targets'
+      - '.github/workflows/codeql.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '**.cs'
+      - '**.csproj'
+      - '**.props'
+      - '**.targets'
+      - '.github/workflows/codeql.yml'
 
 permissions:
   contents: read
