@@ -25,8 +25,10 @@
 
     <!-- Pre-1.0 suppressions:
          Proj0212/Proj0213: PackageIcon and PackageIconUrl omitted; will be added by 1.0.0.
-         (Proj0241 dropped at 0.2.1 — PackageValidationBaselineVersion is now pinned to
-         0.2.0, the previous shipped version of this package.) -->
+         (Proj0241 is no longer suppressed because PackageValidationBaselineVersion
+         above pins to the previous shipped version of this package - keep the
+         baseline value in sync with each release; do not pin a specific version
+         number in this comment to avoid drift.) -->
     <NoWarn>$(NoWarn);Proj0212;Proj0213</NoWarn>
 
     <!-- Symbol package + API compat (strict mode quad per dpfa Proj0249/0250/0251/0252) -->
