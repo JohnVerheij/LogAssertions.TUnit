@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Snapshot-only test project. Held separate from LogAssertions.TUnit.Tests because:
+
+    1. Verify.TUnit applies Verify.props to every consuming project, which forces
+       Deterministic=false (Verify needs absolute PDB paths to locate .verified.txt
+       files; a deterministic build normalises those paths to /_/...).
+    2. On Linux runners, Deterministic=false breaks Microsoft.Testing.Extensions.
+       CodeCoverage's instrumentation pipeline. The test exe runs but emits an
+       empty 178-byte cobertura skeleton, which Codecov rejects as "Unusable".
+    3. The whole assembly is annotated [ExcludeFromCodeCoverage] (see
+       AssemblyInfo.cs in this project) so it is not part of any coverage measurement.
+    4. CI runs this project WITHOUT the coverage flag in a separate step from the main
+       test project (which gets coverage and produces the real cobertura XML).
+
+    See github.com/thomhurst/TUnit/discussions/4149 for the upstream
+    Verify x MTP coverage interaction.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>LogAssertions.TUnit.SnapshotTests</RootNamespace>
+    <AssemblyName>LogAssertions.TUnit.SnapshotTests</AssemblyName>
+
+    <IsPackable>false</IsPackable>
+    <IsPublishable>false</IsPublishable>
+    <IsTestProject>true</IsTestProject>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Alphabetical per dpfa Proj0015 -->
+    <PackageReference Include="PublicApiGenerator" />
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="Verify.TUnit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/LogAssertions.TUnit/LogAssertions.TUnit.csproj" />
+  </ItemGroup>
+
+</Project>
