@@ -24,7 +24,7 @@ All changes in this release are documentation. Both packages still publish in lo
 
 ### Background
 
-This release is the first one driven entirely by real-consumer feedback (Fizyr3 adoption review). No code changes; the v0.2.2 surface stands. The rationale for shipping these as a docs-only patch rather than rolling them into v0.3.0 is to keep nuget.org's package page reflecting current ergonomics for anyone evaluating the package today, while v0.3.0's substantive engineering work waits for actual demand.
+This release is the first one driven entirely by real-consumer feedback (production-adjacent adoption review). No code changes; the v0.2.2 surface stands. The rationale for shipping these as a docs-only patch rather than rolling them into v0.3.0 is to keep nuget.org's package page reflecting current ergonomics for anyone evaluating the package today, while v0.3.0's substantive engineering work waits for actual demand.
 
 ## [0.2.2] — Shorthand entry-point auto-discovery (BREAKING namespace move)
 
