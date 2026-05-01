@@ -20,7 +20,7 @@
     <PackageVersion Include="Microsoft.VisualStudio.Threading.Analyzers" Version="17.13.61" />
 
     <!-- Source link -->
-    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.203" />
   </ItemGroup>
 
 </Project>
