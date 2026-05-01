@@ -14,7 +14,7 @@
     <PackageVersion Include="TUnit" Version="1.41.0" />
 
     <!-- Analyzer pack -->
-    <PackageVersion Include="Meziantou.Analyzer" Version="2.0.219" />
+    <PackageVersion Include="Meziantou.Analyzer" Version="3.0.58" />
     <PackageVersion Include="SonarAnalyzer.CSharp" Version="10.24.0.138807" />
     <PackageVersion Include="Roslynator.Analyzers" Version="4.13.1" />
     <PackageVersion Include="Microsoft.VisualStudio.Threading.Analyzers" Version="17.13.61" />
