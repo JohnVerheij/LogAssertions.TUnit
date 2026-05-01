@@ -9,6 +9,7 @@ on:
       - '**.props'
       - '**.targets'
       - '.github/workflows/codeql.yml'
+      - '.github/codeql/codeql-config.yml'
   pull_request:
     branches: [main]
     paths:
@@ -17,6 +18,7 @@ on:
       - '**.props'
       - '**.targets'
       - '.github/workflows/codeql.yml'
+      - '.github/codeql/codeql-config.yml'
 
 permissions:
   contents: read
@@ -49,10 +51,18 @@ jobs:
             10.0.x
 
       - name: Initialize CodeQL
+        # security-extended (instead of security-and-quality) keeps thorough security
+        # coverage but drops the noisy quality query pack, which generates many
+        # false-positive findings against generated code and stylistic concerns
+        # already covered by the in-build analyzer pack (Meziantou, Sonar, Roslynator,
+        # dpfa). config-file restricts scanning to code we own and ship - generated
+        # code in obj/ and test code in tests/** are excluded so remaining findings
+        # all reflect production-code issues we can act on.
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
-          queries: security-and-quality
+          queries: security-extended
+          config-file: ./.github/codeql/codeql-config.yml
 
       - name: Build
         run: dotnet build --configuration Release
