@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Extensions.Logging.Testing;
 
-namespace LogAssertions.TUnit;
+namespace LogAssertions;
 
 /// <summary>
 /// Disjunction (logical OR) of zero or more child filters. A record matches when at least one

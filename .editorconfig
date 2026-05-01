@@ -20,6 +20,15 @@ indent_size = 2
 generated_code = true
 dotnet_diagnostic.Proj3000.severity = none
 
+# Test code: ConfigureAwait analyzers (MA0004, CA2007) and VSTHRD200 ("Async" suffix
+# requirement) do not apply meaningfully under the test runner. Microsoft.Testing.Platform
+# and TUnit run on the thread pool with no SynchronizationContext, so ConfigureAwait(false)
+# is a no-op; test method names also commonly omit the Async suffix.
+[tests/**/*.cs]
+dotnet_diagnostic.MA0004.severity = none
+dotnet_diagnostic.CA2007.severity = none
+dotnet_diagnostic.VSTHRD200.severity = none
+
 [*.{json,csproj,props,targets}]
 indent_size = 2
 

@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging.Testing;
 
-namespace LogAssertions.TUnit;
+namespace LogAssertions;
 
 /// <summary>
 /// Logical negation of an inner filter. A record matches when the inner filter does not.

@@ -250,9 +250,16 @@
           "TUnit.Core": "1.41.0"
         }
       },
+      "logassertions": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Extensions.Diagnostics.Testing": "[10.0.0, )"
+        }
+      },
       "logassertions.tunit": {
         "type": "Project",
         "dependencies": {
+          "LogAssertions": "[0.2.0, )",
           "Microsoft.Extensions.Diagnostics.Testing": "[10.0.0, )",
           "TUnit.Assertions": "[1.41.0, )"
         }

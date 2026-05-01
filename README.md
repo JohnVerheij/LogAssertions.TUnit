@@ -58,6 +58,17 @@ dotnet add package LogAssertions.TUnit
 
 **Requirements:** TUnit 1.41.0+ (for `[AssertionExtension]`), .NET 10. The package is AOT-compatible, trimmable, and uses no reflection in the assertion path.
 
+## Package layout
+
+This repo ships **two** NuGet packages:
+
+| Package | Purpose | Depends on |
+|---|---|---|
+| [`LogAssertions`](https://www.nuget.org/packages/LogAssertions/) | Framework-agnostic core: `ILogRecordFilter` + `LogFilter` + rendering + collector inspection extensions | `Microsoft.Extensions.Diagnostics.Testing` |
+| [`LogAssertions.TUnit`](https://www.nuget.org/packages/LogAssertions.TUnit/) | TUnit-specific entry points: `HasLogged()`, `HasNotLogged()`, `HasLoggedSequence()` and shorthands | `LogAssertions` + `TUnit.Assertions` |
+
+You install `LogAssertions.TUnit`; `LogAssertions` comes transitively. Adapters for other test frameworks (NUnit, xUnit, MSTest) are *not* shipped today — they'd reuse the `LogAssertions` core. If you'd find one useful, [open a feature request](https://github.com/JohnVerheij/LogAssertions.TUnit/issues/new?template=feature_request.yml).
+
 ## Quick start
 
 ```csharp
@@ -386,6 +397,32 @@ await Assert.That(collector).HasLogged()
 - **AOT-compatible / trimmable.** `IsAotCompatible=true`, `IsTrimmable=true`, `EnableTrimAnalyzer=true`. No reflection in the assertion path. Scope-property matching uses interface casts only, never reflection.
 - **Single TFM, forward-only by policy:** targets `net10.0` and only `net10.0`. .NET 10 is the current LTS (until November 2028); future versions will track the latest LTS, never multi-target downward. As a test-only library this works cleanly even when your application code targets an older TFM — bump only your test project's TFM to consume this package. The policy keeps the codebase free of compatibility shims and lets the library use the newest C# / runtime / `Microsoft.Extensions.Logging` features as they ship.
 - **Explicit `StringComparison`.** Every string-matching API requires the caller to pass a `StringComparison` (or uses `Ordinal` internally where unambiguous). No silent culture defaults.
+
+---
+
+## Stability intent (pre-1.0)
+
+Per [SemVer](https://semver.org/), the `0.x` series is initial development — anything *may* change in any minor version, and there is no formal contract yet. The intent below documents what we *try* to keep stable so consumers can plan. A `1.0` release will turn this from intent into contract.
+
+**Intended-stable (we will not break these without a CHANGELOG-flagged reason and a clear migration path):**
+
+- The three entry-point methods on `IAssertionSource<FakeLogCollector>`: `HasLogged()`, `HasNotLogged()`, `HasLoggedSequence()`.
+- The top-level shorthand entry points (`HasLoggedOnce`, `HasLoggedExactly`, `HasLoggedNothing`, `HasLoggedWarningOrAbove`, etc.).
+- The fluent chain methods on `HasLoggedAssertion`, `HasNotLoggedAssertion`, `HasLoggedSequenceAssertion`: every named filter (`AtLevel`, `Containing`, `WithCategory`, etc.), every terminator (`Once`, `Exactly`, `Between`, etc.), and the combinator methods (`WithFilter`, `MatchingAny`, `MatchingAll`, `Not`, `When`).
+- The `ILogRecordFilter` interface and the `LogFilter` static factory's public methods.
+- The `LogCollectorBuilder.Create` factory.
+- The `FakeLogCollector` extension methods: `Filter`, `CountMatching`, `DumpTo`, `AssertAllAsync`.
+
+**Explicitly unstable (will change without notice, do not depend on):**
+
+- `LogAssertionBase<TSelf>` and its protected/internal members. The type is `public` only because the CRTP pattern requires it (C# does not allow public classes to inherit from internal); it is annotated `[EditorBrowsable(Never)]` and is **not** a supported derivation point. Treat it as a sealed implementation detail of the three public assertion classes.
+- The internal filter classes (`PredicateFilter`, `AndFilter`, `OrFilter`, `NotFilter`). These live behind `ILogRecordFilter` and the `LogFilter` factory.
+- The exact format of failure-message snapshot text rendered by `LogAssertionRendering` and exposed via `DumpTo`. The rendering may gain extra detail or change formatting in any release. **Do not pin exact failure-message text in tests** — pin filter match counts and broad markers (e.g. `Contains("[warn]")`) only.
+- The `CompatibilitySuppressions.xml` file is a build artifact tracking baseline acceptance, not part of the API contract.
+
+**Breaking changes log (every release with a breaking change is listed in CHANGELOG.md):**
+
+- **0.2.0:** `LogAssertionBase<TSelf>` annotated `[EditorBrowsable(Never)]`; the `protected virtual void AddPredicate(Func, string)` extension hook replaced by `protected virtual void AddFilter(ILogRecordFilter)` as part of the `ILogRecordFilter` refactor. Affects only consumers who derived from `LogAssertionBase` (an unsupported scenario). Framework-agnostic types (`ILogRecordFilter`, `LogFilter`, etc.) moved from `LogAssertions.TUnit` to a new `LogAssertions` package + namespace; the `LogAssertions.TUnit` package now has a `LogAssertions` transitive dependency.
 
 ---
 

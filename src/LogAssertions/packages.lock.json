@@ -65,12 +65,6 @@
         "resolved": "10.24.0.138807",
         "contentHash": "+ZEa1+KhNSulMSatpffgHnovbLGtYL9oukMh8uQp8RBDnPOjEFzvECSa4kfu1D4PJxErksiGOQQ+kDeao1x9jQ=="
       },
-      "TUnit.Assertions": {
-        "type": "Direct",
-        "requested": "[1.41.0, )",
-        "resolved": "1.41.0",
-        "contentHash": "MsZS2qY1H68uItiHF1PMFzfGprPGTAkWpcIZf6oMQJ6bWWHOWL+Y0fswa945a56S+G/vdaoi5+ZyC1DgA2nbRg=="
-      },
       "Microsoft.Build.Tasks.Git": {
         "type": "Transitive",
         "resolved": "8.0.0",
@@ -188,12 +182,6 @@
         "type": "Transitive",
         "resolved": "8.0.0",
         "contentHash": "dk9JPxTCIevS75HyEQ0E4OVAFhB2N+V9ShCXf8Q6FkUQZDkgLI12y679Nym1YqsiSysuQskT7Z+6nUf3yab6Vw=="
-      },
-      "logassertions": {
-        "type": "Project",
-        "dependencies": {
-          "Microsoft.Extensions.Diagnostics.Testing": "[10.0.0, )"
-        }
       }
     }
   }
