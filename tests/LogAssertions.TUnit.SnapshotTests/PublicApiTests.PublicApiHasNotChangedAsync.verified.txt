@@ -21,7 +21,7 @@ namespace LogAssertions.TUnit
     public sealed class HasLoggedSequenceAssertion : LogAssertions.TUnit.LogAssertionBase<LogAssertions.TUnit.HasLoggedSequenceAssertion>
     {
         public HasLoggedSequenceAssertion(TUnit.Assertions.Core.AssertionContext<Microsoft.Extensions.Logging.Testing.FakeLogCollector> context) { }
-        protected override void AddPredicate(System.Func<Microsoft.Extensions.Logging.Testing.FakeLogRecord, bool> predicate, string description) { }
+        protected override void AddFilter(LogAssertions.TUnit.ILogRecordFilter filter) { }
         protected override System.Threading.Tasks.Task<TUnit.Assertions.Core.AssertionResult> CheckAsync(TUnit.Assertions.Core.EvaluationMetadata<Microsoft.Extensions.Logging.Testing.FakeLogCollector> metadata) { }
         protected override string GetExpectation() { }
         public LogAssertions.TUnit.HasLoggedSequenceAssertion Then() { }
@@ -33,24 +33,46 @@ namespace LogAssertions.TUnit
         protected override System.Threading.Tasks.Task<TUnit.Assertions.Core.AssertionResult> CheckAsync(TUnit.Assertions.Core.EvaluationMetadata<Microsoft.Extensions.Logging.Testing.FakeLogCollector> metadata) { }
         protected override string GetExpectation() { }
     }
+    public interface ILogRecordFilter
+    {
+        string Description { get; }
+        bool Matches(Microsoft.Extensions.Logging.Testing.FakeLogRecord record);
+    }
     public abstract class LogAssertionBase<TSelf> : TUnit.Assertions.Core.Assertion<Microsoft.Extensions.Logging.Testing.FakeLogCollector>
         where TSelf : LogAssertions.TUnit.LogAssertionBase<TSelf>
     {
         protected LogAssertionBase(TUnit.Assertions.Core.AssertionContext<Microsoft.Extensions.Logging.Testing.FakeLogCollector> context) { }
-        protected virtual void AddPredicate(System.Func<Microsoft.Extensions.Logging.Testing.FakeLogRecord, bool> predicate, string description) { }
+        protected virtual void AddFilter(LogAssertions.TUnit.ILogRecordFilter filter) { }
         protected void AppendFilterSummary(System.Text.StringBuilder sb) { }
+        public TSelf AtAnyLevel(params Microsoft.Extensions.Logging.LogLevel[] levels) { }
         public TSelf AtLevel(Microsoft.Extensions.Logging.LogLevel level) { }
         public TSelf AtLevelOrAbove(Microsoft.Extensions.Logging.LogLevel level) { }
         public TSelf AtLevelOrBelow(Microsoft.Extensions.Logging.LogLevel level) { }
         public TSelf Containing(string substring, System.StringComparison comparison) { }
+        public TSelf ContainingAll(System.StringComparison comparison, params string[] substrings) { }
+        public TSelf ContainingAny(System.StringComparison comparison, params string[] substrings) { }
         protected int CountMatches(System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord> snapshot) { }
+        public TSelf ExcludingCategory(string category) { }
+        public TSelf ExcludingLevel(Microsoft.Extensions.Logging.LogLevel level) { }
+        protected System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord> GetMatches(System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord> snapshot) { }
+        public TSelf Matching(System.Text.RegularExpressions.Regex pattern) { }
+        public TSelf MatchingAll(params LogAssertions.TUnit.ILogRecordFilter[] filters) { }
+        public TSelf MatchingAny(params LogAssertions.TUnit.ILogRecordFilter[] filters) { }
+        public TSelf Not(LogAssertions.TUnit.ILogRecordFilter filter) { }
+        public TSelf NotAtLevel(Microsoft.Extensions.Logging.LogLevel level) { }
+        public TSelf NotContaining(string substring, System.StringComparison comparison) { }
         public TSelf Where(System.Func<Microsoft.Extensions.Logging.Testing.FakeLogRecord, bool> predicate) { }
         public TSelf WithCategory(string category) { }
         public TSelf WithEventId(int eventId) { }
+        public TSelf WithEventIdInRange(int min, int max) { }
         public TSelf WithEventName(string eventName) { }
+        public TSelf WithException() { }
+        public TSelf WithException(System.Func<System.Exception, bool> predicate) { }
         public TSelf WithException<TException>()
             where TException : System.Exception { }
         public TSelf WithExceptionMessage(string substring) { }
+        public TSelf WithFilter(LogAssertions.TUnit.ILogRecordFilter filter) { }
+        public TSelf WithLoggerName(string loggerName) { }
         public TSelf WithMessage(System.Func<string, bool> predicate) { }
         public TSelf WithMessageTemplate(string template) { }
         public TSelf WithProperty(string key, System.Func<string?, bool> predicate) { }
@@ -60,6 +82,37 @@ namespace LogAssertions.TUnit
         public TSelf WithScopeProperty(string key, object? value) { }
         protected static void AppendCapturedRecords(System.Text.StringBuilder sb, System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord> snapshot) { }
         protected static string BuildFailureMessage(int matchCount, System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord> snapshot) { }
+    }
+    public static class LogFilter
+    {
+        public static LogAssertions.TUnit.ILogRecordFilter All(params LogAssertions.TUnit.ILogRecordFilter[] filters) { }
+        public static LogAssertions.TUnit.ILogRecordFilter Any(params LogAssertions.TUnit.ILogRecordFilter[] filters) { }
+        public static LogAssertions.TUnit.ILogRecordFilter AtLevel(Microsoft.Extensions.Logging.LogLevel level) { }
+        public static LogAssertions.TUnit.ILogRecordFilter AtLevel(params Microsoft.Extensions.Logging.LogLevel[] levels) { }
+        public static LogAssertions.TUnit.ILogRecordFilter AtLevelOrAbove(Microsoft.Extensions.Logging.LogLevel level) { }
+        public static LogAssertions.TUnit.ILogRecordFilter AtLevelOrBelow(Microsoft.Extensions.Logging.LogLevel level) { }
+        public static LogAssertions.TUnit.ILogRecordFilter Containing(string substring, System.StringComparison comparison) { }
+        public static LogAssertions.TUnit.ILogRecordFilter ContainingAll(System.StringComparison comparison, params string[] substrings) { }
+        public static LogAssertions.TUnit.ILogRecordFilter ContainingAny(System.StringComparison comparison, params string[] substrings) { }
+        public static LogAssertions.TUnit.ILogRecordFilter Matching(System.Text.RegularExpressions.Regex pattern) { }
+        public static LogAssertions.TUnit.ILogRecordFilter Not(LogAssertions.TUnit.ILogRecordFilter filter) { }
+        public static LogAssertions.TUnit.ILogRecordFilter Where(System.Func<Microsoft.Extensions.Logging.Testing.FakeLogRecord, bool> predicate) { }
+        public static LogAssertions.TUnit.ILogRecordFilter WithCategory(string category) { }
+        public static LogAssertions.TUnit.ILogRecordFilter WithEventId(int eventId) { }
+        public static LogAssertions.TUnit.ILogRecordFilter WithEventIdInRange(int min, int max) { }
+        public static LogAssertions.TUnit.ILogRecordFilter WithEventName(string eventName) { }
+        public static LogAssertions.TUnit.ILogRecordFilter WithException() { }
+        public static LogAssertions.TUnit.ILogRecordFilter WithException(System.Func<System.Exception, bool> predicate) { }
+        public static LogAssertions.TUnit.ILogRecordFilter WithException<TException>()
+            where TException : System.Exception { }
+        public static LogAssertions.TUnit.ILogRecordFilter WithExceptionMessage(string substring) { }
+        public static LogAssertions.TUnit.ILogRecordFilter WithMessage(System.Func<string, bool> predicate) { }
+        public static LogAssertions.TUnit.ILogRecordFilter WithMessageTemplate(string template) { }
+        public static LogAssertions.TUnit.ILogRecordFilter WithProperty(string key, System.Func<string?, bool> predicate) { }
+        public static LogAssertions.TUnit.ILogRecordFilter WithProperty(string key, string? value) { }
+        public static LogAssertions.TUnit.ILogRecordFilter WithScope<TScope>() { }
+        public static LogAssertions.TUnit.ILogRecordFilter WithScopeProperty(string key, System.Func<object?, bool> predicate) { }
+        public static LogAssertions.TUnit.ILogRecordFilter WithScopeProperty(string key, object? value) { }
     }
 }
 namespace TUnit.Assertions.Extensions

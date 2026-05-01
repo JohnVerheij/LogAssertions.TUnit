@@ -1469,4 +1469,300 @@ internal sealed class LogAssertionsTests
     {
         public override string ToString() => "opaque-scope-token";
     }
+
+    // --- v0.2.0: ILogRecordFilter + composable filter primitives ---
+
+    /// <summary>
+    /// Verifies <c>WithFilter</c> accepts an externally-constructed <see cref="ILogRecordFilter"/>
+    /// and integrates it into the AND-combined chain. The filter is built via
+    /// <see cref="LogFilter.AtLevel(LogLevel)"/> here, but the same surface accepts any
+    /// implementation of the interface (custom filter classes, shared filter constants).
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task WithFilterAcceptsExternalLogRecordFilterAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = CreateCollectorWithSampleRecords();
+        ILogRecordFilter warning = LogFilter.AtLevel(LogLevel.Warning);
+
+        await Assert.That(collector).HasLogged().WithFilter(warning).Once();
+        await Assert.That(async () => await Assert.That(collector).HasLogged().WithFilter((ILogRecordFilter)null!))
+            .Throws<ArgumentNullException>();
+    }
+
+    /// <summary>
+    /// Verifies <c>MatchingAny</c> composes a disjunction sub-expression inside the AND chain:
+    /// <c>.AtLevel(Warning).MatchingAny(Containing("a"), Containing("b"))</c> equals
+    /// "level == Warning AND (msg contains a OR msg contains b)". Pins the OR semantics that
+    /// the chain itself does not natively express (the chain is AND-only).
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task MatchingAnyComposesDisjunctionAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = CreateCollectorWithSampleRecords();
+
+        await Assert.That(collector).HasLogged()
+            .AtLevel(LogLevel.Warning)
+            .MatchingAny(
+                LogFilter.Containing("validation", StringComparison.Ordinal),
+                LogFilter.Containing("nope", StringComparison.Ordinal))
+            .Once();
+
+        await Assert.That(collector).HasNotLogged()
+            .MatchingAny(
+                LogFilter.Containing("nope", StringComparison.Ordinal),
+                LogFilter.Containing("never", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// Verifies <c>MatchingAll</c> composes an explicit conjunction inside the chain (equivalent
+    /// to chaining the filters individually but useful when composing reusable filter constants).
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task MatchingAllComposesConjunctionAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = CreateCollectorWithSampleRecords();
+
+        await Assert.That(collector).HasLogged()
+            .MatchingAll(
+                LogFilter.AtLevel(LogLevel.Warning),
+                LogFilter.Containing("validation", StringComparison.Ordinal))
+            .Once();
+    }
+
+    /// <summary>
+    /// Verifies <c>Not(filter)</c> on the chain inverts the wrapped filter.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task NotChainMethodInvertsAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = CreateCollectorWithSampleRecords();
+
+        await Assert.That(collector).HasLogged()
+            .AtLevel(LogLevel.Warning)
+            .Not(LogFilter.Containing("nope", StringComparison.Ordinal))
+            .Once();
+
+        await Assert.That(async () => await Assert.That(collector).HasLogged().Not(null!))
+            .Throws<ArgumentNullException>();
+    }
+
+    /// <summary>
+    /// Verifies <c>NotContaining</c> shorthand: matches records whose message does not contain
+    /// the substring. The seed has 5 records, only one contains "validation"; the others don't.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task NotContainingExcludesMatchingAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = CreateCollectorWithSampleRecords();
+
+        await Assert.That(collector).HasLogged()
+            .NotContaining("validation", StringComparison.Ordinal).Exactly(4);
+    }
+
+    /// <summary>
+    /// Verifies <c>NotAtLevel</c> shorthand and the <c>ExcludingLevel</c> alias both exclude
+    /// records at the named level.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task NotAtLevelAndExcludingLevelExcludeAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = CreateCollectorWithSampleRecords();
+
+        // Seed has Trace, Debug, Information, Warning, Error → 5 total. Excluding Warning → 4.
+        await Assert.That(collector).HasLogged().NotAtLevel(LogLevel.Warning).Exactly(4);
+        await Assert.That(collector).HasLogged().ExcludingLevel(LogLevel.Warning).Exactly(4);
+    }
+
+    /// <summary>
+    /// Verifies <c>ExcludingCategory</c> excludes records emitted by the named category.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task ExcludingCategoryExcludesMatchingAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+        using ILoggerFactory factory = LoggerFactory.Create(b => b.AddProvider(new FakeLoggerProvider(collector)));
+        ILogger a = factory.CreateLogger("CategoryA");
+        ILogger b = factory.CreateLogger("CategoryB");
+        TestLogMessages.StartedProcessing(a);
+        TestLogMessages.StartedProcessing(b);
+
+        await Assert.That(collector).HasLogged().ExcludingCategory("CategoryA").Once();
+    }
+
+    /// <summary>
+    /// Verifies <c>AtAnyLevel(params LogLevel[])</c> matches records whose level appears in the set.
+    /// Cleaner than <c>AtLevelOrAbove</c> when "Warning or Error but not Critical" is the requirement.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task AtAnyLevelMatchesEnumeratedLevelsAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = CreateCollectorWithSampleRecords();
+
+        // Seed levels: Trace, Debug, Information, Warning, Error.
+        await Assert.That(collector).HasLogged().AtAnyLevel(LogLevel.Warning, LogLevel.Error).Exactly(2);
+        await Assert.That(collector).HasNotLogged().AtAnyLevel(LogLevel.Critical, LogLevel.None);
+    }
+
+    /// <summary>
+    /// Verifies <c>ContainingAll</c> requires every substring to appear and <c>ContainingAny</c>
+    /// requires at least one. Both honour the supplied <see cref="StringComparison"/>.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task ContainingAllAndContainingAnyAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = CreateCollectorWithSampleRecords();
+
+        // ValidationFailed message: "validation failed: TimeoutMs out of range"
+        await Assert.That(collector).HasLogged()
+            .ContainingAll(StringComparison.Ordinal, "validation", "TimeoutMs").Once();
+        await Assert.That(collector).HasNotLogged()
+            .ContainingAll(StringComparison.Ordinal, "validation", "missing-substring");
+        await Assert.That(collector).HasLogged()
+            .ContainingAny(StringComparison.Ordinal, "validation", "missing-substring").Once();
+    }
+
+    /// <summary>
+    /// Verifies <c>Matching(Regex)</c> matches records whose message satisfies the regex.
+    /// The pattern uses non-backtracking mode (per project conventions / MA0009).
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task MatchingRegexAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = CreateCollectorWithSampleRecords();
+        var pattern = new System.Text.RegularExpressions.Regex(
+            @"^validation",
+            System.Text.RegularExpressions.RegexOptions.NonBacktracking);
+
+        await Assert.That(collector).HasLogged().Matching(pattern).Once();
+    }
+
+    /// <summary>
+    /// Verifies <c>WithException()</c> (parameterless) matches any record with an exception, and
+    /// <c>WithException(predicate)</c> matches when the predicate accepts the exception. The
+    /// predicate variant rejects records without an exception (no NRE on null).
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task WithExceptionVariantsAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = CreateCollectorWithSampleRecords();
+
+        await Assert.That(collector).HasLogged().WithException().Once();
+        await Assert.That(collector).HasLogged()
+            .WithException(ex => ex.Message.Contains("boom", StringComparison.Ordinal)).Once();
+        await Assert.That(collector).HasNotLogged()
+            .WithException(ex => ex.Message.Contains("nope", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// Verifies <c>WithEventIdInRange</c> matches records whose event ID falls in the inclusive
+    /// range, and rejects negative-width ranges via <see cref="ArgumentOutOfRangeException"/>.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task WithEventIdInRangeAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = CreateCollectorWithSampleRecords();
+
+        // Seed event IDs: 1 (trace), 2 (debug), 3 (info), 4 (warn), 5 (error).
+        await Assert.That(collector).HasLogged().WithEventIdInRange(2, 4).Exactly(3);
+        await Assert.That(collector).HasNotLogged().WithEventIdInRange(100, 200);
+
+        await Assert.That(async () => await Assert.That(collector).HasLogged().WithEventIdInRange(5, 1))
+            .Throws<ArgumentOutOfRangeException>();
+    }
+
+    /// <summary>
+    /// Verifies <c>WithLoggerName</c> is an alias for <see cref="LogAssertionBase{TSelf}.WithCategory"/>.
+    /// Same ordinal-string semantics, same matching behaviour.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task WithLoggerNameAliasAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = CreateCollectorWithSampleRecords();
+        await Assert.That(collector).HasLogged().WithLoggerName("TestCategory").AtLeast(1);
+        await Assert.That(collector).HasNotLogged().WithLoggerName("MissingCategory");
+    }
+
+    /// <summary>
+    /// Verifies the static <see cref="LogFilter"/> factory composes <c>All</c>, <c>Any</c>, and
+    /// <c>Not</c> correctly, including the boundary cases of empty composites (All = matches
+    /// every record, Any = matches no record).
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task LogFilterCombinatorsAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = CreateCollectorWithSampleRecords();
+
+        ILogRecordFilter warningOrError = LogFilter.Any(
+            LogFilter.AtLevel(LogLevel.Warning),
+            LogFilter.AtLevel(LogLevel.Error));
+        ILogRecordFilter notDebug = LogFilter.Not(LogFilter.AtLevel(LogLevel.Debug));
+        ILogRecordFilter both = LogFilter.All(warningOrError, notDebug);
+
+        await Assert.That(collector).HasLogged().WithFilter(both).Exactly(2);
+
+        // Empty All matches every record (5); empty Any matches no record (0).
+        await Assert.That(collector).HasLogged().WithFilter(LogFilter.All()).Exactly(5);
+        await Assert.That(collector).HasNotLogged().WithFilter(LogFilter.Any());
+
+        // Description rendering for empty composites uses the placeholder strings (any), (none).
+        await Assert.That(LogFilter.All().Description).IsEqualTo("(any)");
+        await Assert.That(LogFilter.Any().Description).IsEqualTo("(none)");
+    }
+
+    /// <summary>
+    /// Verifies <see cref="LogFilter"/> factory methods reject null arguments.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task LogFilterRejectsNullArgsAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        await Assert.That(() => LogFilter.AtLevel((LogLevel[])null!)).Throws<ArgumentNullException>();
+        await Assert.That(() => LogFilter.Containing(null!, StringComparison.Ordinal)).Throws<ArgumentNullException>();
+        await Assert.That(() => LogFilter.ContainingAll(StringComparison.Ordinal, null!)).Throws<ArgumentNullException>();
+        await Assert.That(() => LogFilter.ContainingAny(StringComparison.Ordinal, null!)).Throws<ArgumentNullException>();
+        await Assert.That(() => LogFilter.Matching(null!)).Throws<ArgumentNullException>();
+        await Assert.That(() => LogFilter.WithMessage(null!)).Throws<ArgumentNullException>();
+        await Assert.That(() => LogFilter.WithMessageTemplate(null!)).Throws<ArgumentNullException>();
+        await Assert.That(() => LogFilter.WithException((Func<Exception, bool>)null!)).Throws<ArgumentNullException>();
+        await Assert.That(() => LogFilter.WithExceptionMessage(null!)).Throws<ArgumentNullException>();
+        await Assert.That(() => LogFilter.WithProperty(null!, "x")).Throws<ArgumentNullException>();
+        await Assert.That(() => LogFilter.WithCategory(null!)).Throws<ArgumentNullException>();
+        await Assert.That(() => LogFilter.WithEventName(null!)).Throws<ArgumentNullException>();
+        await Assert.That(() => LogFilter.WithScopeProperty(null!, "x")).Throws<ArgumentNullException>();
+        await Assert.That(() => LogFilter.Where(null!)).Throws<ArgumentNullException>();
+        await Assert.That(() => LogFilter.All(null!)).Throws<ArgumentNullException>();
+        await Assert.That(() => LogFilter.Any(null!)).Throws<ArgumentNullException>();
+        await Assert.That(() => LogFilter.Not(null!)).Throws<ArgumentNullException>();
+        await Assert.That(() => LogFilter.WithEventIdInRange(5, 1)).Throws<ArgumentOutOfRangeException>();
+    }
 }

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Testing;
@@ -27,19 +28,15 @@ namespace LogAssertions.TUnit;
 [AssertionExtension("HasLoggedSequence")]
 public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSequenceAssertion>
 {
-    private readonly List<List<System.Func<FakeLogRecord, bool>>> _stepPredicates = [];
-    private readonly List<List<string>> _stepDescriptions = [];
-    private List<System.Func<FakeLogRecord, bool>> _currentPredicates;
-    private List<string> _currentDescriptions;
+    private readonly List<List<ILogRecordFilter>> _stepFilters = [];
+    private List<ILogRecordFilter> _currentFilters;
 
     /// <summary>Initialises a sequence assertion. Called by the TUnit source generator.</summary>
     /// <param name="context">The assertion context supplied by TUnit.</param>
     public HasLoggedSequenceAssertion(AssertionContext<FakeLogCollector> context) : base(context)
     {
-        _currentPredicates = [];
-        _currentDescriptions = [];
-        _stepPredicates.Add(_currentPredicates);
-        _stepDescriptions.Add(_currentDescriptions);
+        _currentFilters = [];
+        _stepFilters.Add(_currentFilters);
     }
 
     /// <summary>
@@ -50,21 +47,17 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
     /// <returns>This assertion for chaining.</returns>
     public HasLoggedSequenceAssertion Then()
     {
-        _currentPredicates = [];
-        _currentDescriptions = [];
-        _stepPredicates.Add(_currentPredicates);
-        _stepDescriptions.Add(_currentDescriptions);
+        _currentFilters = [];
+        _stepFilters.Add(_currentFilters);
         Context.ExpressionBuilder.Append(".Then()");
         return this;
     }
 
     /// <inheritdoc/>
-    protected override void AddPredicate(System.Func<FakeLogRecord, bool> predicate, string description)
+    protected override void AddFilter(ILogRecordFilter filter)
     {
-        System.ArgumentNullException.ThrowIfNull(predicate);
-        System.ArgumentNullException.ThrowIfNull(description);
-        _currentPredicates.Add(predicate);
-        _currentDescriptions.Add(description);
+        System.ArgumentNullException.ThrowIfNull(filter);
+        _currentFilters.Add(filter);
     }
 
     /// <inheritdoc/>
@@ -83,10 +76,10 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
         var snapshot = collector.GetSnapshot();
         var recordIndex = 0;
 
-        for (var stepIndex = 0; stepIndex < _stepPredicates.Count; stepIndex++)
+        for (var stepIndex = 0; stepIndex < _stepFilters.Count; stepIndex++)
         {
-            var stepPreds = _stepPredicates[stepIndex];
-            if (stepPreds.Count == 0)
+            var stepFilters = _stepFilters[stepIndex];
+            if (stepFilters.Count == 0)
                 continue;
 
             var matched = false;
@@ -94,7 +87,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
             {
                 var record = snapshot[recordIndex];
                 recordIndex++;
-                if (stepPreds.TrueForAll(p => p(record)))
+                if (stepFilters.TrueForAll(f => f.Matches(record)))
                 {
                     matched = true;
                     break;
@@ -115,13 +108,13 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
         sb.Append("log records to occur in order");
 
         var hasContent = false;
-        for (var i = 0; i < _stepDescriptions.Count; i++)
+        for (var i = 0; i < _stepFilters.Count; i++)
         {
-            if (_stepDescriptions[i].Count == 0)
+            if (_stepFilters[i].Count == 0)
                 continue;
 
             sb.Append(hasContent ? " then " : ": ");
-            sb.AppendJoin(" + ", _stepDescriptions[i]);
+            sb.AppendJoin(" + ", _stepFilters[i].Select(f => f.Description));
             hasContent = true;
         }
 
@@ -134,7 +127,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
         sb.Append(CultureInfo.InvariantCulture, $"Step {failedStepIndex + 1} did not match any remaining record")
             .AppendLine()
             .Append("Step filters: ")
-            .AppendJoin(" + ", _stepDescriptions[failedStepIndex])
+            .AppendJoin(" + ", _stepFilters[failedStepIndex].Select(f => f.Description))
             .AppendLine()
             .AppendLine()
             .Append(CultureInfo.InvariantCulture, $"Captured records ({snapshot.Count} total):")
