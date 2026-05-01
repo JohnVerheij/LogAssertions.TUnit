@@ -67,6 +67,16 @@ jobs:
             --coverage-output coverage.cobertura.xml \
             --coverage-output-format=cobertura
 
+      - name: Test framework-agnostic core suite (no coverage)
+        # tests/LogAssertions.Tests references ONLY the LogAssertions core package, NOT
+        # LogAssertions.TUnit. Catches accidental coupling: if a refactor made the core depend
+        # on TUnit, this project would fail to compile. Coverage of the core types is already
+        # captured in the main suite via the TUnit chain, so coverage is intentionally not
+        # collected here.
+        run: |
+          dotnet run --project tests/LogAssertions.Tests/LogAssertions.Tests.csproj \
+            --configuration Release --no-build
+
       - name: Test snapshot suite (no coverage)
         # SnapshotTests is a separate project because Verify.TUnit's Verify.props forces
         # Deterministic=false (Verify needs absolute PDB paths to find .verified.txt files),
