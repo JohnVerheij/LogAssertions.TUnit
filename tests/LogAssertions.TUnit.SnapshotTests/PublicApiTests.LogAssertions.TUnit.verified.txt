@@ -33,25 +33,6 @@ namespace LogAssertions.TUnit
         protected override string GetExpectation() { }
         public LogAssertions.TUnit.HasLoggedSequenceAssertion Then() { }
     }
-    public static class HasLoggedShorthandExtensions
-    {
-        public static LogAssertions.TUnit.HasLoggedAssertion HasLoggedAtLeast<TActual>(this TUnit.Assertions.Core.IAssertionSource<TActual> source, int count)
-            where TActual : Microsoft.Extensions.Logging.Testing.FakeLogCollector { }
-        public static LogAssertions.TUnit.HasLoggedAssertion HasLoggedAtMost<TActual>(this TUnit.Assertions.Core.IAssertionSource<TActual> source, int count)
-            where TActual : Microsoft.Extensions.Logging.Testing.FakeLogCollector { }
-        public static LogAssertions.TUnit.HasLoggedAssertion HasLoggedBetween<TActual>(this TUnit.Assertions.Core.IAssertionSource<TActual> source, int min, int max)
-            where TActual : Microsoft.Extensions.Logging.Testing.FakeLogCollector { }
-        public static LogAssertions.TUnit.HasLoggedAssertion HasLoggedErrorOrAbove<TActual>(this TUnit.Assertions.Core.IAssertionSource<TActual> source)
-            where TActual : Microsoft.Extensions.Logging.Testing.FakeLogCollector { }
-        public static LogAssertions.TUnit.HasLoggedAssertion HasLoggedExactly<TActual>(this TUnit.Assertions.Core.IAssertionSource<TActual> source, int count)
-            where TActual : Microsoft.Extensions.Logging.Testing.FakeLogCollector { }
-        public static LogAssertions.TUnit.HasNotLoggedAssertion HasLoggedNothing<TActual>(this TUnit.Assertions.Core.IAssertionSource<TActual> source)
-            where TActual : Microsoft.Extensions.Logging.Testing.FakeLogCollector { }
-        public static LogAssertions.TUnit.HasLoggedAssertion HasLoggedOnce<TActual>(this TUnit.Assertions.Core.IAssertionSource<TActual> source)
-            where TActual : Microsoft.Extensions.Logging.Testing.FakeLogCollector { }
-        public static LogAssertions.TUnit.HasLoggedAssertion HasLoggedWarningOrAbove<TActual>(this TUnit.Assertions.Core.IAssertionSource<TActual> source)
-            where TActual : Microsoft.Extensions.Logging.Testing.FakeLogCollector { }
-    }
     [TUnit.Assertions.Attributes.AssertionExtension("HasNotLogged")]
     public sealed class HasNotLoggedAssertion : LogAssertions.TUnit.LogAssertionBase<LogAssertions.TUnit.HasNotLoggedAssertion>
     {
@@ -116,6 +97,25 @@ namespace TUnit.Assertions.Extensions
     public static class HasLoggedSequenceAssertionExtensions
     {
         public static LogAssertions.TUnit.HasLoggedSequenceAssertion HasLoggedSequence<TActual>(this TUnit.Assertions.Core.IAssertionSource<TActual> source)
+            where TActual : Microsoft.Extensions.Logging.Testing.FakeLogCollector { }
+    }
+    public static class HasLoggedShorthandExtensions
+    {
+        public static LogAssertions.TUnit.HasLoggedAssertion HasLoggedAtLeast<TActual>(this TUnit.Assertions.Core.IAssertionSource<TActual> source, int count)
+            where TActual : Microsoft.Extensions.Logging.Testing.FakeLogCollector { }
+        public static LogAssertions.TUnit.HasLoggedAssertion HasLoggedAtMost<TActual>(this TUnit.Assertions.Core.IAssertionSource<TActual> source, int count)
+            where TActual : Microsoft.Extensions.Logging.Testing.FakeLogCollector { }
+        public static LogAssertions.TUnit.HasLoggedAssertion HasLoggedBetween<TActual>(this TUnit.Assertions.Core.IAssertionSource<TActual> source, int min, int max)
+            where TActual : Microsoft.Extensions.Logging.Testing.FakeLogCollector { }
+        public static LogAssertions.TUnit.HasLoggedAssertion HasLoggedErrorOrAbove<TActual>(this TUnit.Assertions.Core.IAssertionSource<TActual> source)
+            where TActual : Microsoft.Extensions.Logging.Testing.FakeLogCollector { }
+        public static LogAssertions.TUnit.HasLoggedAssertion HasLoggedExactly<TActual>(this TUnit.Assertions.Core.IAssertionSource<TActual> source, int count)
+            where TActual : Microsoft.Extensions.Logging.Testing.FakeLogCollector { }
+        public static LogAssertions.TUnit.HasNotLoggedAssertion HasLoggedNothing<TActual>(this TUnit.Assertions.Core.IAssertionSource<TActual> source)
+            where TActual : Microsoft.Extensions.Logging.Testing.FakeLogCollector { }
+        public static LogAssertions.TUnit.HasLoggedAssertion HasLoggedOnce<TActual>(this TUnit.Assertions.Core.IAssertionSource<TActual> source)
+            where TActual : Microsoft.Extensions.Logging.Testing.FakeLogCollector { }
+        public static LogAssertions.TUnit.HasLoggedAssertion HasLoggedWarningOrAbove<TActual>(this TUnit.Assertions.Core.IAssertionSource<TActual> source)
             where TActual : Microsoft.Extensions.Logging.Testing.FakeLogCollector { }
     }
     public static class HasNotLoggedAssertionExtensions

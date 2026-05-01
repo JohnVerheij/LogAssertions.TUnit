@@ -1,8 +1,9 @@
+using LogAssertions.TUnit;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 using TUnit.Assertions.Core;
 
-namespace LogAssertions.TUnit;
+namespace TUnit.Assertions.Extensions;
 
 /// <summary>
 /// Top-level shorthand entry points that wrap the most common <c>HasLogged()...</c> chains.
@@ -10,9 +11,18 @@ namespace LogAssertions.TUnit;
 /// reduce ceremony for high-frequency assertions.
 /// </summary>
 /// <remarks>
+/// <para>
+/// Lives in <c>TUnit.Assertions.Extensions</c> (where TUnit's source generator emits the
+/// core entry-point extension methods like <c>HasLogged()</c>) so consumers do not need a
+/// second <c>using</c> directive to discover these shorthands. If you can call
+/// <c>Assert.That(collector).HasLogged()</c> in a file, you can also call
+/// <c>Assert.That(collector).HasLoggedOnce()</c> there — same auto-import path.
+/// </para>
+/// <para>
 /// All shorthands return a <see cref="HasLoggedAssertion"/>, so additional filters can still
 /// be chained after the shorthand: <c>HasLoggedExactly(3).AtLevel(LogLevel.Warning)</c>
 /// asserts "exactly 3 records, all matching the supplied filter set".
+/// </para>
 /// </remarks>
 public static class HasLoggedShorthandExtensions
 {
