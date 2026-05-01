@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using LogAssertions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
+using TUnit.Assertions.Core;
 using TUnit.Assertions.Exceptions;
 
 namespace LogAssertions.TUnit.Tests;
@@ -1979,9 +1981,83 @@ internal sealed class LogAssertionsTests
         cancellationToken.ThrowIfCancellationRequested();
         FakeLogCollector collector = new();
 
-        await Assert.That(async () => await Assert.That(collector).AssertAllAsync(null!))
+        // Explicit array-type casts disambiguate between the two AssertAllAsync overloads
+        // (Task-returning and Assertion-returning); both should reject null and a null entry.
+        await Assert.That(async () =>
+            await Assert.That(collector).AssertAllAsync(
+                (Func<IAssertionSource<FakeLogCollector>, Task>[])null!))
             .Throws<ArgumentNullException>();
-        await Assert.That(async () => await Assert.That(collector).AssertAllAsync(null!, c => Task.CompletedTask))
+        await Assert.That(async () =>
+            await Assert.That(collector).AssertAllAsync(
+                (Func<IAssertionSource<FakeLogCollector>, Task>)null!,
+                c => Task.CompletedTask))
+            .Throws<ArgumentException>();
+    }
+
+    /// <summary>
+    /// Verifies the v0.2.1 ergonomic <c>AssertAllAsync</c> overload that accepts assertion
+    /// configurators (returning the fluent assertion object) instead of awaited delegates.
+    /// Drops the <c>async</c>/<c>await</c> ceremony on every entry; the call site reads as a
+    /// list of expressions rather than a list of awaitable lambdas.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task AssertAllAsyncAssertionOverloadPassesWhenAllSucceedAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = CreateCollectorWithSampleRecords();
+
+        // No async/await on the lambdas — each just returns the configured fluent assertion.
+        await Assert.That(collector).AssertAllAsync(
+            c => c.HasLogged().AtLevel(LogLevel.Warning).Once(),
+            c => c.HasLogged().AtLevel(LogLevel.Error).Once(),
+            c => c.HasNotLogged().AtLevel(LogLevel.Critical));
+    }
+
+    /// <summary>
+    /// Verifies the v0.2.1 overload aggregates multiple inner failures into a single
+    /// <see cref="AssertionException"/>, matching the semantics of the Task-returning overload.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task AssertAllAsyncAssertionOverloadAggregatesFailuresAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = CreateCollectorWithSampleRecords();
+
+        AssertionException? ex = await Assert.That(async () =>
+            await Assert.That(collector).AssertAllAsync(
+                c => c.HasLogged().AtLevel(LogLevel.Critical).Once(),
+                c => c.HasLogged().AtLevel(LogLevel.Warning).Once(),
+                c => c.HasLogged().AtLevel(LogLevel.None).Once()))
+            .Throws<AssertionException>();
+        await Assert.That(ex).IsNotNull();
+
+        var msg = ex!.Message;
+        await Assert.That(msg).Contains("AssertAll: 2 of 3 assertions failed");
+        await Assert.That(msg).Contains("[1]");
+        await Assert.That(msg).Contains("[2]");
+    }
+
+    /// <summary>
+    /// Verifies the v0.2.1 overload rejects null args on its own surface (mirroring the
+    /// Task-returning overload's null-arg guards).
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task AssertAllAsyncAssertionOverloadRejectsNullArgsAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+
+        await Assert.That(async () =>
+            await Assert.That(collector).AssertAllAsync(
+                (Func<IAssertionSource<FakeLogCollector>, Assertion<FakeLogCollector>>[])null!))
+            .Throws<ArgumentNullException>();
+        await Assert.That(async () =>
+            await Assert.That(collector).AssertAllAsync(
+                (Func<IAssertionSource<FakeLogCollector>, Assertion<FakeLogCollector>>)null!,
+                c => c.HasLogged()))
             .Throws<ArgumentException>();
     }
 }

@@ -376,14 +376,16 @@ Run several independent assertions against the same collector in one pass and ag
 
 ```csharp
 await Assert.That(collector).AssertAllAsync(
-    async c => await c.HasLogged().AtLevel(LogLevel.Information).AtLeast(1),
-    async c => await c.HasNotLogged().AtLevel(LogLevel.Error),
-    async c => await c.HasLoggedSequence()
+    c => c.HasLogged().AtLevel(LogLevel.Information).AtLeast(1),
+    c => c.HasNotLogged().AtLevel(LogLevel.Error),
+    c => c.HasLoggedSequence()
         .Containing("Started", StringComparison.Ordinal)
         .Then().Containing("Stopped", StringComparison.Ordinal));
 ```
 
 If two of three fail, the thrown exception's message lists both — not just the first.
+
+A second overload (added in 0.2.1) accepts the more verbose `async c => await c.HasLogged()...` form for cases where the lambda needs to mix in non-assertion async work between checks. Pick whichever is clearer for the case at hand; both have identical failure-aggregation semantics.
 
 ---
 
