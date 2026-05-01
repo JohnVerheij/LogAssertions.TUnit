@@ -64,7 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions CI (build + test + coverage + pack) on push and PR, with concurrency cancellation, doc-only path-ignore, and 10-minute timeout
 - Code coverage collected via `--coverage` flag; uploaded to Codecov (free for public repos)
 - CodeQL static analysis on push and PR (skipped on private repos via `if:` condition; auto-enables when public)
-- Tag-triggered release workflow (`v[0-9]+.[0-9]+.[0-9]+`) — verifies tag matches `<Version>` in csproj, runs full build+test, packs, pushes to nuget.org, creates GitHub Release with auto-generated notes
+- Tag-triggered release workflow (`v[0-9]+.[0-9]+.[0-9]+`) — verifies tag matches `<Version>` in csproj, runs full build+test, packs, pushes to nuget.org via **Trusted Publishing (OIDC, no long-lived API key in the repo)**, creates GitHub Release with auto-generated notes
 - Dependabot weekly updates for NuGet and GitHub Actions, with auto-merge of patch + minor bumps after CI passes (major bumps require manual review)
 - Issue templates (bug report, feature request) and PR template
 - `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1), `CONTRIBUTING.md`, `SECURITY.md`
