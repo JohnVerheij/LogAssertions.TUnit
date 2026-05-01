@@ -14,7 +14,9 @@
   <ItemGroup>
     <!-- Alphabetical per dpfa Proj0015 -->
     <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" />
+    <PackageReference Include="PublicApiGenerator" />
     <PackageReference Include="TUnit" />
+    <PackageReference Include="Verify.TUnit" />
   </ItemGroup>
 
   <ItemGroup>

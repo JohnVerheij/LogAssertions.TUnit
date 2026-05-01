@@ -57,7 +57,7 @@ internal sealed class LogAssertionsTests
     {
         cancellationToken.ThrowIfCancellationRequested();
         FakeLogCollector collector = CreateCollectorWithSampleRecords();
-        await Assert.That(collector).HasLogged().AtLevel(LogLevel.Warning).Containing("validation failed").Once();
+        await Assert.That(collector).HasLogged().AtLevel(LogLevel.Warning).Containing("validation failed", StringComparison.Ordinal).Once();
     }
 
     /// <summary>
@@ -115,8 +115,8 @@ internal sealed class LogAssertionsTests
     {
         cancellationToken.ThrowIfCancellationRequested();
         FakeLogCollector collector = CreateCollectorWithSampleRecords();
-        await Assert.That(collector).HasLogged().Containing("validation").Once();
-        await Assert.That(collector).HasLogged().Containing("Started").Once();
+        await Assert.That(collector).HasLogged().Containing("validation", StringComparison.Ordinal).Once();
+        await Assert.That(collector).HasLogged().Containing("Started", StringComparison.Ordinal).Once();
     }
 
     /// <summary>
@@ -130,7 +130,7 @@ internal sealed class LogAssertionsTests
     {
         cancellationToken.ThrowIfCancellationRequested();
         FakeLogCollector collector = CreateCollectorWithSampleRecords();
-        await Assert.That(async () => await Assert.That(collector).HasLogged().Containing("xyz-not-found").Once())
+        await Assert.That(async () => await Assert.That(collector).HasLogged().Containing("xyz-not-found", StringComparison.Ordinal).Once())
             .Throws<AssertionException>();
     }
 
@@ -377,7 +377,7 @@ internal sealed class LogAssertionsTests
         cancellationToken.ThrowIfCancellationRequested();
         FakeLogCollector collector = CreateCollectorWithSampleRecords();
         await Assert.That(collector).HasNotLogged().AtLevel(LogLevel.Critical);
-        await Assert.That(collector).HasNotLogged().Containing("xyz-absent");
+        await Assert.That(collector).HasNotLogged().Containing("xyz-absent", StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -410,7 +410,7 @@ internal sealed class LogAssertionsTests
     {
         cancellationToken.ThrowIfCancellationRequested();
         FakeLogCollector collector = CreateCollectorWithSampleRecords();
-        await Assert.That(collector).HasLogged().AtLevel(LogLevel.Error).WithException<InvalidOperationException>().Containing("failed").Once();
+        await Assert.That(collector).HasLogged().AtLevel(LogLevel.Error).WithException<InvalidOperationException>().Containing("failed", StringComparison.Ordinal).Once();
     }
 
     /// <summary>
@@ -541,13 +541,13 @@ internal sealed class LogAssertionsTests
         FakeLogCollector collector = new();
 
         // HasLogged path — null guards applied uniformly via the shared base class.
-        await Assert.That(async () => await Assert.That(collector).HasLogged().Containing(null!)).Throws<ArgumentNullException>();
+        await Assert.That(async () => await Assert.That(collector).HasLogged().Containing(null!, StringComparison.Ordinal)).Throws<ArgumentNullException>();
         await Assert.That(async () => await Assert.That(collector).HasLogged().WithMessage(null!)).Throws<ArgumentNullException>();
         await Assert.That(async () => await Assert.That(collector).HasLogged().WithProperty(null!, "value")).Throws<ArgumentNullException>();
         await Assert.That(async () => await Assert.That(collector).HasLogged().WithCategory(null!)).Throws<ArgumentNullException>();
 
         // HasNotLogged path — same guards, separate code-path through the inverse entry point.
-        await Assert.That(async () => await Assert.That(collector).HasNotLogged().Containing(null!)).Throws<ArgumentNullException>();
+        await Assert.That(async () => await Assert.That(collector).HasNotLogged().Containing(null!, StringComparison.Ordinal)).Throws<ArgumentNullException>();
         await Assert.That(async () => await Assert.That(collector).HasNotLogged().WithMessage(null!)).Throws<ArgumentNullException>();
         await Assert.That(async () => await Assert.That(collector).HasNotLogged().WithProperty(null!, "value")).Throws<ArgumentNullException>();
         await Assert.That(async () => await Assert.That(collector).HasNotLogged().WithCategory(null!)).Throws<ArgumentNullException>();
@@ -704,9 +704,9 @@ internal sealed class LogAssertionsTests
         TestLogMessages.CycleFinished(logger, 1);
 
         await Assert.That(collector).HasLoggedSequence()
-            .AtLevel(LogLevel.Information).Containing("started")
-            .Then().AtLevel(LogLevel.Warning).Containing("validation failed")
-            .Then().AtLevel(LogLevel.Information).Containing("finished");
+            .AtLevel(LogLevel.Information).Containing("started", StringComparison.Ordinal)
+            .Then().AtLevel(LogLevel.Warning).Containing("validation failed", StringComparison.Ordinal)
+            .Then().AtLevel(LogLevel.Information).Containing("finished", StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -730,9 +730,9 @@ internal sealed class LogAssertionsTests
         TestLogMessages.CycleFinished(logger, 1); // No validation-failed record between
 
         await Assert.That(async () => await Assert.That(collector).HasLoggedSequence()
-                .AtLevel(LogLevel.Information).Containing("started")
+                .AtLevel(LogLevel.Information).Containing("started", StringComparison.Ordinal)
                 .Then().AtLevel(LogLevel.Warning)
-                .Then().AtLevel(LogLevel.Information).Containing("finished"))
+                .Then().AtLevel(LogLevel.Information).Containing("finished", StringComparison.Ordinal))
             .Throws<AssertionException>();
     }
 
@@ -761,5 +761,100 @@ internal sealed class LogAssertionsTests
                 .AtLevel(LogLevel.Warning)
                 .Then().AtLevel(LogLevel.Information))
             .Throws<AssertionException>();
+    }
+
+    // --- AtLevelOrAbove / AtLevelOrBelow filters ---
+
+    /// <summary>
+    /// Verifies the level-range filters. The seed has one record per level (Trace through Error).
+    /// <c>AtLevelOrAbove(Warning)</c> matches Warning + Error (2 records); <c>AtLevelOrBelow(Debug)</c>
+    /// matches Trace + Debug (2 records). Pins the >= and &lt;= comparisons against the LogLevel enum
+    /// ordinals, which is the right semantic for the typical "no error or warning logged" pattern.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task AtLevelOrAboveAndOrBelowFilterByOrdinalAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = CreateCollectorWithSampleRecords();
+
+        await Assert.That(collector).HasLogged().AtLevelOrAbove(LogLevel.Warning).Exactly(2);
+        await Assert.That(collector).HasLogged().AtLevelOrBelow(LogLevel.Debug).Exactly(2);
+        await Assert.That(collector).HasNotLogged().AtLevelOrAbove(LogLevel.Critical);
+    }
+
+    // --- Containing(string, StringComparison) overload ---
+
+    /// <summary>
+    /// Verifies the case-insensitive <c>Containing</c> overload. The seed has a Warning record
+    /// "validation failed: TimeoutMs out of range" — the lowercase "validation" matches by ordinal,
+    /// the uppercase "VALIDATION" only matches with <c>OrdinalIgnoreCase</c>. Pins both that the
+    /// overload exists AND that it routes the comparison to the underlying string contains call.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task ContainingHonoursStringComparisonOverloadAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = CreateCollectorWithSampleRecords();
+
+        await Assert.That(collector).HasLogged().Containing("VALIDATION", StringComparison.OrdinalIgnoreCase).Once();
+        await Assert.That(collector).HasNotLogged().Containing("VALIDATION", StringComparison.Ordinal);
+    }
+
+    // --- Between terminator ---
+
+    /// <summary>
+    /// Verifies the <c>Between(min, max)</c> terminator on inclusive bounds. The seed has 5 records;
+    /// asserting <c>Between(3, 7)</c> passes (5 falls in range). The boundary tests
+    /// <c>Between(5, 5)</c> (equivalent to <c>Exactly(5)</c>) and <c>Between(0, 4)</c> (fails because
+    /// 5 &gt; 4) pin the inclusivity semantics.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task BetweenTerminatorMatchesInclusiveRangeAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = CreateCollectorWithSampleRecords();
+
+        await Assert.That(collector).HasLogged().Between(3, 7);
+        await Assert.That(collector).HasLogged().Between(5, 5);
+        await Assert.That(async () => await Assert.That(collector).HasLogged().Between(0, 4))
+            .Throws<AssertionException>();
+    }
+
+    /// <summary>
+    /// Verifies <c>Between</c> rejects invalid bounds: negative min, and max less than min.
+    /// Pins the <c>ThrowIfNegative</c> + <c>ThrowIfLessThan</c> guards.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task BetweenRejectsInvalidBoundsAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+
+        await Assert.That(async () => await Assert.That(collector).HasLogged().Between(-1, 5)).Throws<ArgumentOutOfRangeException>();
+        await Assert.That(async () => await Assert.That(collector).HasLogged().Between(5, 3)).Throws<ArgumentOutOfRangeException>();
+    }
+
+    // --- WithExceptionMessage filter ---
+
+    /// <summary>
+    /// Verifies <c>WithExceptionMessage</c> matches records whose exception's message contains
+    /// the substring (ordinal). Composed with <c>WithException&lt;T&gt;</c> for the typical
+    /// "specific exception type with specific message" pattern. The seed has one Error record
+    /// bearing <c>InvalidOperationException("boom")</c> — both filters together match it.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task WithExceptionMessageMatchesExceptionMessageSubstringAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = CreateCollectorWithSampleRecords();
+
+        await Assert.That(collector).HasLogged().WithExceptionMessage("boom").Once();
+        await Assert.That(collector).HasLogged().WithException<InvalidOperationException>().WithExceptionMessage("boom").Once();
+        await Assert.That(collector).HasNotLogged().WithExceptionMessage("nope");
     }
 }

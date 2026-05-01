@@ -27,7 +27,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build & Test
+    name: Build, test & pack
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -49,10 +49,35 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release --no-restore
 
-      - name: Test
-        # TUnit uses Microsoft.Testing.Platform; on .NET 10 SDK invoke the test exe directly
-        # rather than `dotnet test` (the legacy VSTest path is no longer supported).
-        run: dotnet run --project tests/LogAssertions.TUnit.Tests/LogAssertions.TUnit.Tests.csproj --configuration Release --no-build
+      - name: Test (with coverage)
+        # TUnit on .NET 10 SDK invokes via the test exe directly. The Microsoft.Testing.Platform
+        # --coverage flag enables Microsoft.CodeCoverage collection (transitively pulled via TUnit).
+        run: |
+          dotnet run --project tests/LogAssertions.TUnit.Tests/LogAssertions.TUnit.Tests.csproj \
+            --configuration Release --no-build \
+            -- --coverage --coverage-output-format cobertura --coverage-output coverage.cobertura.xml
+
+      - name: Locate coverage report
+        id: coverage
+        run: |
+          # The test exe writes coverage relative to the test bin directory; surface its path.
+          REPORT=$(find tests -name 'coverage.cobertura.xml' -print -quit)
+          if [ -z "$REPORT" ]; then
+            echo "::warning::No cobertura coverage report found; skipping upload"
+          else
+            echo "report=$REPORT" >> "$GITHUB_OUTPUT"
+            echo "Coverage report: $REPORT"
+          fi
+
+      - name: Upload coverage to Codecov
+        if: steps.coverage.outputs.report != ''
+        uses: codecov/codecov-action@v4
+        with:
+          files: ${{ steps.coverage.outputs.report }}
+          fail_ci_if_error: false
+          verbose: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Pack
         run: dotnet pack src/LogAssertions.TUnit/LogAssertions.TUnit.csproj --configuration Release --no-build --output ./artifacts

@@ -53,15 +53,42 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
         return (TSelf)this;
     }
 
-    /// <summary>Filters to records whose message contains <paramref name="substring"/> (ordinal).</summary>
+    /// <summary>Filters to records whose level is greater than or equal to <paramref name="level"/>.</summary>
+    /// <param name="level">The minimum log level to match (inclusive).</param>
+    /// <returns>This assertion for chaining.</returns>
+    public TSelf AtLevelOrAbove(LogLevel level)
+    {
+        AddPredicate(r => r.Level >= level, string.Format(CultureInfo.InvariantCulture, "Level >= {0}", level));
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".AtLevelOrAbove({level})");
+        return (TSelf)this;
+    }
+
+    /// <summary>Filters to records whose level is less than or equal to <paramref name="level"/>.</summary>
+    /// <param name="level">The maximum log level to match (inclusive).</param>
+    /// <returns>This assertion for chaining.</returns>
+    public TSelf AtLevelOrBelow(LogLevel level)
+    {
+        AddPredicate(r => r.Level <= level, string.Format(CultureInfo.InvariantCulture, "Level <= {0}", level));
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".AtLevelOrBelow({level})");
+        return (TSelf)this;
+    }
+
+    /// <summary>
+    /// Filters to records whose message contains <paramref name="substring"/> using the specified
+    /// <paramref name="comparison"/>. The comparison is explicit by design — pass
+    /// <see cref="StringComparison.Ordinal"/> for the most common case.
+    /// </summary>
     /// <param name="substring">The substring to search for. Must be non-null.</param>
+    /// <param name="comparison">The string comparison to apply.</param>
     /// <returns>This assertion for chaining.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="substring"/> is <see langword="null"/>.</exception>
-    public TSelf Containing(string substring)
+    public TSelf Containing(string substring, StringComparison comparison)
     {
         ArgumentNullException.ThrowIfNull(substring);
-        AddPredicate(r => r.Message.Contains(substring, StringComparison.Ordinal), $"Message contains \"{substring}\"");
-        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".Containing(\"{substring}\")");
+        AddPredicate(
+            r => r.Message.Contains(substring, comparison),
+            string.Format(CultureInfo.InvariantCulture, "Message contains \"{0}\" ({1})", substring, comparison));
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".Containing(\"{substring}\", {comparison})");
         return (TSelf)this;
     }
 
@@ -87,6 +114,23 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     {
         AddPredicate(r => r.Exception is TException, $"Exception is {typeof(TException).Name}");
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithException<{typeof(TException).Name}>()");
+        return (TSelf)this;
+    }
+
+    /// <summary>
+    /// Filters to records whose <see cref="FakeLogRecord.Exception"/> is non-null and whose
+    /// <see cref="Exception.Message"/> contains <paramref name="substring"/> (ordinal).
+    /// </summary>
+    /// <param name="substring">The substring to search for in the exception's message. Must be non-null.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="substring"/> is <see langword="null"/>.</exception>
+    public TSelf WithExceptionMessage(string substring)
+    {
+        ArgumentNullException.ThrowIfNull(substring);
+        AddPredicate(
+            r => r.Exception?.Message.Contains(substring, StringComparison.Ordinal) ?? false,
+            $"Exception message contains \"{substring}\"");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithExceptionMessage(\"{substring}\")");
         return (TSelf)this;
     }
 

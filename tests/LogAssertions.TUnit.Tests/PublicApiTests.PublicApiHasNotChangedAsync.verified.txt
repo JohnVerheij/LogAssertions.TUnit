@@ -1,0 +1,77 @@
+﻿[assembly: System.Reflection.AssemblyMetadata("IsAotCompatible", "True")]
+[assembly: System.Reflection.AssemblyMetadata("IsTrimmable", "True")]
+[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/JohnVerheij/LogAssertions.TUnit")]
+[assembly: System.Runtime.Versioning.TargetFramework(".NETCoreApp,Version=v10.0", FrameworkDisplayName=".NET 10.0")]
+namespace LogAssertions.TUnit
+{
+    [TUnit.Assertions.Attributes.AssertionExtension("HasLogged")]
+    public sealed class HasLoggedAssertion : LogAssertions.TUnit.LogAssertionBase<LogAssertions.TUnit.HasLoggedAssertion>
+    {
+        public HasLoggedAssertion(TUnit.Assertions.Core.AssertionContext<Microsoft.Extensions.Logging.Testing.FakeLogCollector> context) { }
+        public LogAssertions.TUnit.HasLoggedAssertion AtLeast(int count) { }
+        public LogAssertions.TUnit.HasLoggedAssertion AtMost(int count) { }
+        public LogAssertions.TUnit.HasLoggedAssertion Between(int min, int max) { }
+        protected override System.Threading.Tasks.Task<TUnit.Assertions.Core.AssertionResult> CheckAsync(TUnit.Assertions.Core.EvaluationMetadata<Microsoft.Extensions.Logging.Testing.FakeLogCollector> metadata) { }
+        public LogAssertions.TUnit.HasLoggedAssertion Exactly(int count) { }
+        protected override string GetExpectation() { }
+        public LogAssertions.TUnit.HasLoggedAssertion Never() { }
+        public LogAssertions.TUnit.HasLoggedAssertion Once() { }
+    }
+    [TUnit.Assertions.Attributes.AssertionExtension("HasLoggedSequence")]
+    public sealed class HasLoggedSequenceAssertion : LogAssertions.TUnit.LogAssertionBase<LogAssertions.TUnit.HasLoggedSequenceAssertion>
+    {
+        public HasLoggedSequenceAssertion(TUnit.Assertions.Core.AssertionContext<Microsoft.Extensions.Logging.Testing.FakeLogCollector> context) { }
+        protected override void AddPredicate(System.Func<Microsoft.Extensions.Logging.Testing.FakeLogRecord, bool> predicate, string description) { }
+        protected override System.Threading.Tasks.Task<TUnit.Assertions.Core.AssertionResult> CheckAsync(TUnit.Assertions.Core.EvaluationMetadata<Microsoft.Extensions.Logging.Testing.FakeLogCollector> metadata) { }
+        protected override string GetExpectation() { }
+        public LogAssertions.TUnit.HasLoggedSequenceAssertion Then() { }
+    }
+    [TUnit.Assertions.Attributes.AssertionExtension("HasNotLogged")]
+    public sealed class HasNotLoggedAssertion : LogAssertions.TUnit.LogAssertionBase<LogAssertions.TUnit.HasNotLoggedAssertion>
+    {
+        public HasNotLoggedAssertion(TUnit.Assertions.Core.AssertionContext<Microsoft.Extensions.Logging.Testing.FakeLogCollector> context) { }
+        protected override System.Threading.Tasks.Task<TUnit.Assertions.Core.AssertionResult> CheckAsync(TUnit.Assertions.Core.EvaluationMetadata<Microsoft.Extensions.Logging.Testing.FakeLogCollector> metadata) { }
+        protected override string GetExpectation() { }
+    }
+    public abstract class LogAssertionBase<TSelf> : TUnit.Assertions.Core.Assertion<Microsoft.Extensions.Logging.Testing.FakeLogCollector>
+        where TSelf : LogAssertions.TUnit.LogAssertionBase<TSelf>
+    {
+        protected LogAssertionBase(TUnit.Assertions.Core.AssertionContext<Microsoft.Extensions.Logging.Testing.FakeLogCollector> context) { }
+        protected virtual void AddPredicate(System.Func<Microsoft.Extensions.Logging.Testing.FakeLogRecord, bool> predicate, string description) { }
+        protected void AppendFilterSummary(System.Text.StringBuilder sb) { }
+        public TSelf AtLevel(Microsoft.Extensions.Logging.LogLevel level) { }
+        public TSelf AtLevelOrAbove(Microsoft.Extensions.Logging.LogLevel level) { }
+        public TSelf AtLevelOrBelow(Microsoft.Extensions.Logging.LogLevel level) { }
+        public TSelf Containing(string substring, System.StringComparison comparison) { }
+        protected int CountMatches(System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord> snapshot) { }
+        public TSelf Where(System.Func<Microsoft.Extensions.Logging.Testing.FakeLogRecord, bool> predicate) { }
+        public TSelf WithCategory(string category) { }
+        public TSelf WithEventId(int eventId) { }
+        public TSelf WithEventName(string eventName) { }
+        public TSelf WithException<TException>()
+            where TException : System.Exception { }
+        public TSelf WithExceptionMessage(string substring) { }
+        public TSelf WithMessage(System.Func<string, bool> predicate) { }
+        public TSelf WithProperty(string key, string? value) { }
+        public TSelf WithScope<TScope>() { }
+        protected static string BuildFailureMessage(int matchCount, System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord> snapshot) { }
+    }
+}
+namespace TUnit.Assertions.Extensions
+{
+    public static class HasLoggedAssertionExtensions
+    {
+        public static LogAssertions.TUnit.HasLoggedAssertion HasLogged<TActual>(this TUnit.Assertions.Core.IAssertionSource<TActual> source)
+            where TActual : Microsoft.Extensions.Logging.Testing.FakeLogCollector { }
+    }
+    public static class HasLoggedSequenceAssertionExtensions
+    {
+        public static LogAssertions.TUnit.HasLoggedSequenceAssertion HasLoggedSequence<TActual>(this TUnit.Assertions.Core.IAssertionSource<TActual> source)
+            where TActual : Microsoft.Extensions.Logging.Testing.FakeLogCollector { }
+    }
+    public static class HasNotLoggedAssertionExtensions
+    {
+        public static LogAssertions.TUnit.HasNotLoggedAssertion HasNotLogged<TActual>(this TUnit.Assertions.Core.IAssertionSource<TActual> source)
+            where TActual : Microsoft.Extensions.Logging.Testing.FakeLogCollector { }
+    }
+}
