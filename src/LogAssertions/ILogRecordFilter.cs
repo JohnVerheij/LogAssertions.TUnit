@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging.Testing;
 
-namespace LogAssertions.TUnit;
+namespace LogAssertions;
 
 /// <summary>
 /// A composable filter over <see cref="FakeLogRecord"/>. Built-in filter methods on the

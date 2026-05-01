@@ -22,7 +22,7 @@ jobs:
     timeout-minutes: 15
     environment:
       name: nuget
-      url: https://www.nuget.org/packages/LogAssertions.TUnit/
+      url: https://www.nuget.org/packages/LogAssertions/
 
     steps:
       - name: Checkout
@@ -37,14 +37,19 @@ jobs:
             10.0.x
 
       - name: Verify tag matches package version
+        # Both packages (LogAssertions and LogAssertions.TUnit) ship together in lockstep:
+        # they share a single tag and must declare the same Version in their csproj. This
+        # gate blocks the release if any of the three (tag, LogAssertions csproj, LogAssertions.TUnit
+        # csproj) disagree.
         run: |
           TAG_VERSION="${GITHUB_REF#refs/tags/v}"
-          CSPROJ_VERSION=$(grep -oP '(?<=<Version>)[^<]+' src/LogAssertions.TUnit/LogAssertions.TUnit.csproj)
-          if [ "$TAG_VERSION" != "$CSPROJ_VERSION" ]; then
-            echo "::error::Tag version ($TAG_VERSION) does not match csproj <Version> ($CSPROJ_VERSION)"
+          CORE_VERSION=$(grep -oP '(?<=<Version>)[^<]+' src/LogAssertions/LogAssertions.csproj)
+          TUNIT_VERSION=$(grep -oP '(?<=<Version>)[^<]+' src/LogAssertions.TUnit/LogAssertions.TUnit.csproj)
+          if [ "$TAG_VERSION" != "$CORE_VERSION" ] || [ "$TAG_VERSION" != "$TUNIT_VERSION" ]; then
+            echo "::error::Version mismatch: tag=$TAG_VERSION  LogAssertions=$CORE_VERSION  LogAssertions.TUnit=$TUNIT_VERSION"
             exit 1
           fi
-          echo "Tag and csproj agree on version $TAG_VERSION"
+          echo "All three agree on version $TAG_VERSION"
 
       - name: Restore
         run: dotnet restore
@@ -52,10 +57,16 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release --no-restore
 
-      - name: Test
+      - name: Test main suite
         run: dotnet run --project tests/LogAssertions.TUnit.Tests/LogAssertions.TUnit.Tests.csproj --configuration Release --no-build
 
-      - name: Pack
+      - name: Test snapshot suite
+        run: dotnet run --project tests/LogAssertions.TUnit.SnapshotTests/LogAssertions.TUnit.SnapshotTests.csproj --configuration Release --no-build
+
+      - name: Pack LogAssertions (core)
+        run: dotnet pack src/LogAssertions/LogAssertions.csproj --configuration Release --no-build --output ./artifacts
+
+      - name: Pack LogAssertions.TUnit (TUnit adapter)
         run: dotnet pack src/LogAssertions.TUnit/LogAssertions.TUnit.csproj --configuration Release --no-build --output ./artifacts
 
       # NuGet Trusted Publishing: exchanges the GitHub Actions OIDC token for a

@@ -136,7 +136,10 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
-      - name: Pack
+      - name: Pack LogAssertions (core)
+        run: dotnet pack src/LogAssertions/LogAssertions.csproj --configuration Release --no-build --output ./artifacts
+
+      - name: Pack LogAssertions.TUnit (TUnit adapter)
         run: dotnet pack src/LogAssertions.TUnit/LogAssertions.TUnit.csproj --configuration Release --no-build --output ./artifacts
 
       - name: Upload package artifacts

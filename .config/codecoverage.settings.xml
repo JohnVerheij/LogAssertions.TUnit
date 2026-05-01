@@ -27,6 +27,7 @@
          out of scope for coverage accounting. -->
     <ModulePaths>
       <Include>
+        <ModulePath>.*LogAssertions\.dll$</ModulePath>
         <ModulePath>.*LogAssertions\.TUnit\.dll$</ModulePath>
       </Include>
     </ModulePaths>

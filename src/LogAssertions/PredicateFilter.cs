@@ -1,7 +1,7 @@
 using System;
 using Microsoft.Extensions.Logging.Testing;
 
-namespace LogAssertions.TUnit;
+namespace LogAssertions;
 
 /// <summary>
 /// Closed-over wrapper that adapts a delegate plus a description into an

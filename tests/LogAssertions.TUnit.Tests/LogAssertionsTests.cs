@@ -1765,4 +1765,223 @@ internal sealed class LogAssertionsTests
         await Assert.That(() => LogFilter.Not(null!)).Throws<ArgumentNullException>();
         await Assert.That(() => LogFilter.WithEventIdInRange(5, 1)).Throws<ArgumentOutOfRangeException>();
     }
+
+    // --- v0.2.0: top-level shorthand entry points ---
+
+    /// <summary>
+    /// Verifies the count-shorthand entry points dispatch to the equivalent <c>HasLogged().X(...)</c>
+    /// chain. Each shorthand returns the same assertion type, so additional filters can still
+    /// be appended.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task CountShorthandEntryPointsAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = CreateCollectorWithSampleRecords();
+
+        await Assert.That(collector).HasLoggedOnce().AtLevel(LogLevel.Warning);
+        await Assert.That(collector).HasLoggedExactly(1).AtLevel(LogLevel.Error);
+        await Assert.That(collector).HasLoggedAtLeast(1).AtLevel(LogLevel.Information);
+        await Assert.That(collector).HasLoggedAtMost(5);
+        await Assert.That(collector).HasLoggedBetween(1, 10);
+    }
+
+    /// <summary>
+    /// Verifies <c>HasLoggedNothing</c> on an empty collector passes, on a non-empty collector
+    /// fails. Cleaner read than <c>HasNotLogged()</c> for the "produced zero log output" intent.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task HasLoggedNothingShorthandAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector empty = new();
+        FakeLogCollector seeded = CreateCollectorWithSampleRecords();
+
+        await Assert.That(empty).HasLoggedNothing();
+        await Assert.That(async () => await Assert.That(seeded).HasLoggedNothing())
+            .Throws<AssertionException>();
+    }
+
+    /// <summary>
+    /// Verifies <c>HasLoggedWarningOrAbove</c> and <c>HasLoggedErrorOrAbove</c> shorthands
+    /// pre-configure the appropriate level filter. The seed has Warning + Error → both
+    /// shorthand assertions pass with at-least-1; both fail when only lower-severity records
+    /// exist.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task LevelShorthandsAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector seeded = CreateCollectorWithSampleRecords();
+        FakeLogCollector infoOnly = new();
+        using ILoggerFactory factory = LoggerFactory.Create(b => b.AddProvider(new FakeLoggerProvider(infoOnly)));
+        ILogger infoLogger = factory.CreateLogger("Test");
+        TestLogMessages.StartedProcessing(infoLogger);
+
+        await Assert.That(seeded).HasLoggedWarningOrAbove().AtLeast(1);
+        await Assert.That(seeded).HasLoggedErrorOrAbove().AtLeast(1);
+        await Assert.That(async () => await Assert.That(infoOnly).HasLoggedWarningOrAbove().AtLeast(1))
+            .Throws<AssertionException>();
+        await Assert.That(async () => await Assert.That(infoOnly).HasLoggedErrorOrAbove().AtLeast(1))
+            .Throws<AssertionException>();
+    }
+
+    // --- v0.2.0: LogCollectorBuilder ---
+
+    /// <summary>
+    /// Verifies <see cref="LogCollectorBuilder.Create"/> returns a wired (factory, collector)
+    /// tuple with the requested minimum level. Saves 3-4 lines of boilerplate per test.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task LogCollectorBuilderCreateAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var (factory, collector) = LogCollectorBuilder.Create(LogLevel.Information);
+        using (factory)
+        {
+            ILogger logger = factory.CreateLogger("Test");
+            TestLogMessages.TraceSample(logger);          // Trace — below minimum, dropped
+            TestLogMessages.StartedProcessing(logger);    // Information — captured
+
+            await Assert.That(collector).HasLogged().AtLevel(LogLevel.Information).Once();
+            await Assert.That(collector).HasNotLogged().AtLevel(LogLevel.Trace);
+        }
+    }
+
+    // --- v0.2.0: FakeLogCollector inspection extensions ---
+
+    /// <summary>
+    /// Verifies <c>collector.Filter(...)</c> returns matching records as a defensive copy and
+    /// <c>collector.CountMatching(...)</c> returns the same count. Empty filter list returns
+    /// every record.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task FilterAndCountMatchingAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = CreateCollectorWithSampleRecords();
+
+        var warnings = collector.Filter(LogFilter.AtLevel(LogLevel.Warning));
+        await Assert.That(warnings).Count().IsEqualTo(1);
+
+        await Assert.That(collector.CountMatching(LogFilter.AtLevelOrAbove(LogLevel.Warning))).IsEqualTo(2);
+        await Assert.That(collector.CountMatching()).IsEqualTo(5);   // empty filters → all records
+        await Assert.That(collector.Filter()).Count().IsEqualTo(5);
+    }
+
+    /// <summary>
+    /// Verifies <c>collector.DumpTo(writer)</c> writes the captured-records snapshot in the same
+    /// format the failure message uses (4-char level abbreviation, props line, etc.).
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task DumpToWritesSnapshotAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = CreateCollectorWithSampleRecords();
+        using var writer = new System.IO.StringWriter();
+        collector.DumpTo(writer);
+
+        var dump = writer.ToString();
+        await Assert.That(dump).Contains("Captured records (5 total):");
+        await Assert.That(dump).Contains("[trce]");
+        await Assert.That(dump).Contains("[warn]");
+        await Assert.That(dump).Contains("[fail]");
+        await Assert.That(dump).Contains("validation failed");
+    }
+
+    // --- v0.2.0: When(condition, ...) conditional chain ---
+
+    /// <summary>
+    /// Verifies <c>When(condition, apply)</c> applies the configurator only when the condition
+    /// is true. Lets parameterised tests vary part of the assertion chain on a boolean without
+    /// branching the entire await.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task WhenConditionalAppliesAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = CreateCollectorWithSampleRecords();
+
+        // Condition true: extra Containing filter applied → only the validation record matches.
+        await Assert.That(collector).HasLogged()
+            .AtLevel(LogLevel.Warning)
+            .When(true, b => b.Containing("validation", StringComparison.Ordinal))
+            .Once();
+
+        // Condition false: configurator skipped → all Warning records match (only one in seed).
+        await Assert.That(collector).HasLogged()
+            .AtLevel(LogLevel.Warning)
+            .When(false, b => b.Containing("nope", StringComparison.Ordinal))
+            .Once();
+
+        await Assert.That(async () => await Assert.That(collector).HasLogged().When(true, null!))
+            .Throws<ArgumentNullException>();
+    }
+
+    // --- v0.2.0: AssertAllAsync batch terminator ---
+
+    /// <summary>
+    /// Verifies <c>AssertAllAsync</c> runs every assertion and passes when all succeed.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task AssertAllPassesWhenEveryAssertionSucceedsAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = CreateCollectorWithSampleRecords();
+
+        await Assert.That(collector).AssertAllAsync(
+            async c => await c.HasLogged().AtLevel(LogLevel.Warning).Once(),
+            async c => await c.HasLogged().AtLevel(LogLevel.Error).Once(),
+            async c => await c.HasNotLogged().AtLevel(LogLevel.Critical));
+    }
+
+    /// <summary>
+    /// Verifies <c>AssertAllAsync</c> aggregates multiple failures into a single
+    /// <see cref="AssertionException"/> whose message lists each failure in order. Distinguishes
+    /// from fail-fast: every assertion runs, even after the first one throws.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task AssertAllAggregatesFailuresAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = CreateCollectorWithSampleRecords();
+
+        AssertionException? ex = await Assert.That(async () => await Assert.That(collector).AssertAllAsync(
+            async c => await c.HasLogged().AtLevel(LogLevel.Critical).Once(),
+            async c => await c.HasLogged().AtLevel(LogLevel.Warning).Once(),
+            async c => await c.HasLogged().AtLevel(LogLevel.None).Once()))
+            .Throws<AssertionException>();
+        await Assert.That(ex).IsNotNull();
+
+        var msg = ex!.Message;
+        await Assert.That(msg).Contains("AssertAll: 2 of 3 assertions failed");
+        await Assert.That(msg).Contains("[1]");
+        await Assert.That(msg).Contains("[2]");
+    }
+
+    /// <summary>
+    /// Verifies <c>AssertAllAsync</c> rejects a null entries array and a null entry within the array.
+    /// </summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task AssertAllRejectsNullArgsAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector collector = new();
+
+        await Assert.That(async () => await Assert.That(collector).AssertAllAsync(null!))
+            .Throws<ArgumentNullException>();
+        await Assert.That(async () => await Assert.That(collector).AssertAllAsync(null!, c => Task.CompletedTask))
+            .Throws<ArgumentException>();
+    }
 }

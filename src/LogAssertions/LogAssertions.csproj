@@ -3,38 +3,36 @@
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <TargetFramework>net10.0</TargetFramework>
-    <RootNamespace>LogAssertions.TUnit</RootNamespace>
-    <AssemblyName>LogAssertions.TUnit</AssemblyName>
+    <RootNamespace>LogAssertions</RootNamespace>
+    <AssemblyName>LogAssertions</AssemblyName>
     <IsPublishable>false</IsPublishable>
 
     <!-- Package identity -->
     <IsPackable>true</IsPackable>
-    <PackageId>LogAssertions.TUnit</PackageId>
-    <ProductName>LogAssertions.TUnit</ProductName>
+    <PackageId>LogAssertions</PackageId>
+    <ProductName>LogAssertions</ProductName>
     <Version>0.2.0</Version>
-    <PackageValidationBaselineVersion>0.1.0</PackageValidationBaselineVersion>
     <Authors>John Verheij</Authors>
     <Copyright>Copyright (c) 2026 John Verheij</Copyright>
-    <Description>TUnit-native fluent log-assertion DSL using [AssertionExtension] over Microsoft.Extensions.Logging.Testing.FakeLogCollector. Provides Assert.That(collector).HasLogged()/HasNotLogged() with filter and terminator chaining; emits captured-records snapshot in failure messages.</Description>
-    <PackageTags>tunit;logging;assertions;testing;fakelogcollector</PackageTags>
+    <Description>Framework-agnostic core for fluent log assertions over Microsoft.Extensions.Logging.Testing.FakeLogCollector. Provides ILogRecordFilter + LogFilter composable filter primitives, the failure-message rendering, the FakeLogCollector inspection extensions (Filter, CountMatching, DumpTo), and the LogCollectorBuilder factory. Test-framework-specific entry points live in adapter packages (LogAssertions.TUnit ships today; xUnit, NUnit, MSTest adapters are possible if there is demand).</Description>
+    <PackageTags>logging;assertions;testing;fakelogcollector;microsoft-extensions-logging</PackageTags>
     <PackageProjectUrl>https://github.com/JohnVerheij/LogAssertions.TUnit</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>See CHANGELOG.md</PackageReleaseNotes>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
 
-    <!-- Pre-1.0 suppressions (single NoWarn to satisfy dpfa Proj0011):
+    <!-- Pre-1.0 / first-release suppressions:
          Proj0212/Proj0213: PackageIcon and PackageIconUrl omitted; will be added by 1.0.0.
-         (Proj0241 dropped at 0.2.0 — PackageValidationBaselineVersion is now pinned to
-         the previous shipped version above.) -->
-    <NoWarn>$(NoWarn);Proj0212;Proj0213</NoWarn>
+         Proj0241: PackageValidationBaselineVersion cannot be set on the first shipped version
+         (no previous version exists). Will be pinned to 0.2.0 from 0.3.0 onward. -->
+    <NoWarn>$(NoWarn);Proj0212;Proj0213;Proj0241</NoWarn>
 
     <!-- Symbol package + API compat (strict mode quad per dpfa Proj0249/0250/0251/0252) -->
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <EnablePackageValidation>true</EnablePackageValidation>
     <EnableStrictModeForCompatibleFrameworksInPackage>true</EnableStrictModeForCompatibleFrameworksInPackage>
-    <EnableStrictModeForBaselineValidation>true</EnableStrictModeForBaselineValidation>
     <ApiCompatGenerateSuppressionFile>true</ApiCompatGenerateSuppressionFile>
     <ApiCompatEnableRuleCannotChangeParameterName>true</ApiCompatEnableRuleCannotChangeParameterName>
     <ApiCompatEnableRuleAttributesMustMatch>true</ApiCompatEnableRuleAttributesMustMatch>
@@ -43,7 +41,7 @@
     <!-- SBOM generation per dpfa Proj0243 (Microsoft.Sbom.Targets pack-time generation) -->
     <GenerateSBOM>true</GenerateSBOM>
 
-    <!-- AOT / trimming — lib code uses no reflection, safe for AOT-mode test contexts -->
+    <!-- AOT / trimming - core code uses no reflection, safe for AOT-mode test contexts -->
     <IsAotCompatible>true</IsAotCompatible>
     <IsTrimmable>true</IsTrimmable>
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
@@ -54,17 +52,10 @@
     <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" />
     <PackageReference Include="Microsoft.Sbom.Targets" PrivateAssets="all" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="all" />
-    <PackageReference Include="TUnit.Assertions" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Framework-agnostic core lives in the LogAssertions package. The ProjectReference
-         is rewritten to a PackageReference on LogAssertions at pack time. -->
-    <ProjectReference Include="../LogAssertions/LogAssertions.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="../../README.md" Pack="true" PackagePath="/" />
+    <None Include="README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 
 </Project>

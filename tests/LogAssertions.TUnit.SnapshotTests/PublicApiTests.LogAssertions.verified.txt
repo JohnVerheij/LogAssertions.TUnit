@@ -1,0 +1,61 @@
+[assembly: System.Reflection.AssemblyMetadata("IsAotCompatible", "True")]
+[assembly: System.Reflection.AssemblyMetadata("IsTrimmable", "True")]
+[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/JohnVerheij/LogAssertions.TUnit")]
+[assembly: System.Runtime.Versioning.TargetFramework(".NETCoreApp,Version=v10.0", FrameworkDisplayName=".NET 10.0")]
+namespace LogAssertions
+{
+    public static class FakeLogCollectorInspectionExtensions
+    {
+        public static int CountMatching(this Microsoft.Extensions.Logging.Testing.FakeLogCollector collector, params LogAssertions.ILogRecordFilter[] filters) { }
+        public static void DumpTo(this Microsoft.Extensions.Logging.Testing.FakeLogCollector collector, System.IO.TextWriter writer) { }
+        public static System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord> Filter(this Microsoft.Extensions.Logging.Testing.FakeLogCollector collector, params LogAssertions.ILogRecordFilter[] filters) { }
+    }
+    public interface ILogRecordFilter
+    {
+        string Description { get; }
+        bool Matches(Microsoft.Extensions.Logging.Testing.FakeLogRecord record);
+    }
+    public static class LogAssertionRendering
+    {
+        public static void AppendCapturedRecords(System.Text.StringBuilder sb, System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord> snapshot) { }
+        public static string LevelAbbreviation(Microsoft.Extensions.Logging.LogLevel level) { }
+    }
+    public static class LogCollectorBuilder
+    {
+        [return: System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Factory",
+                "Collector"})]
+        public static System.ValueTuple<Microsoft.Extensions.Logging.ILoggerFactory, Microsoft.Extensions.Logging.Testing.FakeLogCollector> Create(Microsoft.Extensions.Logging.LogLevel minimumLevel = 0) { }
+    }
+    public static class LogFilter
+    {
+        public static LogAssertions.ILogRecordFilter All(params LogAssertions.ILogRecordFilter[] filters) { }
+        public static LogAssertions.ILogRecordFilter Any(params LogAssertions.ILogRecordFilter[] filters) { }
+        public static LogAssertions.ILogRecordFilter AtLevel(Microsoft.Extensions.Logging.LogLevel level) { }
+        public static LogAssertions.ILogRecordFilter AtLevel(params Microsoft.Extensions.Logging.LogLevel[] levels) { }
+        public static LogAssertions.ILogRecordFilter AtLevelOrAbove(Microsoft.Extensions.Logging.LogLevel level) { }
+        public static LogAssertions.ILogRecordFilter AtLevelOrBelow(Microsoft.Extensions.Logging.LogLevel level) { }
+        public static LogAssertions.ILogRecordFilter Containing(string substring, System.StringComparison comparison) { }
+        public static LogAssertions.ILogRecordFilter ContainingAll(System.StringComparison comparison, params string[] substrings) { }
+        public static LogAssertions.ILogRecordFilter ContainingAny(System.StringComparison comparison, params string[] substrings) { }
+        public static LogAssertions.ILogRecordFilter Matching(System.Text.RegularExpressions.Regex pattern) { }
+        public static LogAssertions.ILogRecordFilter Not(LogAssertions.ILogRecordFilter filter) { }
+        public static LogAssertions.ILogRecordFilter Where(System.Func<Microsoft.Extensions.Logging.Testing.FakeLogRecord, bool> predicate) { }
+        public static LogAssertions.ILogRecordFilter WithCategory(string category) { }
+        public static LogAssertions.ILogRecordFilter WithEventId(int eventId) { }
+        public static LogAssertions.ILogRecordFilter WithEventIdInRange(int min, int max) { }
+        public static LogAssertions.ILogRecordFilter WithEventName(string eventName) { }
+        public static LogAssertions.ILogRecordFilter WithException() { }
+        public static LogAssertions.ILogRecordFilter WithException(System.Func<System.Exception, bool> predicate) { }
+        public static LogAssertions.ILogRecordFilter WithException<TException>()
+            where TException : System.Exception { }
+        public static LogAssertions.ILogRecordFilter WithExceptionMessage(string substring) { }
+        public static LogAssertions.ILogRecordFilter WithMessage(System.Func<string, bool> predicate) { }
+        public static LogAssertions.ILogRecordFilter WithMessageTemplate(string template) { }
+        public static LogAssertions.ILogRecordFilter WithProperty(string key, System.Func<string?, bool> predicate) { }
+        public static LogAssertions.ILogRecordFilter WithProperty(string key, string? value) { }
+        public static LogAssertions.ILogRecordFilter WithScope<TScope>() { }
+        public static LogAssertions.ILogRecordFilter WithScopeProperty(string key, System.Func<object?, bool> predicate) { }
+        public static LogAssertions.ILogRecordFilter WithScopeProperty(string key, object? value) { }
+    }
+}

@@ -38,12 +38,6 @@ namespace LogAssertions.TUnit;
 public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     where TSelf : LogAssertionBase<TSelf>
 {
-    /// <summary>
-    /// Magic key used by Microsoft.Extensions.Logging to surface the original (pre-substitution)
-    /// message template in the structured-state list (e.g. <c>"Order {OrderId} processed"</c>).
-    /// </summary>
-    private const string OriginalFormatKey = "{OriginalFormat}";
-
     private readonly List<ILogRecordFilter> _filters = [];
 
     /// <summary>Initialises the base assertion with the supplied TUnit context.</summary>
@@ -483,6 +477,26 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf ExcludingLevel(LogLevel level) => NotAtLevel(level);
 
     /// <summary>
+    /// Conditionally applies <paramref name="apply"/> to this assertion. When
+    /// <paramref name="condition"/> is <see langword="true"/>, runs the configurator and
+    /// returns this for chaining; when <see langword="false"/>, returns this unchanged.
+    /// Useful in parameterised tests to avoid branching the entire assertion chain on a
+    /// boolean: <c>.HasLogged().AtLevel(Warning).When(expectRetry, b =&gt; b.Containing("retry", Ordinal)).AtLeast(1)</c>.
+    /// </summary>
+    /// <param name="condition">When <see langword="true"/>, applies the configurator.</param>
+    /// <param name="apply">The configurator. Must be non-null.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="apply"/> is <see langword="null"/>.</exception>
+    public TSelf When(bool condition, Action<TSelf> apply)
+    {
+        ArgumentNullException.ThrowIfNull(apply);
+        if (condition)
+            apply((TSelf)this);
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".When({condition}, ...)");
+        return (TSelf)this;
+    }
+
+    /// <summary>
     /// Counts records in <paramref name="snapshot"/> that satisfy every filter in the chain.
     /// </summary>
     /// <param name="snapshot">The captured records to evaluate.</param>
@@ -547,163 +561,13 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     }
 
     /// <summary>
-    /// Appends the captured-records section of the failure message: one summary line per
-    /// record (<c>[lvl] category: message</c>) followed by indented detail lines for any
-    /// structured properties, active scopes, and exception (when present).
+    /// Appends the captured-records section to <paramref name="sb"/>; delegates to
+    /// <see cref="LogAssertionRendering.AppendCapturedRecords"/> so the same rendering is
+    /// available to the public <c>FakeLogCollector.DumpTo(...)</c> extension.
     /// </summary>
     /// <param name="sb">The target string builder.</param>
     /// <param name="snapshot">All captured records.</param>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     protected static void AppendCapturedRecords(StringBuilder sb, IReadOnlyList<FakeLogRecord> snapshot)
-    {
-        ArgumentNullException.ThrowIfNull(sb);
-        ArgumentNullException.ThrowIfNull(snapshot);
-
-        if (snapshot.Count == 0)
-        {
-            sb.AppendLine("  (no records)");
-            return;
-        }
-
-        foreach (FakeLogRecord record in snapshot)
-        {
-            sb.Append("  [").Append(LevelAbbreviation(record.Level)).Append("] ");
-            if (!string.IsNullOrEmpty(record.Category))
-                sb.Append(record.Category).Append(": ");
-            sb.Append(record.Message).AppendLine();
-
-            AppendStructuredState(sb, record);
-            AppendScopes(sb, record);
-
-            if (record.Exception is not null)
-            {
-                sb.Append("    exception: ")
-                    .Append(record.Exception.GetType().Name)
-                    .Append(": ")
-                    .Append(record.Exception.Message)
-                    .AppendLine();
-            }
-        }
-    }
-
-    /// <summary>
-    /// 4-character abbreviation of a log level, matching the conventional
-    /// Microsoft.Extensions.Logging console formatter (<c>trce</c>, <c>dbug</c>, <c>info</c>,
-    /// <c>warn</c>, <c>fail</c>, <c>crit</c>). Anything outside the standard range falls back
-    /// to the level's invariant <c>ToString()</c>.
-    /// </summary>
-    /// <param name="level">The log level to abbreviate.</param>
-    /// <returns>The 4-character abbreviation.</returns>
-    private static string LevelAbbreviation(LogLevel level) => level switch
-    {
-        LogLevel.Trace => "trce",
-        LogLevel.Debug => "dbug",
-        LogLevel.Information => "info",
-        LogLevel.Warning => "warn",
-        LogLevel.Error => "fail",
-        LogLevel.Critical => "crit",
-        LogLevel.None => "none",
-        _ => level.ToString(),
-    };
-
-    /// <summary>
-    /// Appends an indented <c>props:</c> line listing the record's structured-state entries,
-    /// excluding the magic <c>{OriginalFormat}</c> entry (the raw template, already implied
-    /// by the message line). Emits nothing if no structured state is present.
-    /// </summary>
-    /// <param name="sb">The target string builder.</param>
-    /// <param name="record">The record to render.</param>
-    private static void AppendStructuredState(StringBuilder sb, FakeLogRecord record)
-    {
-        if (record.StructuredState is null || record.StructuredState.Count == 0)
-            return;
-
-        var first = true;
-        foreach (var kvp in record.StructuredState)
-        {
-            if (string.Equals(kvp.Key, OriginalFormatKey, StringComparison.Ordinal))
-                continue;
-
-            sb.Append(first ? "    props: " : ", ")
-                .Append(kvp.Key).Append('=').Append(kvp.Value ?? "null");
-            first = false;
-        }
-
-        if (!first)
-            sb.AppendLine();
-    }
-
-    /// <summary>
-    /// Appends an indented <c>scope:</c> line listing each active scope. Scopes that expose
-    /// key-value pairs are rendered as <c>key=value</c> pairs; opaque scope objects are rendered
-    /// via <see cref="object.ToString"/>. Emits nothing if no scopes are present.
-    /// </summary>
-    /// <param name="sb">The target string builder.</param>
-    /// <param name="record">The record to render.</param>
-    private static void AppendScopes(StringBuilder sb, FakeLogRecord record)
-    {
-        if (record.Scopes.Count == 0)
-            return;
-
-        var first = true;
-        foreach (var scope in record.Scopes)
-        {
-            sb.Append(first ? "    scope: " : " | ");
-            AppendScope(sb, scope);
-            first = false;
-        }
-
-        if (!first)
-            sb.AppendLine();
-    }
-
-    /// <summary>
-    /// Appends a single scope's representation: as <c>key=value</c> pairs when the scope is
-    /// enumerable as <see cref="KeyValuePair{TKey, TValue}"/>, otherwise as the scope's
-    /// <see cref="object.ToString"/> (or <c>"null"</c> when the scope is null).
-    /// </summary>
-    /// <param name="sb">The target string builder.</param>
-    /// <param name="scope">The scope object.</param>
-    private static void AppendScope(StringBuilder sb, object? scope)
-    {
-        if (scope is null)
-        {
-            sb.Append("null");
-            return;
-        }
-
-        if (TryAppendKeyValuePairs<object?>(sb, scope) || TryAppendKeyValuePairs<object>(sb, scope))
-            return;
-
-        sb.Append(scope);
-    }
-
-    /// <summary>
-    /// Attempts to render <paramref name="scope"/> as comma-separated <c>key=value</c> pairs by
-    /// casting to <see cref="IEnumerable{T}"/> over <see cref="KeyValuePair{TKey, TValue}"/>
-    /// with string keys and a generic value type. Skips the magic <c>{OriginalFormat}</c> entry.
-    /// </summary>
-    /// <typeparam name="TValue">The value type of the scope's key-value pairs.</typeparam>
-    /// <param name="sb">The target string builder.</param>
-    /// <param name="scope">The scope object.</param>
-    /// <returns><see langword="true"/> when at least one pair was rendered.</returns>
-    private static bool TryAppendKeyValuePairs<TValue>(StringBuilder sb, object scope)
-    {
-        if (scope is not IEnumerable<KeyValuePair<string, TValue>> kvps)
-            return false;
-
-        var any = false;
-        foreach (var kvp in kvps)
-        {
-            if (string.Equals(kvp.Key, OriginalFormatKey, StringComparison.Ordinal))
-                continue;
-
-            if (any)
-                sb.Append(", ");
-            sb.Append(kvp.Key).Append('=').Append(kvp.Value is null ? "null" : kvp.Value.ToString());
-            any = true;
-        }
-
-        return any;
-    }
+        => LogAssertionRendering.AppendCapturedRecords(sb, snapshot);
 }
