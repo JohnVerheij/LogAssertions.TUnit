@@ -8,6 +8,8 @@ namespace LogAssertions.TUnit
     {
         public static System.Threading.Tasks.Task AssertAllAsync<TActual>(this TUnit.Assertions.Core.IAssertionSource<TActual> source, params System.Func<TUnit.Assertions.Core.IAssertionSource<TActual>, System.Threading.Tasks.Task>[] assertions)
             where TActual : Microsoft.Extensions.Logging.Testing.FakeLogCollector { }
+        public static System.Threading.Tasks.Task AssertAllAsync<TActual>(this TUnit.Assertions.Core.IAssertionSource<TActual> source, params System.Func<TUnit.Assertions.Core.IAssertionSource<TActual>, TUnit.Assertions.Core.Assertion<Microsoft.Extensions.Logging.Testing.FakeLogCollector>>[] assertions)
+            where TActual : Microsoft.Extensions.Logging.Testing.FakeLogCollector { }
     }
     [TUnit.Assertions.Attributes.AssertionExtension("HasLogged")]
     public sealed class HasLoggedAssertion : LogAssertions.TUnit.LogAssertionBase<LogAssertions.TUnit.HasLoggedAssertion>
