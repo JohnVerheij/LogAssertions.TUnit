@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] — Shorthand entry-point auto-discovery (BREAKING namespace move)
+
+### Changed (breaking, but resolves real consumer-experience friction)
+
+- `HasLoggedShorthandExtensions` (the `HasLoggedOnce`, `HasLoggedExactly`, `HasLoggedAtLeast`, `HasLoggedAtMost`, `HasLoggedBetween`, `HasLoggedNothing`, `HasLoggedWarningOrAbove`, `HasLoggedErrorOrAbove` entry points) **moved from namespace `LogAssertions.TUnit` to namespace `TUnit.Assertions.Extensions`**.
+- The shipped assembly (`LogAssertions.TUnit.dll`), package ID, and method signatures are unchanged. Only the public **namespace** of the static class moved.
+
+**Why:** the previous namespace required consumers to add an explicit `using LogAssertions.TUnit;` to discover the shorthand entry points, while the *core* entry points (`HasLogged()`, `HasNotLogged()`, `HasLoggedSequence()`) — emitted by TUnit's `[AssertionExtension]` source generator — auto-resolve via TUnit's `TUnit.Assertions.Extensions` import path. The asymmetry was invisible discoverability friction (you could call `HasLogged()` in a file but not `HasLoggedOnce()`) and produced analyzer noise in strict-rule consumer codebases (IDE0005 flagging the extra `using` as unnecessary in files that didn't reach for it). Putting the shorthands in the same namespace TUnit's source generator emits to means they auto-import alongside the core entry points — one fewer `using`, one fewer thing to teach, no analyzer noise.
+
+**Migration if you were using the shorthands directly via fully-qualified name:**
+
+```csharp
+// Before:
+LogAssertions.TUnit.HasLoggedShorthandExtensions.HasLoggedOnce(source)
+
+// After:
+TUnit.Assertions.Extensions.HasLoggedShorthandExtensions.HasLoggedOnce(source)
+```
+
+If you used the shorthands as the extension methods they were meant to be, **no code change is required** — the methods now resolve via TUnit's auto-imported `TUnit.Assertions.Extensions` namespace, so any file that already calls `HasLogged()` will also pick up `HasLoggedOnce()` etc. without changes.
+
+### Background
+
+This was the first concrete consumer-experience finding from real-world use of v0.2.x in a production-adjacent test suite — exactly the demand-driven signal the README's "Stability intent" section describes as the trigger for breaking changes during the 0.x window.
+
 ## [0.2.1] — `AssertAllAsync` ergonomic overload (additive)
 
 ### Added
@@ -184,7 +209,8 @@ Why the split: positions the package family for hypothetical future adapters (`L
 
 This package implements the user-space pattern that the TUnit maintainer pointed at when declining [thomhurst/TUnit#5627](https://github.com/thomhurst/TUnit/issues/5627). The `[AssertionExtension]` infrastructure that makes this clean shipped in TUnit 1.41.0 via [thomhurst/TUnit#5785](https://github.com/thomhurst/TUnit/pull/5785).
 
-[Unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.2.2
 [0.2.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.2.1
 [0.2.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.2.0
 [0.1.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.1.0

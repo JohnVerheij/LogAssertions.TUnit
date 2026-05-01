@@ -2,36 +2,22 @@
 <!-- https://learn.microsoft.com/dotnet/fundamentals/package-validation/diagnostic-ids -->
 <Suppressions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <Suppression>
-    <DiagnosticId>CP0002</DiagnosticId>
-    <Target>M:LogAssertions.TUnit.AssertAllExtensions.AssertAllAsync``1(TUnit.Assertions.Core.IAssertionSource{``0},System.Func{TUnit.Assertions.Core.IAssertionSource{``0},TUnit.Assertions.Core.Assertion{Microsoft.Extensions.Logging.Testing.FakeLogCollector}}[])</Target>
+    <DiagnosticId>CP0001</DiagnosticId>
+    <Target>T:LogAssertions.TUnit.HasLoggedShorthandExtensions</Target>
+    <Left>lib/net10.0/LogAssertions.TUnit.dll</Left>
+    <Right>lib/net10.0/LogAssertions.TUnit.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0001</DiagnosticId>
+    <Target>T:TUnit.Assertions.Extensions.HasLoggedShorthandExtensions</Target>
     <Left>lib/net10.0/LogAssertions.TUnit.dll</Left>
     <Right>lib/net10.0/LogAssertions.TUnit.dll</Right>
     <IsBaselineSuppression>true</IsBaselineSuppression>
   </Suppression>
   <Suppression>
     <DiagnosticId>CP0003</DiagnosticId>
-    <Target>LogAssertions.TUnit, Version=0.2.0.0, Culture=neutral, PublicKeyToken=null</Target>
-    <Left>lib/net10.0/LogAssertions.TUnit.dll</Left>
-    <Right>lib/net10.0/LogAssertions.TUnit.dll</Right>
-    <IsBaselineSuppression>true</IsBaselineSuppression>
-  </Suppression>
-  <Suppression>
-    <DiagnosticId>CP0014</DiagnosticId>
-    <Target>M:LogAssertions.TUnit.AssertAllExtensions.AssertAllAsync``1(TUnit.Assertions.Core.IAssertionSource{``0},System.Func{TUnit.Assertions.Core.IAssertionSource{``0},System.Threading.Tasks.Task}[]):[T:System.Runtime.CompilerServices.NullableContextAttribute]</Target>
-    <Left>lib/net10.0/LogAssertions.TUnit.dll</Left>
-    <Right>lib/net10.0/LogAssertions.TUnit.dll</Right>
-    <IsBaselineSuppression>true</IsBaselineSuppression>
-  </Suppression>
-  <Suppression>
-    <DiagnosticId>CP0016</DiagnosticId>
-    <Target>T:LogAssertions.TUnit.AssertAllExtensions:[T:System.Runtime.CompilerServices.NullableAttribute]</Target>
-    <Left>lib/net10.0/LogAssertions.TUnit.dll</Left>
-    <Right>lib/net10.0/LogAssertions.TUnit.dll</Right>
-    <IsBaselineSuppression>true</IsBaselineSuppression>
-  </Suppression>
-  <Suppression>
-    <DiagnosticId>CP0016</DiagnosticId>
-    <Target>T:LogAssertions.TUnit.AssertAllExtensions:[T:System.Runtime.CompilerServices.NullableContextAttribute]</Target>
+    <Target>LogAssertions.TUnit, Version=0.2.1.0, Culture=neutral, PublicKeyToken=null</Target>
     <Left>lib/net10.0/LogAssertions.TUnit.dll</Left>
     <Right>lib/net10.0/LogAssertions.TUnit.dll</Right>
     <IsBaselineSuppression>true</IsBaselineSuppression>
