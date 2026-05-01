@@ -52,10 +52,20 @@ jobs:
       - name: Test (with coverage)
         # TUnit on .NET 10 SDK invokes via the test exe directly. The Microsoft.Testing.Platform
         # --coverage flag enables Microsoft.CodeCoverage collection (transitively pulled via TUnit).
+        # --coverage-settings is required: without an explicit <ModulePaths><Include> in the
+        # settings file, Microsoft.CodeCoverage emits an empty 178-byte cobertura skeleton on
+        # Linux runners (it instruments nothing because nothing is in scope). The settings file
+        # uses the MTP flat <Configuration>/<CodeCoverage> schema — NOT the VSTest
+        # <DataCollectionRunSettings> wrapper, which --coverage-settings does not accept.
+        # --coverage-output-format=cobertura uses the = form because the space form is mis-parsed.
         run: |
           dotnet run --project tests/LogAssertions.TUnit.Tests/LogAssertions.TUnit.Tests.csproj \
             --configuration Release --no-build \
-            -- --coverage --coverage-output-format cobertura --coverage-output coverage.cobertura.xml
+            -- \
+            --coverage \
+            --coverage-settings .config/codecoverage.settings.xml \
+            --coverage-output coverage.cobertura.xml \
+            --coverage-output-format=cobertura
 
       - name: Locate coverage report
         id: coverage
