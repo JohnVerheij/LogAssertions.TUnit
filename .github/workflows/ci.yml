@@ -49,15 +49,15 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release --no-restore
 
-      - name: Test (with coverage)
+      - name: Test main suite (with coverage)
         # TUnit on .NET 10 SDK invokes via the test exe directly. The Microsoft.Testing.Platform
         # --coverage flag enables Microsoft.CodeCoverage collection (transitively pulled via TUnit).
-        # --coverage-settings is required: without an explicit <ModulePaths><Include> in the
+        # --coverage-settings is required: without an explicit ModulePaths/Include in the
         # settings file, Microsoft.CodeCoverage emits an empty 178-byte cobertura skeleton on
         # Linux runners (it instruments nothing because nothing is in scope). The settings file
-        # uses the MTP flat <Configuration>/<CodeCoverage> schema — NOT the VSTest
-        # <DataCollectionRunSettings> wrapper, which --coverage-settings does not accept.
-        # --coverage-output-format=cobertura uses the = form because the space form is mis-parsed.
+        # uses the MTP flat Configuration/CodeCoverage schema, NOT the VSTest
+        # DataCollectionRunSettings wrapper, which the coverage-settings flag does not accept.
+        # The = form for --coverage-output-format avoids a documented MTP space-form mis-parse.
         run: |
           dotnet run --project tests/LogAssertions.TUnit.Tests/LogAssertions.TUnit.Tests.csproj \
             --configuration Release --no-build \
@@ -66,6 +66,17 @@ jobs:
             --coverage-settings .config/codecoverage.settings.xml \
             --coverage-output coverage.cobertura.xml \
             --coverage-output-format=cobertura
+
+      - name: Test snapshot suite (no coverage)
+        # SnapshotTests is a separate project because Verify.TUnit's Verify.props forces
+        # Deterministic=false (Verify needs absolute PDB paths to find .verified.txt files),
+        # and Deterministic=false breaks Microsoft.CodeCoverage's instrumentation pipeline
+        # on Linux runners (produces empty cobertura). Running this project WITHOUT --coverage
+        # keeps the main suite's coverage report clean. The whole snapshot assembly is also
+        # annotated [ExcludeFromCodeCoverage] for completeness.
+        run: |
+          dotnet run --project tests/LogAssertions.TUnit.SnapshotTests/LogAssertions.TUnit.SnapshotTests.csproj \
+            --configuration Release --no-build
 
       - name: Locate coverage report
         id: coverage

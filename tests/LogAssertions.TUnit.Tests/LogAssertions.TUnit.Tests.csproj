@@ -12,11 +12,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Alphabetical per dpfa Proj0015 -->
+    <!-- Alphabetical per dpfa Proj0015. PublicApiGenerator + Verify.TUnit are
+         intentionally absent: snapshot tests live in tests/LogAssertions.TUnit.SnapshotTests
+         (Verify.props forces Deterministic=false, which on Linux runners breaks
+         Microsoft.CodeCoverage's instrumentation pipeline and produces an empty
+         cobertura report). -->
     <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" />
-    <PackageReference Include="PublicApiGenerator" />
     <PackageReference Include="TUnit" />
-    <PackageReference Include="Verify.TUnit" />
   </ItemGroup>
 
   <ItemGroup>
