@@ -52,6 +52,15 @@ internal static partial class TestLogMessages
     [LoggerMessage(EventId = 52, Level = LogLevel.Information, Message = "Cycle {CycleNumber} finished")]
     public static partial void CycleFinished(ILogger logger, int cycleNumber);
 
+    [LoggerMessage(EventId = 60, Level = LogLevel.Information, Message = "Tëst ünïcödé message with {Param}")]
+    public static partial void UnicodeMessage(ILogger logger, string param);
+
+    [LoggerMessage(EventId = 70, Level = LogLevel.Information, Message = "Order {OrderId} for {Customer}")]
+    public static partial void OrderForCustomer(ILogger logger, int orderId, string customer);
+
+    [LoggerMessage(EventId = 80, Level = LogLevel.Critical, Message = "Critical sample")]
+    public static partial void CriticalSample(ILogger logger);
+
     /// <summary>
     /// Allocation-free factory for a formatted-template scope of shape <c>"Order {OrderId}"</c>.
     /// Used by tests that need to exercise the message-template scope idiom without tripping

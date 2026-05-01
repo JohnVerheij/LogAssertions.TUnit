@@ -69,6 +69,42 @@ jobs:
             echo "Coverage report: $REPORT"
           fi
 
+      # Hard gates: fail the build if line OR branch coverage drops below threshold.
+      # The cobertura XML's top-level <coverage line-rate="X.XX" branch-rate="Y.YY"> is
+      # the source of truth. Thresholds match the project's quality bar; bump them up
+      # over time, never down.
+      - name: Check coverage thresholds
+        if: steps.coverage.outputs.report != ''
+        env:
+          LINE_THRESHOLD: '0.90'
+          BRANCH_THRESHOLD: '0.80'
+        run: |
+          REPORT='${{ steps.coverage.outputs.report }}'
+          LINE_RATE=$(grep -oP 'line-rate="\K[^"]+' "$REPORT" | head -1)
+          BRANCH_RATE=$(grep -oP 'branch-rate="\K[^"]+' "$REPORT" | head -1)
+          if [ -z "$LINE_RATE" ] || [ -z "$BRANCH_RATE" ]; then
+            echo "::error::Could not extract line-rate or branch-rate from $REPORT"
+            exit 1
+          fi
+
+          LINE_PCT=$(awk -v r="$LINE_RATE" 'BEGIN { printf "%.2f", r * 100 }')
+          BRANCH_PCT=$(awk -v r="$BRANCH_RATE" 'BEGIN { printf "%.2f", r * 100 }')
+          LINE_THR_PCT=$(awk -v t="$LINE_THRESHOLD" 'BEGIN { printf "%.2f", t * 100 }')
+          BRANCH_THR_PCT=$(awk -v t="$BRANCH_THRESHOLD" 'BEGIN { printf "%.2f", t * 100 }')
+          echo "Line coverage:   ${LINE_PCT}%   (threshold: ${LINE_THR_PCT}%)"
+          echo "Branch coverage: ${BRANCH_PCT}% (threshold: ${BRANCH_THR_PCT}%)"
+
+          FAILED=0
+          if [ "$(awk -v r="$LINE_RATE" -v t="$LINE_THRESHOLD" 'BEGIN { print (r < t) ? 1 : 0 }')" = "1" ]; then
+            echo "::error::Line coverage ${LINE_PCT}% is below threshold ${LINE_THR_PCT}%"
+            FAILED=1
+          fi
+          if [ "$(awk -v r="$BRANCH_RATE" -v t="$BRANCH_THRESHOLD" 'BEGIN { print (r < t) ? 1 : 0 }')" = "1" ]; then
+            echo "::error::Branch coverage ${BRANCH_PCT}% is below threshold ${BRANCH_THR_PCT}%"
+            FAILED=1
+          fi
+          [ "$FAILED" = "0" ]
+
       - name: Upload coverage to Codecov
         if: steps.coverage.outputs.report != ''
         uses: codecov/codecov-action@v4

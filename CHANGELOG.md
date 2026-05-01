@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — quality bar reinforcements (post-launch hardening, no public API changes)
+
+- README **Design Notes** call out the **net10-forever, single-TFM, forward-only** policy explicitly: future versions will track the latest LTS, never multi-target downward. Anchored on the test-only nature of the library — applications on older TFMs can still consume by bumping only their test project's TFM.
+- CI workflow now hard-gates coverage: **90% line / 80% branch**. Below either threshold the build fails. Both metrics are read from the cobertura `<coverage line-rate="…" branch-rate="…">` attributes.
+- `codecov.yml` added at repo root: ignores `obj/`, `bin/`, and `tests/` so source-generated files (TUnit `[AssertionExtension]` outputs) don't poison the report. Sets a project-coverage status with 1% drift tolerance and a stricter 80% patch-coverage status to encourage tests on new code.
+- 16 new edge-case tests added (current run: 64 tests, line 95.2%, branch 85.8%):
+  - **Nested scopes:** `WithScopeProperty` walks every active scope; same key in outer + inner matches both
+  - **Unicode:** `Containing` works correctly under both `Ordinal` and `OrdinalIgnoreCase` against unicode-bearing messages
+  - **Concurrency:** records emitted from 4 threads × 250 iterations all captured
+  - **Large snapshot:** 1,000-record collector handled without pathological slowdown
+  - **Sequence corners:** empty step is silently skipped; long chains (5+ steps with intervening noise records) walk correctly
+  - **Filter ordering invariance:** AND-combine semantics independent of chain order
+  - **Case sensitivity:** `WithCategory` is ordinal (case-sensitive)
+  - **Absent-key handling:** `WithProperty` against an absent key does not match for non-null expected values
+  - **Parameterless template matching:** `WithMessageTemplate` works on `[LoggerMessage]` calls without parameters
+  - **Failure-snapshot rendering corner cases:** multiple structured properties on one record render comma-separated; multiple active scopes render pipe-separated; opaque scope objects render via `ToString()`; every standard `LogLevel` gets its 4-char abbreviation in the snapshot
+
 ## [0.1.0] — Initial release
 
 ### Added — assertion API
