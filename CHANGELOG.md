@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] — Second docs polish from adoption feedback (no API change)
+
+All changes in this release are documentation. Both packages still publish in lockstep so consumers who pin transitively don't end up on mismatched core/adapter versions.
+
+### Changed (README only)
+
+- **`GlobalUsings.cs` recommendation extended** with `global using System;`. The previous recommendation covered `LogAssertions`, `Microsoft.Extensions.Logging`, and `Microsoft.Extensions.Logging.Testing`, but every `Containing(...)` filter call also needs `StringComparison`, which lives in `System`. Test projects that don't enable `<ImplicitUsings>` (some strict-analysis configurations deliberately don't) hit a compile error on their first `.Containing()` call without it. Adding the line to the recommended snippet is a one-character pre-empt.
+- **Quick start gained a "Lifetime / disposal" paragraph** clarifying what the `IDisposable` returned from `LogCollectorBuilder.Create()` actually owns. Disposing the `factory` stops new records from being captured but the records already gathered into the `collector` snapshot remain valid — you can continue to query the `collector` after the `using` block exits. Both block-form (`using (factory) { ... }`) and declaration-form (`using ILoggerFactory factory = ...`) are explicitly endorsed; the README previously only showed the block form, which led to questions about whether the collector remained usable in the alternative layout.
+- **New "Migrating from manual assertions" section** with a side-by-side before/after. The "before" pattern is a `collector.GetSnapshot()` + LINQ filter + multiple separate assertions; the "after" is one fluent chain. The section also calls out the two non-obvious wins on top of readability — the failure message renders the full captured-records snapshot (so you see *which* records came through and why none matched), and the same chain extends to scopes, structured properties, exception types, and combinator nodes without restructuring the test. Sits between Quick Start and Entry Points so evaluators see it before the API reference.
+
+### Background
+
+Second release driven by adoption feedback. No code changes; the v0.2.2 surface stands. Same rationale as v0.2.3 for shipping as a docs-only patch — keep nuget.org's package page reflecting current ergonomics for anyone evaluating the package today, while v0.3.0's substantive engineering work waits for actual demand.
+
+The v0.2.x line shipped four releases inside a 48-hour window (v0.2.0 broken-shorthand, v0.2.1 additive ergonomic overload, v0.2.2 namespace fix, v0.2.3 + v0.2.4 docs polish). The v0.3.0 roadmap item to add an external-consumer smoke-test project to CI — a separately-namespaced test project that references `LogAssertions.TUnit` only via PackageReference — is the direct mitigation for the gap that velocity exposed.
+
 ## [0.2.3] — Docs polish from real consumer feedback (no API change)
 
 All changes in this release are documentation. Both packages still publish in lockstep so consumers who pin transitively don't end up on mismatched core/adapter versions.
@@ -228,7 +244,8 @@ Why the split: positions the package family for hypothetical future adapters (`L
 
 This package implements the user-space pattern that the TUnit maintainer pointed at when declining [thomhurst/TUnit#5627](https://github.com/thomhurst/TUnit/issues/5627). The `[AssertionExtension]` infrastructure that makes this clean shipped in TUnit 1.41.0 via [thomhurst/TUnit#5785](https://github.com/thomhurst/TUnit/pull/5785).
 
-[Unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.2.4...HEAD
+[0.2.4]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.2.4
 [0.2.3]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.2.3
 [0.2.2]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.2.2
 [0.2.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.2.1

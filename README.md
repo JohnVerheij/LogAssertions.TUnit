@@ -21,6 +21,7 @@ A TUnit-native fluent log-assertion DSL on top of `Microsoft.Extensions.Logging.
 - [Package layout](#package-layout)
 - [Namespaces (and a `GlobalUsings.cs` recommendation)](#namespaces-and-a-globalusingscs-recommendation)
 - [Quick start](#quick-start)
+- [Migrating from manual assertions](#migrating-from-manual-assertions)
 - [Entry points](#entry-points)
   - [Shorthand entry points](#shorthand-entry-points)
 - [Filter reference](#filter-reference)
@@ -91,16 +92,19 @@ The two packages place types in two namespaces with deliberately-different scope
 
 **Practical consequence:** test files that *only* call assertion entry points need no `using` from this package. Files that use `LogCollectorBuilder` or build composable filters via `LogFilter` need `using LogAssertions;`.
 
-**Recommended:** put both into a single `GlobalUsings.cs` in your test project so every test file sees them without ceremony:
+**Recommended:** put all four into a single `GlobalUsings.cs` in your test project so every test file sees them without ceremony:
 
 ```csharp
 // tests/MyApp.Tests/GlobalUsings.cs
+global using System;                                     // StringComparison
 global using LogAssertions;                              // LogCollectorBuilder, LogFilter, etc.
 global using Microsoft.Extensions.Logging;               // LogLevel
 global using Microsoft.Extensions.Logging.Testing;       // FakeLogCollector, FakeLoggerProvider
 ```
 
-This eliminates the IDE0005 ("unnecessary using") chatter that otherwise appears in test files that don't directly use `LogCollectorBuilder` but live alongside ones that do.
+`System` is included because every `Containing(...)` filter call requires `StringComparison`. Test projects that disable `<ImplicitUsings>enable</ImplicitUsings>` (common in strict-analysis codebases) won't get `System` for free, so this entry prevents a compile error on the first `Containing()` call.
+
+This setup also eliminates the IDE0005 ("unnecessary using") chatter that otherwise appears in test files that don't directly use `LogCollectorBuilder` but live alongside ones that do.
 
 ## Quick start
 
@@ -129,6 +133,40 @@ public async Task Validation_failure_is_logged()
     }
 }
 ```
+
+**Lifetime / disposal:** the `IDisposable` returned from `LogCollectorBuilder.Create()` (the `factory`) owns the underlying `FakeLoggerProvider`. Disposing it stops new log records from being captured but the records already gathered into the `collector` snapshot remain valid — you can continue to query the `collector` after the `using` block exits. Both block-form (`using (factory) { ... }`) and declaration-form (`using ILoggerFactory factory = ...`) work; pick whichever fits your test layout.
+
+---
+
+## Migrating from manual assertions
+
+If you already use `FakeLogCollector` directly, the typical "before" pattern is to pull a snapshot, filter with LINQ, and write multiple assertions against the result:
+
+```csharp
+// Before — manual:
+var records = collector.GetSnapshot();
+var warnings = records.Where(r => r.Level == LogLevel.Warning).ToList();
+await Assert.That(warnings).HasCount().EqualTo(1);
+await Assert.That(warnings[0].Message).Contains("timeout", StringComparison.Ordinal);
+```
+
+The "after" with `LogAssertions.TUnit` is one fluent chain that reads as a single intent and produces a failure message with every captured record (including structured state and scope content) when the chain doesn't match:
+
+```csharp
+// After — LogAssertions.TUnit:
+await Assert.That(collector)
+    .HasLogged()
+    .AtLevel(LogLevel.Warning)
+    .Containing("timeout", StringComparison.Ordinal)
+    .Once();
+```
+
+Two practical wins on top of the readability:
+
+- **Failure diagnostics.** The "before" snippet's failure says *"expected 1, got 3"* (or *"expected to contain 'timeout'"*). The "after" snippet's failure renders the full captured-records snapshot — level, category, message, structured state, scope — so you can see *which* three records came through and why none matched, without adding `Console.WriteLine` calls.
+- **Composability.** The same chain extends to scopes (`InScope("RequestId", id)`), structured properties (`WithProperty("UserId", 42)`), exception types (`WithExceptionOfType<TimeoutException>()`), and combinator nodes (`MatchingAny(...)`, `Not(...)`) without restructuring the test.
+
+See the [Cookbook](#cookbook--common-patterns) for the patterns this replaces in practice.
 
 ---
 
