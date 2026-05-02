@@ -1,0 +1,84 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    External-consumer smoke-test project. Simulates a downstream consumer adopting
+    LogAssertions.TUnit cleanly:
+
+      - References LogAssertions.TUnit ONLY via PackageReference (NOT ProjectReference) so we
+        actually consume the packed nupkg, including its README, dependency graph, package
+        metadata, and source-generator wiring exactly as a real consumer would.
+      - Uses a deliberately-different namespace (Smoke.Consumer.*) so we don't get the
+        "tests/LogAssertions.TUnit.Tests" parent-namespace visibility that masked the
+        v0.2.0/v0.2.1 shorthand-resolution bug. If a future release breaks the
+        TUnit.Assertions.Extensions auto-discovery path again, the build of this project
+        will fail with CS0103 / CS1061 long before it ships.
+      - Opts out of central package management (Directory.Packages.props) because we float
+        LogAssertions.TUnit's version to whatever was just packed into the local feed, which
+        is incompatible with the centrally-pinned versions used by the main build.
+      - Lives outside LogAssertions.TUnit.slnx so dotnet restore on the main solution doesn't
+        try to resolve the unpublished local-feed version. The CI step packs the package first,
+        then restores + builds + tests this project against the local feed.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Smoke.Consumer</RootNamespace>
+    <AssemblyName>Smoke.Consumer</AssemblyName>
+
+    <IsPackable>false</IsPackable>
+    <IsPublishable>false</IsPublishable>
+    <IsTestProject>true</IsTestProject>
+    <OutputType>Exe</OutputType>
+
+    <!-- Opt out of central package management: this project pins versions inline so it can
+         float LogAssertions.TUnit to "whatever was just packed into the local feed". -->
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+
+    <!-- Disable lock-file enforcement: floating versions are incompatible with locked restore. -->
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+
+    <!-- Forbid implicit using directives so the smoke test catches resolution failures
+         attributable to missing usings rather than masking them with the SDK's auto-imports. -->
+    <ImplicitUsings>disable</ImplicitUsings>
+
+    <!-- Test code: CA1848 (LoggerMessage delegate perf) is irrelevant for one-off log calls
+         that seed records for assertions. The smoke tests deliberately use inline LogXxx
+         calls because the production code shape (LoggerMessage source generator) is not what
+         this project is testing. -->
+    <NoWarn>$(NoWarn);CA1848</NoWarn>
+
+    <!-- Detect whether the local NuGet feed at ../../artifacts has been populated by CI's
+         pack steps. The LogAssertions.TUnit PackageReference below is conditional on this:
+           - During main CI's smoke step (after Pack ran): artifacts/ exists -> PackageReference
+             active -> restore via local feed -> smoke test runs and validates the public surface.
+           - During GitHub's automatic NuGet dependency-submission action (which discovers every
+             .csproj and runs `dotnet restore` in a fresh checkout, NO Pack having run):
+             artifacts/ does NOT exist -> PackageReference skipped -> restore succeeds with just
+             Microsoft.Extensions.Diagnostics.Testing + TUnit deps from nuget.org. The submitted
+             dependency graph for this project is incomplete (it omits LogAssertions.TUnit), but
+             that is acceptable: this is a smoke-test project, not production code, and its
+             "real" dependency on LogAssertions.TUnit is already submitted via the main package
+             projects' dependency graphs.
+           - During local dev without a prior pack: artifacts/ doesn't exist -> PackageReference
+             skipped -> build fails with CS0103/CS1061 on LogAssertions.TUnit types, signalling
+             clearly that you need to pack first.
+         Note: NuGet's dependabot.yml exclude-paths does NOT actually scope the auto-submit
+         action's csproj discovery away from this project; this conditional is the only
+         reliable way to keep validate-project from tripping on NU1301 here. -->
+    <ArtifactsLocalFeedExists Condition="Exists('$(MSBuildThisFileDirectory)..\..\artifacts')">true</ArtifactsLocalFeedExists>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" Version="10.0.0" />
+    <PackageReference Include="TUnit" Version="1.43.2" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(ArtifactsLocalFeedExists)' == 'true'">
+    <!-- Floating version: consumes whatever 0.3.x preview was packed into the local feed at
+         ../../artifacts. Use a wide pre-release pattern so any 0.3.0-rc / 0.3.0 also resolves
+         once published, which lets local devs run this against either a freshly-packed nupkg
+         or a real published version. -->
+    <PackageReference Include="LogAssertions.TUnit" Version="0.3.0-*" />
+  </ItemGroup>
+
+</Project>

@@ -29,6 +29,21 @@ dotnet_diagnostic.MA0004.severity = none
 dotnet_diagnostic.CA2007.severity = none
 dotnet_diagnostic.VSTHRD200.severity = none
 
+# Assertion-DSL code: same exemption applies. The public surface of LogAssertions.TUnit's
+# assertion chains (e.g. HasLoggedAssertion.GetMatch / GetMatches) deliberately omits the
+# Async suffix because the chain is awaited as part of `await Assert.That(...)...GetMatch()`
+# — adding "Async" would break the DSL ergonomics and diverge from TUnit's own value-returning
+# patterns (HasSingleItemPredicateAssertion etc., none of which carry the Async suffix). And
+# the assertion runtime executes on the same thread-pool / no-SyncContext model as the tests,
+# so ConfigureAwait(false) is equally a no-op here. The "**/LogAssertions.TUnit/*.cs" glob
+# (rather than "src/LogAssertions.TUnit/**/*.cs") is intentional: leading-** patterns are
+# more reliable across editorconfig parsers, and only the src/LogAssertions.TUnit/ directory
+# carries this exact name in the tree.
+[**/LogAssertions.TUnit/*.cs]
+dotnet_diagnostic.MA0004.severity = none
+dotnet_diagnostic.CA2007.severity = none
+dotnet_diagnostic.VSTHRD200.severity = none
+
 [*.{json,csproj,props,targets}]
 indent_size = 2
 

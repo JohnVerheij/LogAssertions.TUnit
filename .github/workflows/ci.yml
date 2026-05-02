@@ -152,6 +152,32 @@ jobs:
       - name: Pack LogAssertions.TUnit (TUnit adapter)
         run: dotnet pack src/LogAssertions.TUnit/LogAssertions.TUnit.csproj --configuration Release --no-build --output ./artifacts
 
+      - name: External-consumer smoke test (restore+build+test against just-packed nupkgs)
+        # The smoke-test project lives outside LogAssertions.TUnit.slnx and consumes
+        # LogAssertions.TUnit ONLY via PackageReference (NOT ProjectReference) — its NuGet.config
+        # routes LogAssertions.* to the just-packed local feed at ./artifacts. The project's
+        # namespace is deliberately NOT under LogAssertions.TUnit, so any future regression of
+        # the v0.2.0/v0.2.1 namespace bug class (entry points hidden behind an explicit using)
+        # fails the smoke build before the package can ship.
+        #
+        # NuGet's relative-path resolution for local sources is fragile on Linux runners:
+        # the NuGet.config-relative "../../artifacts" sometimes fails NU1561 even after
+        # the previous Pack steps wrote nupkgs there. We bypass it by passing an absolute
+        # --source flag derived from $GITHUB_WORKSPACE, which is unambiguous regardless of
+        # NuGet's path-resolution context. The existing NuGet.config still provides the
+        # packageSourceMapping that routes LogAssertions.* to local-pack at restore time.
+        # The explicit "ls" gives a one-line diagnostic if pack ever silently fails to
+        # produce artifacts — saves a CI rerun on diagnosis.
+        run: |
+          echo "Workspace: $GITHUB_WORKSPACE"
+          ls -la "$GITHUB_WORKSPACE/artifacts/" || (echo "::error::artifacts/ missing — Pack steps did not produce nupkgs" && exit 1)
+          dotnet restore tests/LogAssertions.TUnit.SmokeTest/LogAssertions.TUnit.SmokeTest.csproj \
+            --force-evaluate \
+            --source "$GITHUB_WORKSPACE/artifacts" \
+            --source "https://api.nuget.org/v3/index.json"
+          dotnet build tests/LogAssertions.TUnit.SmokeTest/LogAssertions.TUnit.SmokeTest.csproj --configuration Release --no-restore
+          dotnet run --project tests/LogAssertions.TUnit.SmokeTest/LogAssertions.TUnit.SmokeTest.csproj --configuration Release --no-build
+
       - name: Upload package artifacts
         uses: actions/upload-artifact@v4
         with:
