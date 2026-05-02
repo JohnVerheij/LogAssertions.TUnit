@@ -126,22 +126,26 @@ public sealed class HasLoggedAssertion : LogAssertionBase<HasLoggedAssertion>
     }
 
     /// <summary>
-    /// Returns the single matched record once the assertion passes. Requires the chain to be
-    /// terminated with <see cref="Once"/> or <see cref="Exactly"/> with count <c>1</c>; throws
-    /// <see cref="InvalidOperationException"/> otherwise so the call site fails fast on a
-    /// nonsensical count expectation.
+    /// Returns the single matched record once the assertion passes. Requires the chain's count
+    /// expectation to be exactly one — typically expressed via <see cref="Once"/> or
+    /// <see cref="Exactly"/> with count <c>1</c>, but any terminator that constrains the count
+    /// to exactly one (including <see cref="Between"/> with both bounds equal to <c>1</c>) is
+    /// also accepted. Throws <see cref="InvalidOperationException"/> for any other expectation
+    /// so the call site fails fast on a nonsensical "give me the single match" against a chain
+    /// that allows N matches.
     /// </summary>
     /// <returns>The single matched record.</returns>
     /// <exception cref="InvalidOperationException">
-    /// The chain was not terminated with <see cref="Once"/> or <see cref="Exactly"/> with count <c>1</c>.
+    /// The chain's count expectation does not constrain the match count to exactly one.
     /// </exception>
     public Task<FakeLogRecord> GetMatch()
     {
         if (_minCount != 1 || _maxCount != 1)
         {
             throw new InvalidOperationException(
-                "GetMatch() requires the chain to expect exactly one match — call .Once() or " +
-                ".Exactly(1) before .GetMatch(). Use .GetMatches() to retrieve any number of matches.");
+                "GetMatch() requires the chain to constrain the match count to exactly one — " +
+                "use .Once() or .Exactly(1) (or any terminator with both bounds equal to 1) " +
+                "before .GetMatch(). Use .GetMatches() to retrieve any number of matches.");
         }
 
         Context.ExpressionBuilder.Append(".GetMatch()");

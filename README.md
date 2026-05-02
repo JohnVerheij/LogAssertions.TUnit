@@ -408,7 +408,7 @@ Two terminators on `HasLogged()` return the matched record(s) once the assertion
 
 | Terminator | Returns | Required preceding terminator |
 |---|---|---|
-| `.GetMatch()` | `Task<FakeLogRecord>` | `Once()` or `Exactly(1)` |
+| `.GetMatch()` | `Task<FakeLogRecord>` | Any terminator that constrains the count to exactly one (typically `Once()` or `Exactly(1)`; `Between(1, 1)` also accepted) |
 | `.GetMatches()` | `Task<IReadOnlyList<FakeLogRecord>>` | Any count terminator |
 
 ```csharp
@@ -432,7 +432,7 @@ IReadOnlyList<FakeLogRecord> retries = await Assert.That(collector)
 await Assert.That(retries).Count().IsEqualTo(3);
 ```
 
-`.GetMatch()` throws `InvalidOperationException` upfront if the chain isn't terminated with `Once()` or `Exactly(1)` — fail-fast on a nonsensical "give me the single match" expectation against a chain that allows N matches.
+`.GetMatch()` throws `InvalidOperationException` upfront if the chain's count expectation doesn't constrain the match count to exactly one — fail-fast on a nonsensical "give me the single match" expectation against a chain that allows N matches.
 
 The returned list from `.GetMatches()` is a defensive snapshot captured at evaluation time; it isn't bound to the live collector.
 
@@ -471,7 +471,7 @@ await Assert.That(collector)
     .And.HasNotLogged().AtLevel(LogLevel.Error);
 ```
 
-For three-or-more conditions, prefer the dedicated [`AssertAllAsync`](#batch-assertions--assertallasync) batch terminator — it aggregates failures into a single message rather than failing fast on the first.
+For three-or-more conditions, prefer the dedicated [`AssertAllAsync`](#batch-assertions--assertallasync-and-assertmultiple-interop) batch terminator — it aggregates failures into a single message rather than failing fast on the first.
 
 **`.Or` is rarely useful for log assertions.** "Either no errors were logged OR a specific recovery was logged" is a contrived shape; in practice tests want both, not either. The mechanism is available via TUnit if you need it, but the cookbook below shows no examples because the use case is genuinely uncommon. If you find yourself reaching for `.Or`, consider whether `MatchingAny(...)` (an OR of *filters*, not whole assertions) expresses the intent more clearly.
 

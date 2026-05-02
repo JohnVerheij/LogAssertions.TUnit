@@ -44,6 +44,44 @@ internal sealed class FakeLogCollectorTUnitInspectionExtensionsTests
     }
 
     /// <summary>
+    /// Pins the explicit-failure contract when called outside a TUnit test execution context
+    /// (no <see cref="global::TUnit.Core.TestContext.Current"/>). The method throws
+    /// <see cref="InvalidOperationException"/> with a clear diagnostic rather than silently
+    /// no-op'ing. Verification spawns the call on a fresh thread via <see cref="Thread.UnsafeStart"/>,
+    /// which (unlike <see cref="Task.Run(System.Action)"/> or the regular <see cref="Thread.Start()"/>)
+    /// does NOT capture the calling <see cref="System.Threading.ExecutionContext"/>. The new
+    /// thread therefore observes a null <c>TestContext.Current</c> exactly as a non-TUnit
+    /// caller would. <see cref="TaskCompletionSource{TResult}"/> bridges the result back to
+    /// the test's await chain.
+    /// </summary>
+    [Test]
+    public async Task DumpToTestOutputThrowsInvalidOperationOutsideTestContextAsync(CancellationToken cancellationToken)
+    {
+        FakeLogCollector collector = new();
+        var completion = new TaskCompletionSource<InvalidOperationException?>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                collector.DumpToTestOutput();
+                completion.SetResult(null);
+            }
+            catch (InvalidOperationException ex)
+            {
+                completion.SetResult(ex);
+            }
+        }) { IsBackground = true };
+        thread.UnsafeStart();
+
+        InvalidOperationException? caught = await completion.Task.WaitAsync(cancellationToken);
+
+        await Assert.That(caught).IsNotNull();
+        await Assert.That(caught!.Message).Contains("DumpToTestOutput");
+        await Assert.That(caught.Message).Contains("TestContext.Current");
+    }
+
+    /// <summary>
     /// Pins the null-collector contract — the extension must throw
     /// <see cref="ArgumentNullException"/> rather than NRE on a null receiver.
     /// </summary>
