@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] — TUnit-deepening release: GetMatch/GetMatches, DumpToTestOutput, Because/Assert.Multiple docs, smoke-test CI
+
+First substantive feature release driven by the second-round consumer adoption review. Lockstep version bump for both packages; ApiCompat baseline pinned to 0.2.4. Bumps the upstream TUnit dependency from 1.41.0 → 1.43.2.
+
+### Added (LogAssertions.TUnit)
+
+- **`HasLoggedAssertion.GetMatch()` / `GetMatches()`** — value-returning terminators on the `HasLogged()` chain. Eliminate the duplicate `collector.Filter(...)` call after asserting: hand the matched record(s) directly to a follow-up TUnit assertion. `GetMatch()` requires the chain to be terminated with `Once()` or `Exactly(1)` and throws `InvalidOperationException` upfront for any other count expectation (fail-fast on a nonsensical "give me the single match" against a chain that allows N matches). `GetMatches()` accepts any terminator and returns the matched records as a defensive `IReadOnlyList<FakeLogRecord>` snapshot captured at evaluation time.
+
+- **`FakeLogCollector.DumpToTestOutput()`** — TUnit-aware variant of the framework-agnostic `DumpTo(TextWriter)` that routes captured records to `TestContext.Current.Output.StandardOutput`. Eliminates the `using var sw = new StringWriter(); collector.DumpTo(sw); Console.WriteLine(sw)` boilerplate during test development. Lives in the new `FakeLogCollectorTUnitInspectionExtensions` static class in the LogAssertions.TUnit package; the framework-agnostic counterparts (`Filter`, `CountMatching`, `DumpTo(TextWriter)`) stay in the LogAssertions core package. Throws `InvalidOperationException` with a clear diagnostic if called outside a TUnit test context (no `TestContext.Current`).
+
+### Added (CI / process)
+
+- **External-consumer smoke-test project** (`tests/LogAssertions.TUnit.SmokeTest/`) — references LogAssertions.TUnit ONLY via `PackageReference` from a deliberately-different namespace (`Smoke.Consumer.*`) and consumes the just-packed nupkg via a local NuGet feed at `./artifacts`. Lives outside the main `LogAssertions.TUnit.slnx` so the unpublished local-feed version doesn't break `dotnet restore` on the main solution; CI packs the package first, then restores the smoke-test against the local feed and runs it. Pins the v0.2.0/v0.2.1 namespace-resolution regression closed at build time — if a future release moves shorthand entry points back into the `LogAssertions.TUnit` namespace, the smoke-test build fails before the package can ship. Uses `<ImplicitUsings>disable</ImplicitUsings>` so resolution failures attributable to missing usings surface as build errors rather than being masked by SDK auto-imports.
+
+### Documentation (no API change)
+
+All sections below pin TUnit-core features that already worked on our chains by virtue of deriving from `Assertion<T>`; the v0.3.0 release verifies them with permanent regression tests in `tests/LogAssertions.TUnit.Tests/TUnitInteropTests.cs` and documents them in the README.
+
+- **`.Because("reason")` chains cleanly on our terminators** and surfaces the justification in failure messages. Documented in the new "TUnit-native conveniences" section. Note: TUnit's `.WithMessage(...)` is a separate predicate-on-failure-message feature for negative-testing patterns, NOT a reason-annotation API; the correct API name on `Assert.That()` chains is `.Because(...)`.
+- **`Assert.Multiple()` aggregates failures from our chains.** Documented alongside `AssertAllAsync` with explicit guidance on when to prefer which: `AssertAllAsync` reads more naturally when every check is against the same collector; `Assert.Multiple` shines when mixing log and non-log assertions.
+- **`[NotInParallel]` guidance.** `FakeLogCollector` is instance-scoped — tests using LogAssertions.TUnit do NOT need `[NotInParallel]` for the collector itself. Necessary only when interacting with global logging state (e.g. NLog's `LogManager.Configuration`); in that case, use a single shared `[NotInParallel("global-logging-config")]` key for all such tests (different keys do NOT serialize against each other).
+- **Should() interop deferred-note.** Upstream `TUnit.Assertions.Should` is currently beta-only; this repo's dependency policy forbids beta packages. Hands-on verification of `collector.Should().HaveLogged()` is parked pending the upstream package reaching stable. Friction tracker entry filed; reviewer's hypothesis ("auto-generation should work via the source generator") not yet confirmed.
+- **New "Troubleshooting" section** (FAQ) covering the three issues that cost time during early adoption: shorthand resolution failures on pre-0.2.2 versions, `LogCollectorBuilder` not found (missing `using LogAssertions;`), and IDE0005 noise on per-file imports under strict-analysis projects (use the recommended `GlobalUsings.cs`).
+- **Migration-section typo fix** — the v0.2.4 README's "Migrating from manual assertions" section referenced `InScope("RequestId", id)` and `WithExceptionOfType<TimeoutException>()`, neither of which exist as APIs. Corrected to `WithScopeProperty("RequestId", id)` and `WithException<TimeoutException>()`.
+- **Roadmap reorganized** with clear v0.4.0 (concrete, no commitment) and v0.5.0+ (longer horizon) buckets. Roslyn-analyzer recommendation explicitly **declined** with reasoning (band-aid for our own API design choice; if the implicit count default is wrong, fix the API rather than ship an analyzer that polices it). `Member()`/`AndTheMatch()` and `Should()` shifted from v0.3.0 candidates to v0.4.0 deferred (subsumed by `GetMatch`/`GetMatches` and blocked on upstream beta respectively).
+
+### Changed
+
+- **Upstream TUnit pinned 1.41.0 → 1.43.2 (latest stable).** Clean bump; all 109 existing tests still green. Adds `TUnit.Core` as a direct PackageReference to LogAssertions.TUnit (needed for `TestContext.Current` in `DumpToTestOutput`). The published `LogAssertions.TUnit.nupkg` therefore declares `TUnit.Core 1.43.2` and `TUnit.Assertions 1.43.2` as direct dependencies; consumers who pin a lower TUnit version will see the standard NuGet upgrade prompt on install.
+- **`.editorconfig` extension:** the `tests/**/*.cs` analyzer suppression block (MA0004 / CA2007 / VSTHRD200) is now also applied to `**/LogAssertions.TUnit/*.cs` because the public assertion-DSL surface deliberately omits the `Async` suffix to match TUnit's value-returning patterns (`HasSingleItemPredicateAssertion` etc.). Same root cause: assertion runtime under TUnit has no `SynchronizationContext`, so `ConfigureAwait(false)` is a no-op; the DSL idiom is `await Assert.That(...).GetMatch()`, not `await Assert.That(...).GetMatchAsync()`.
+
+### Background
+
+This release is the v0.3.0 originally scoped from the second adoption-review round. After spike work, the scope settled on the high-confidence set: three new public surfaces (`GetMatch`, `GetMatches`, `DumpToTestOutput`), three TUnit-core feature interop pins (`Because`, `Assert.Multiple`, `[NotInParallel]`), one process change (smoke-test in CI), one FAQ section, and an explicit decline on the analyzer recommendation. The `WithinTimeout()` polling terminator and `Member()`/`AndTheMatch()` bridge from the same review were deferred to v0.4.0 — both have real design forks that warrant a focused spike before committing surface, and the latter is largely subsumed by `GetMatch`/`GetMatches` shipped here.
+
 ## [0.2.4] — Second docs polish from adoption feedback (no API change)
 
 All changes in this release are documentation. Both packages still publish in lockstep so consumers who pin transitively don't end up on mismatched core/adapter versions.
@@ -244,7 +279,8 @@ Why the split: positions the package family for hypothetical future adapters (`L
 
 This package implements the user-space pattern that the TUnit maintainer pointed at when declining [thomhurst/TUnit#5627](https://github.com/thomhurst/TUnit/issues/5627). The `[AssertionExtension]` infrastructure that makes this clean shipped in TUnit 1.41.0 via [thomhurst/TUnit#5785](https://github.com/thomhurst/TUnit/pull/5785).
 
-[Unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.2.4...HEAD
+[Unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.3.0
 [0.2.4]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.2.4
 [0.2.3]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.2.3
 [0.2.2]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.2.2

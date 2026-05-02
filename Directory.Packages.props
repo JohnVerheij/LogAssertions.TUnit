@@ -11,8 +11,9 @@
     <PackageVersion Include="Microsoft.Sbom.Targets" Version="3.0.1" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
     <PackageVersion Include="PublicApiGenerator" Version="11.4.6" />
-    <PackageVersion Include="TUnit" Version="1.41.0" />
-    <PackageVersion Include="TUnit.Assertions" Version="1.41.0" />
+    <PackageVersion Include="TUnit" Version="1.43.2" />
+    <PackageVersion Include="TUnit.Assertions" Version="1.43.2" />
+    <PackageVersion Include="TUnit.Core" Version="1.43.2" />
     <PackageVersion Include="Verify.TUnit" Version="31.16.2" />
   </ItemGroup>
 

@@ -152,6 +152,20 @@ jobs:
       - name: Pack LogAssertions.TUnit (TUnit adapter)
         run: dotnet pack src/LogAssertions.TUnit/LogAssertions.TUnit.csproj --configuration Release --no-build --output ./artifacts
 
+      - name: External-consumer smoke test (restore+build+test against just-packed nupkgs)
+        # The smoke-test project lives outside LogAssertions.TUnit.slnx and consumes
+        # LogAssertions.TUnit ONLY via PackageReference (NOT ProjectReference) — its NuGet.config
+        # routes LogAssertions.* to the just-packed local feed at ./artifacts. The project's
+        # namespace is deliberately NOT under LogAssertions.TUnit, so any future regression of
+        # the v0.2.0/v0.2.1 namespace bug class (entry points hidden behind an explicit using)
+        # fails the smoke build before the package can ship. Restore must be wired explicitly
+        # because the project is excluded from the main solution; --force-evaluate guarantees
+        # the floating LogAssertions.TUnit version resolves to the just-packed nupkg.
+        run: |
+          dotnet restore tests/LogAssertions.TUnit.SmokeTest/LogAssertions.TUnit.SmokeTest.csproj --force-evaluate
+          dotnet build tests/LogAssertions.TUnit.SmokeTest/LogAssertions.TUnit.SmokeTest.csproj --configuration Release --no-restore
+          dotnet run --project tests/LogAssertions.TUnit.SmokeTest/LogAssertions.TUnit.SmokeTest.csproj --configuration Release --no-build
+
       - name: Upload package artifacts
         uses: actions/upload-artifact@v4
         with:

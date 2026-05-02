@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using System.Threading.Tasks;
@@ -11,7 +12,9 @@ namespace LogAssertions.TUnit;
 /// <summary>
 /// TUnit assertion that verifies a <see cref="FakeLogCollector"/> contains matching log records.
 /// Inherits filter chaining from <see cref="LogAssertionBase{TSelf}"/>; adds count-expectation
-/// terminators (<c>Once</c>, <c>Exactly</c>, <c>AtLeast</c>, <c>AtMost</c>, <c>Never</c>).
+/// terminators (<c>Once</c>, <c>Exactly</c>, <c>AtLeast</c>, <c>AtMost</c>, <c>Never</c>) and the
+/// value-returning terminators <c>GetMatch</c> and <c>GetMatches</c> for handing the matched
+/// records to follow-up assertions.
 /// </summary>
 [AssertionExtension("HasLogged")]
 public sealed class HasLoggedAssertion : LogAssertionBase<HasLoggedAssertion>
@@ -19,6 +22,7 @@ public sealed class HasLoggedAssertion : LogAssertionBase<HasLoggedAssertion>
     private int _minCount = 1;
     private int _maxCount = int.MaxValue;
     private string _terminatorDescription = "at least 1";
+    private IReadOnlyList<FakeLogRecord>? _capturedMatches;
 
     /// <summary>Initialises a positive log assertion. Called by the TUnit source generator.</summary>
     /// <param name="context">The assertion context supplied by TUnit.</param>
@@ -108,6 +112,54 @@ public sealed class HasLoggedAssertion : LogAssertionBase<HasLoggedAssertion>
         return this;
     }
 
+    /// <summary>
+    /// Returns the matched records once the assertion passes. Awaits the chain (which evaluates
+    /// the count expectation and throws on mismatch); on success, returns the snapshot of matches
+    /// captured at evaluation time. Useful for handing the matched records to follow-up
+    /// assertions without a duplicate <c>collector.Filter(...)</c> call.
+    /// </summary>
+    /// <returns>The matched records in original order; the list is a snapshot, not bound to the live collector.</returns>
+    public Task<IReadOnlyList<FakeLogRecord>> GetMatches()
+    {
+        Context.ExpressionBuilder.Append(".GetMatches()");
+        return ExecuteAndReturnMatchesAsync();
+    }
+
+    /// <summary>
+    /// Returns the single matched record once the assertion passes. Requires the chain to be
+    /// terminated with <see cref="Once"/> or <see cref="Exactly"/> with count <c>1</c>; throws
+    /// <see cref="InvalidOperationException"/> otherwise so the call site fails fast on a
+    /// nonsensical count expectation.
+    /// </summary>
+    /// <returns>The single matched record.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// The chain was not terminated with <see cref="Once"/> or <see cref="Exactly"/> with count <c>1</c>.
+    /// </exception>
+    public Task<FakeLogRecord> GetMatch()
+    {
+        if (_minCount != 1 || _maxCount != 1)
+        {
+            throw new InvalidOperationException(
+                "GetMatch() requires the chain to expect exactly one match — call .Once() or " +
+                ".Exactly(1) before .GetMatch(). Use .GetMatches() to retrieve any number of matches.");
+        }
+
+        Context.ExpressionBuilder.Append(".GetMatch()");
+        return ExecuteAndReturnSingleMatchAsync();
+    }
+
+    private async Task<IReadOnlyList<FakeLogRecord>> ExecuteAndReturnMatchesAsync()
+    {
+        await AssertAsync();
+        return _capturedMatches ?? [];
+    }
+
+    private async Task<FakeLogRecord> ExecuteAndReturnSingleMatchAsync()
+    {
+        await AssertAsync();
+        return _capturedMatches![0];
+    }
+
     /// <inheritdoc/>
     protected override Task<AssertionResult> CheckAsync(EvaluationMetadata<FakeLogCollector> metadata)
     {
@@ -122,7 +174,9 @@ public sealed class HasLoggedAssertion : LogAssertionBase<HasLoggedAssertion>
             return Task.FromResult(AssertionResult.Failed("collector was null"));
 
         var snapshot = collector.GetSnapshot();
-        var matchCount = CountMatches(snapshot);
+        var matches = GetMatches(snapshot);
+        _capturedMatches = matches;
+        var matchCount = matches.Count;
 
         if (matchCount >= _minCount && matchCount <= _maxCount)
             return Task.FromResult(AssertionResult.Passed);

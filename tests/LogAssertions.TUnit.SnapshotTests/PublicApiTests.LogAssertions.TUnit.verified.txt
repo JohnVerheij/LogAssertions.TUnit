@@ -1,4 +1,4 @@
-[assembly: System.Reflection.AssemblyMetadata("IsAotCompatible", "True")]
+﻿[assembly: System.Reflection.AssemblyMetadata("IsAotCompatible", "True")]
 [assembly: System.Reflection.AssemblyMetadata("IsTrimmable", "True")]
 [assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/JohnVerheij/LogAssertions.TUnit")]
 [assembly: System.Runtime.Versioning.TargetFramework(".NETCoreApp,Version=v10.0", FrameworkDisplayName=".NET 10.0")]
@@ -11,6 +11,10 @@ namespace LogAssertions.TUnit
         public static System.Threading.Tasks.Task AssertAllAsync<TActual>(this TUnit.Assertions.Core.IAssertionSource<TActual> source, params System.Func<TUnit.Assertions.Core.IAssertionSource<TActual>, TUnit.Assertions.Core.Assertion<Microsoft.Extensions.Logging.Testing.FakeLogCollector>>[] assertions)
             where TActual : Microsoft.Extensions.Logging.Testing.FakeLogCollector { }
     }
+    public static class FakeLogCollectorTUnitInspectionExtensions
+    {
+        public static void DumpToTestOutput(this Microsoft.Extensions.Logging.Testing.FakeLogCollector collector) { }
+    }
     [TUnit.Assertions.Attributes.AssertionExtension("HasLogged")]
     public sealed class HasLoggedAssertion : LogAssertions.TUnit.LogAssertionBase<LogAssertions.TUnit.HasLoggedAssertion>
     {
@@ -21,6 +25,8 @@ namespace LogAssertions.TUnit
         protected override System.Threading.Tasks.Task<TUnit.Assertions.Core.AssertionResult> CheckAsync(TUnit.Assertions.Core.EvaluationMetadata<Microsoft.Extensions.Logging.Testing.FakeLogCollector> metadata) { }
         public LogAssertions.TUnit.HasLoggedAssertion Exactly(int count) { }
         protected override string GetExpectation() { }
+        public System.Threading.Tasks.Task<Microsoft.Extensions.Logging.Testing.FakeLogRecord> GetMatch() { }
+        public System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord>> GetMatches() { }
         public LogAssertions.TUnit.HasLoggedAssertion Never() { }
         public LogAssertions.TUnit.HasLoggedAssertion Once() { }
     }
