@@ -15,7 +15,7 @@ updates:
     directories:
       - /
     exclude-paths:
-      - /tests/LogAssertions.TUnit.SmokeTest/**
+      - tests/LogAssertions.TUnit.SmokeTest/**
     schedule:
       interval: weekly
       day: monday
