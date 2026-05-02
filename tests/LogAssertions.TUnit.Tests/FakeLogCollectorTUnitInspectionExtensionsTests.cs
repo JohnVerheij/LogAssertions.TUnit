@@ -52,9 +52,18 @@ internal sealed class FakeLogCollectorTUnitInspectionExtensionsTests
     /// does NOT capture the calling <see cref="System.Threading.ExecutionContext"/>. The new
     /// thread therefore observes a null <c>TestContext.Current</c> exactly as a non-TUnit
     /// caller would. <see cref="TaskCompletionSource{TResult}"/> bridges the result back to
-    /// the test's await chain.
+    /// the test's await chain — including any unexpected exception, so a real fault on the
+    /// worker thread surfaces as a test failure with the original exception's stack trace
+    /// rather than as a timeout that hides the cause.
     /// </summary>
     [Test]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Design", "CA1031:DoNotCatchGeneralExceptionTypes",
+        Justification = "Worker-thread bridge: any unexpected exception must be forwarded " +
+            "via TaskCompletionSource.SetException so the test fails with a clear diagnostic " +
+            "(the original exception type and stack trace) rather than silently hanging until " +
+            "the [Timeout] kicks in. Catching the base Exception is the documented pattern " +
+            "for cross-thread exception forwarding.")]
     public async Task DumpToTestOutputThrowsInvalidOperationOutsideTestContextAsync(CancellationToken cancellationToken)
     {
         FakeLogCollector collector = new();
@@ -70,6 +79,10 @@ internal sealed class FakeLogCollectorTUnitInspectionExtensionsTests
             catch (InvalidOperationException ex)
             {
                 completion.SetResult(ex);
+            }
+            catch (Exception ex)
+            {
+                completion.SetException(ex);
             }
         }) { IsBackground = true };
         thread.UnsafeStart();
