@@ -2,20 +2,7 @@ version: 2
 
 updates:
   - package-ecosystem: nuget
-    # `directories` (plural) + `exclude-paths` is required to opt the smoke-test project
-    # out of GitHub's automatic NuGet dependency-submission action ("dynamic / submit-nuget"
-    # workflow that auto-runs on push and PR). That action discovers every .csproj in the
-    # tree and runs `dotnet restore` on each one to compute the dependency graph; the smoke
-    # test project legitimately depends on a local NuGet feed at ./artifacts populated by
-    # CI's pack steps, so its restore fails (NU1301) in any context where pack hasn't run.
-    # Dependabot's `exclude-paths` (added 2025-08-26) is the only knob that scopes the
-    # auto-submission action's discovery away from a specific csproj. The smoke test still
-    # participates in the main CI workflow's smoke step — only auto-submit's blind restore
-    # loop is suppressed.
-    directories:
-      - /
-    exclude-paths:
-      - tests/LogAssertions.TUnit.SmokeTest/**
+    directory: /
     schedule:
       interval: weekly
       day: monday
