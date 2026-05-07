@@ -11,8 +11,8 @@
     <IsPackable>true</IsPackable>
     <PackageId>LogAssertions</PackageId>
     <ProductName>LogAssertions</ProductName>
-    <Version>0.3.0</Version>
-    <PackageValidationBaselineVersion>0.2.4</PackageValidationBaselineVersion>
+    <Version>0.4.0</Version>
+    <PackageValidationBaselineVersion>0.3.0</PackageValidationBaselineVersion>
     <Authors>John Verheij</Authors>
     <Copyright>Copyright (c) 2026 John Verheij</Copyright>
     <Description>Framework-agnostic core for fluent log assertions over Microsoft.Extensions.Logging.Testing.FakeLogCollector. Provides ILogRecordFilter + LogFilter composable filter primitives, the failure-message rendering, the FakeLogCollector inspection extensions (Filter, CountMatching, DumpTo), and the LogCollectorBuilder factory. Test-framework-specific entry points live in adapter packages (LogAssertions.TUnit ships today; xUnit, NUnit, MSTest adapters are possible if there is demand).</Description>
@@ -42,8 +42,13 @@
     <ApiCompatEnableRuleAttributesMustMatch>true</ApiCompatEnableRuleAttributesMustMatch>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
 
-    <!-- SBOM generation per dpfa Proj0243 (Microsoft.Sbom.Targets pack-time generation) -->
+    <!-- SBOM generation per dpfa Proj0243 (Microsoft.Sbom.Targets pack-time generation).
+         SPDX 3.0 (April 2024) emits richer security-profile metadata than 2.2 / 2.3 — better
+         positioned for CRA Annex I §2(1) "commonly used and machine-readable format" alignment.
+         Tooling lag note: very old scanners that don't yet parse SPDX 3.0 fall back to the
+         CycloneDX 1.6 sibling artifact emitted by the release workflow. -->
     <GenerateSBOM>true</GenerateSBOM>
+    <SbomGenerationManifestInfo>SPDX:3.0</SbomGenerationManifestInfo>
 
     <!-- AOT / trimming - core code uses no reflection, safe for AOT-mode test contexts -->
     <IsAotCompatible>true</IsAotCompatible>
@@ -53,9 +58,18 @@
 
   <ItemGroup>
     <!-- Alphabetical per dpfa Proj0015 -->
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" />
     <PackageReference Include="Microsoft.Sbom.Targets" PrivateAssets="all" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Codifies the no-reflection convention from CONVENTIONS.md as a build-time error.
+         RS0030 fires if any banned API is referenced from production code; combined with
+         TreatWarningsAsErrors=true the build fails. Test projects do not reference this file
+         so reflection-using helpers (e.g. PublicApiGenerator) stay usable in tests. -->
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)../../BannedSymbols.txt" />
   </ItemGroup>
 
   <ItemGroup>

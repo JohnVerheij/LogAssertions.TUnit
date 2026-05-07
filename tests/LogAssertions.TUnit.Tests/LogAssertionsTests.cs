@@ -858,9 +858,9 @@ internal sealed class LogAssertionsTests
         cancellationToken.ThrowIfCancellationRequested();
         FakeLogCollector collector = CreateCollectorWithSampleRecords();
 
-        await Assert.That(collector).HasLogged().WithExceptionMessage("boom").Once();
-        await Assert.That(collector).HasLogged().WithException<InvalidOperationException>().WithExceptionMessage("boom").Once();
-        await Assert.That(collector).HasNotLogged().WithExceptionMessage("nope");
+        await Assert.That(collector).HasLogged().WithExceptionMessage("boom", StringComparison.Ordinal).Once();
+        await Assert.That(collector).HasLogged().WithException<InvalidOperationException>().WithExceptionMessage("boom", StringComparison.Ordinal).Once();
+        await Assert.That(collector).HasNotLogged().WithExceptionMessage("nope", StringComparison.Ordinal);
     }
 
     // --- WithMessageTemplate filter ---
@@ -1756,7 +1756,7 @@ internal sealed class LogAssertionsTests
         await Assert.That(() => LogFilter.WithMessage(null!)).Throws<ArgumentNullException>();
         await Assert.That(() => LogFilter.WithMessageTemplate(null!)).Throws<ArgumentNullException>();
         await Assert.That(() => LogFilter.WithException((Func<Exception, bool>)null!)).Throws<ArgumentNullException>();
-        await Assert.That(() => LogFilter.WithExceptionMessage(null!)).Throws<ArgumentNullException>();
+        await Assert.That(() => LogFilter.WithExceptionMessage(null!, StringComparison.Ordinal)).Throws<ArgumentNullException>();
         await Assert.That(() => LogFilter.WithProperty(null!, "x")).Throws<ArgumentNullException>();
         await Assert.That(() => LogFilter.WithCategory(null!)).Throws<ArgumentNullException>();
         await Assert.That(() => LogFilter.WithEventName(null!)).Throws<ArgumentNullException>();

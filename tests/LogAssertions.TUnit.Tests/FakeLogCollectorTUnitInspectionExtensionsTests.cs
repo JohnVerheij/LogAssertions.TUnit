@@ -84,7 +84,8 @@ internal sealed class FakeLogCollectorTUnitInspectionExtensionsTests
             {
                 completion.SetException(ex);
             }
-        }) { IsBackground = true };
+        })
+        { IsBackground = true };
         thread.UnsafeStart();
 
         InvalidOperationException? caught = await completion.Task.WaitAsync(cancellationToken);

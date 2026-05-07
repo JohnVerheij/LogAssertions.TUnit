@@ -1,21 +1,26 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    Snapshot-only test project. Held separate from LogAssertions.TUnit.Tests because:
+    Public-API surface snapshot test project for LogAssertions / LogAssertions.TUnit. Uses
+    SnapshotAssertions.TUnit's MatchesSnapshot() against the public surface emitted by
+    PublicApiGenerator — same pattern the family promotes for downstream consumers, so the
+    test stack runs the canonical example end-to-end on the package's own surface.
 
-    1. Verify.TUnit applies Verify.props to every consuming project, which forces
-       Deterministic=false (Verify needs absolute PDB paths to locate .verified.txt
-       files; a deterministic build normalises those paths to /_/...).
-    2. On Linux runners, Deterministic=false breaks Microsoft.Testing.Extensions.
-       CodeCoverage's instrumentation pipeline. The test exe runs but emits an
-       empty 178-byte cobertura skeleton, which Codecov rejects as "Unusable".
-    3. The whole assembly is annotated [ExcludeFromCodeCoverage] (see
-       AssemblyInfo.cs in this project) so it is not part of any coverage measurement.
-    4. CI runs this project WITHOUT the coverage flag in a separate step from the main
-       test project (which gets coverage and produces the real cobertura XML).
+    Why a separate project from LogAssertions.TUnit.Tests:
+      - Keeps the public-API surface check architecturally separate from behaviour tests.
+      - Mirrors the TimeAssertions / SnapshotAssertions layout (each repo has a dedicated
+        *.SnapshotTests project) so the family is consistent.
 
-    See github.com/thomhurst/TUnit/discussions/4149 for the upstream
-    Verify x MTP coverage interaction.
+    No Verify dependency: this project deliberately does NOT use Verify.TUnit. The family-wide
+    "Verify is not promoted" rule (see CONVENTIONS.md) applies to the package's own test stack
+    too — the canonical example, including for our own public-API testing, is
+    Assert.That(api).MatchesSnapshot(). This also removes the Verify Deterministic=false /
+    Microsoft.CodeCoverage Linux interaction that previously required a separate no-coverage
+    CI step.
+
+    Snapshot baselines live under Snapshots/*.expected.txt next to this csproj. Auto-included
+    via the SnapshotAssertions.TUnit build/*.targets that fires on PackageReference; the
+    explicit None entry below is a redundant safeguard if auto-import ever regresses.
   -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -26,17 +31,29 @@
     <IsPublishable>false</IsPublishable>
     <IsTestProject>true</IsTestProject>
     <OutputType>Exe</OutputType>
+
+    <!-- Proj0022 fires when a None Include glob matches zero files. The Snapshots/ directory
+         starts empty and is populated as tests are accepted; the include below is the canonical
+         "auto-deploy expected baselines to bin" mechanism. Suppressing the rule lets the
+         include exist before any baseline is committed without tripping the build. -->
+    <NoWarn>$(NoWarn);Proj0022</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- Alphabetical per dpfa Proj0015 -->
     <PackageReference Include="PublicApiGenerator" />
+    <PackageReference Include="SnapshotAssertions.TUnit" />
     <PackageReference Include="TUnit" />
-    <PackageReference Include="Verify.TUnit" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="../../src/LogAssertions.TUnit/LogAssertions.TUnit.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Snapshots/**/*.expected.txt"
+          CopyToOutputDirectory="PreserveNewest"
+          Visible="false" />
   </ItemGroup>
 
 </Project>

@@ -27,12 +27,25 @@ public static class FakeLogCollectorTUnitInspectionExtensions
     /// diagnostic rather than a silent no-op.
     /// </exception>
     public static void DumpToTestOutput(this FakeLogCollector collector)
+        => DumpToTestOutput(collector, DumpVerbosity.Default);
+
+    /// <summary>
+    /// Verbosity-controlled overload of <see cref="DumpToTestOutput(FakeLogCollector)"/>. The
+    /// no-arg overload uses <see cref="DumpVerbosity.Default"/>; pass an explicit verbosity to
+    /// surface less (Compact: headlines only) or more (Verbose: full exception stack trace).
+    /// </summary>
+    /// <param name="collector">The collector to dump.</param>
+    /// <param name="verbosity">How much detail to render per record. See
+    /// <see cref="DumpVerbosity"/> for the contract of each level.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="collector"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">There is no active TUnit test context.</exception>
+    public static void DumpToTestOutput(this FakeLogCollector collector, DumpVerbosity verbosity)
     {
         ArgumentNullException.ThrowIfNull(collector);
         var context = TestContext.Current
             ?? throw new InvalidOperationException(
                 "DumpToTestOutput() requires an active TUnit test context (TestContext.Current was null). " +
                 "Call this from inside a [Test] method, or use DumpTo(TextWriter) for non-TUnit contexts.");
-        collector.DumpTo(context.Output.StandardOutput);
+        collector.DumpTo(context.Output.StandardOutput, verbosity);
     }
 }

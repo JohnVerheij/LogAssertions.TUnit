@@ -11,8 +11,8 @@
     <IsPackable>true</IsPackable>
     <PackageId>LogAssertions.TUnit</PackageId>
     <ProductName>LogAssertions.TUnit</ProductName>
-    <Version>0.3.0</Version>
-    <PackageValidationBaselineVersion>0.2.4</PackageValidationBaselineVersion>
+    <Version>0.4.0</Version>
+    <PackageValidationBaselineVersion>0.3.0</PackageValidationBaselineVersion>
     <Authors>John Verheij</Authors>
     <Copyright>Copyright (c) 2026 John Verheij</Copyright>
     <Description>TUnit-native fluent log-assertion DSL using [AssertionExtension] over Microsoft.Extensions.Logging.Testing.FakeLogCollector. Provides Assert.That(collector).HasLogged()/HasNotLogged() with filter and terminator chaining; emits captured-records snapshot in failure messages.</Description>
@@ -42,8 +42,13 @@
     <ApiCompatEnableRuleAttributesMustMatch>true</ApiCompatEnableRuleAttributesMustMatch>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
 
-    <!-- SBOM generation per dpfa Proj0243 (Microsoft.Sbom.Targets pack-time generation) -->
+    <!-- SBOM generation per dpfa Proj0243 (Microsoft.Sbom.Targets pack-time generation).
+         SPDX 3.0 (April 2024) emits richer security-profile metadata than 2.2 / 2.3 — better
+         positioned for CRA Annex I §2(1) "commonly used and machine-readable format" alignment.
+         Tooling lag note: very old scanners that don't yet parse SPDX 3.0 fall back to the
+         CycloneDX 1.6 sibling artifact emitted by the release workflow. -->
     <GenerateSBOM>true</GenerateSBOM>
+    <SbomGenerationManifestInfo>SPDX:3.0</SbomGenerationManifestInfo>
 
     <!-- AOT / trimming — lib code uses no reflection, safe for AOT-mode test contexts -->
     <IsAotCompatible>true</IsAotCompatible>
@@ -53,6 +58,7 @@
 
   <ItemGroup>
     <!-- Alphabetical per dpfa Proj0015 -->
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" />
     <PackageReference Include="Microsoft.Sbom.Targets" PrivateAssets="all" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="all" />
@@ -64,6 +70,12 @@
     <!-- Framework-agnostic core lives in the LogAssertions package. The ProjectReference
          is rewritten to a PackageReference on LogAssertions at pack time. -->
     <ProjectReference Include="../LogAssertions/LogAssertions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Codifies the no-reflection convention as a build-time error. See LogAssertions.csproj
+         comment for the full rationale; the file is shared across both src projects. -->
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)../../BannedSymbols.txt" />
   </ItemGroup>
 
   <ItemGroup>
