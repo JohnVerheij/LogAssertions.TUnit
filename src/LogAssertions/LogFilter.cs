@@ -159,16 +159,60 @@ public static class LogFilter
             "Exception matches predicate");
     }
 
-    /// <summary>Records whose exception's message contains <paramref name="substring"/> (ordinal).</summary>
+    /// <summary>Records whose exception's message contains <paramref name="substring"/> under the supplied
+    /// <paramref name="comparison"/>.</summary>
     /// <param name="substring">The substring to find in the exception's message. Must be non-null.</param>
+    /// <param name="comparison">The string comparison rules. Project convention: pass explicitly so culture /
+    /// case behavior is never silently inherited from the runtime locale.</param>
     /// <returns>A filter accepting records whose exception message contains the substring.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="substring"/> is <see langword="null"/>.</exception>
-    public static ILogRecordFilter WithExceptionMessage(string substring)
+    public static ILogRecordFilter WithExceptionMessage(string substring, StringComparison comparison)
     {
         ArgumentNullException.ThrowIfNull(substring);
         return new PredicateFilter(
-            r => r.Exception?.Message.Contains(substring, StringComparison.Ordinal) ?? false,
-            "Exception message contains \"" + substring + "\"");
+            r => r.Exception?.Message.Contains(substring, comparison) ?? false,
+            "Exception message contains \"" + substring + "\" (" + comparison + ")");
+    }
+
+    /// <summary>Legacy ordinal-comparison overload kept for binary compatibility with v0.3.x.
+    /// Prefer the explicit-comparison overload above; this alias defaults to
+    /// <see cref="StringComparison.Ordinal"/> and will be removed in v0.6.0.</summary>
+    /// <param name="substring">The substring to find in the exception's message. Must be non-null.</param>
+    /// <returns>A filter accepting records whose exception message contains the substring (ordinal).</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="substring"/> is <see langword="null"/>.</exception>
+    [Obsolete("Use WithExceptionMessage(string substring, StringComparison comparison). This implicit-Ordinal overload will be removed in v0.6.0.", error: false)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S1133:Do not forget to remove this deprecated code someday", Justification = "Two-minor [Obsolete] cycle is intentional; v0.6.0 removes this alias per CONVENTIONS.md StringComparison rule.")]
+    public static ILogRecordFilter WithExceptionMessage(string substring)
+        => WithExceptionMessage(substring, StringComparison.Ordinal);
+
+    /// <summary>Records whose <see cref="FakeLogRecord.Exception"/> wraps an
+    /// <see cref="Exception.InnerException"/> assignable to <typeparamref name="TInner"/>. Walks
+    /// only one level (<c>Exception.InnerException</c>); deeper nesting is not searched.</summary>
+    /// <typeparam name="TInner">The inner-exception type to look for.</typeparam>
+    /// <returns>A filter accepting records whose exception's first-level inner is the specified type or a subclass.</returns>
+    /// <remarks>Designed for the common gRPC / RPC pattern where a transport exception (e.g.
+    /// <c>RpcException</c>) wraps the underlying domain exception once. Composes with
+    /// <see cref="WithException{TException}"/> via <see cref="All(ILogRecordFilter[])"/>.</remarks>
+    public static ILogRecordFilter WithInnerException<TInner>() where TInner : Exception
+        => new PredicateFilter(
+            r => r.Exception?.InnerException is TInner,
+            "InnerException is " + typeof(TInner).Name);
+
+    /// <summary>Records whose <see cref="Exception.InnerException"/>'s
+    /// <see cref="Exception.Message"/> contains <paramref name="substring"/> under the supplied
+    /// <paramref name="comparison"/>. Walks only one level.</summary>
+    /// <param name="substring">The substring to find in the inner exception's message. Must be non-null.</param>
+    /// <param name="comparison">The string comparison rules. Project convention: pass explicitly (no default)
+    /// — every public string-matching API in this package requires the caller to pick the comparison so
+    /// culture / case behavior is never silently inherited from the runtime locale.</param>
+    /// <returns>A filter accepting records whose first-level inner exception's message contains the substring.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="substring"/> is <see langword="null"/>.</exception>
+    public static ILogRecordFilter WithInnerExceptionMessage(string substring, StringComparison comparison)
+    {
+        ArgumentNullException.ThrowIfNull(substring);
+        return new PredicateFilter(
+            r => r.Exception?.InnerException?.Message.Contains(substring, comparison) ?? false,
+            "InnerException message contains \"" + substring + "\" (" + comparison + ")");
     }
 
     /// <summary>Records containing a structured-state entry with the specified key and value.</summary>
@@ -273,6 +317,37 @@ public static class LogFilter
         return new PredicateFilter(
             r => ScopePropertyMatches(r, key, predicate),
             "Scope " + key + " matches predicate");
+    }
+
+    /// <summary>
+    /// Records whose active scopes collectively contain every key/value pair in
+    /// <paramref name="required"/>. Each pair must match in <i>some</i> scope, but different
+    /// pairs may match in different scopes (subset match across all active scopes).
+    /// </summary>
+    /// <param name="required">The required scope-property key/value pairs. Must be non-null.</param>
+    /// <returns>A filter accepting records whose active scopes contain every required pair.</returns>
+    /// <remarks>
+    /// <para>The empty-dictionary case matches every record (vacuous truth) since every
+    /// element of an empty set is satisfied. Comparison is via
+    /// <see cref="object.Equals(object?, object?)"/> for values; keys are compared ordinal.</para>
+    /// <para>The dictionary is snapshotted on construction; mutating the input dictionary after
+    /// the filter is created does not affect the filter's behaviour.</para>
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="required"/> is <see langword="null"/>.</exception>
+    public static ILogRecordFilter WithScopeProperties(IReadOnlyDictionary<string, object?> required)
+    {
+        ArgumentNullException.ThrowIfNull(required);
+        // Iterate the IReadOnlyDictionary as a key/value sequence and rebuild a Dictionary so we
+        // (a) snapshot the data (post-construction mutation cannot affect the predicate) and
+        // (b) accept any IReadOnlyDictionary, including consumer-side ImmutableDictionary etc.
+        var snapshot = new Dictionary<string, object?>(StringComparer.Ordinal);
+        foreach (var kv in required)
+            snapshot[kv.Key] = kv.Value;
+        var description = "All scope properties: {" + string.Join(", ",
+            snapshot.Select(kv => kv.Key + "=" + (kv.Value ?? "null"))) + "}";
+        return new PredicateFilter(
+            r => snapshot.All(kv => ScopePropertyMatches(r, kv.Key, v => Equals(v, kv.Value))),
+            description);
     }
 
     /// <summary>An arbitrary predicate over the full record.</summary>

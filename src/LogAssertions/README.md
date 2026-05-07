@@ -4,6 +4,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
 
+> **Scope:** Test projects only. Not intended for production code.
+
 Framework-agnostic core for fluent log assertions over `Microsoft.Extensions.Logging.Testing.FakeLogCollector`.
 
 > **Most users want [`LogAssertions.TUnit`](https://www.nuget.org/packages/LogAssertions.TUnit/), not this package directly.** This is the shared engine; framework-specific adapter packages add the assertion entry points your test framework expects.
@@ -13,10 +15,10 @@ Framework-agnostic core for fluent log assertions over `Microsoft.Extensions.Log
 ## What's in this package
 
 - **`ILogRecordFilter`** — composable filter interface (`Matches(FakeLogRecord)` + `Description`).
-- **`LogFilter`** — static factory for every built-in filter shape (`AtLevel`, `Containing`, `WithMessageTemplate`, `WithException`, `WithProperty`, `WithCategory`, `WithEventId`, `WithScope`, `Where`, etc.) plus combinators (`All`, `Any`, `Not`).
-- **`LogAssertionRendering`** — failure-snapshot rendering (4-character level abbreviation, props line, scopes line, exception line). Used by adapter packages and by the `DumpTo` extension below.
+- **`LogFilter`** — static factory for every built-in filter shape (`AtLevel`, `Containing`, `WithMessageTemplate`, `WithException`, `WithInnerException` *(v0.4.0+)*, `WithInnerExceptionMessage` *(v0.4.0+)*, `WithProperty`, `WithCategory`, `WithEventId`, `WithScope`, `WithScopeProperty`, `WithScopeProperties` *(v0.4.0+)*, `Where`, etc.) plus combinators (`All`, `Any`, `Not`).
+- **`LogAssertionRendering`** — failure-snapshot rendering (4-character level abbreviation, props line, scopes line, exception line) with `DumpVerbosity`-controlled detail level *(v0.4.0+: `Compact` / `Default` / `Verbose`)*. Used by adapter packages and by the `DumpTo` extension below.
 - **`LogCollectorBuilder.Create(LogLevel)`** — one-line factory returning a wired `(ILoggerFactory, FakeLogCollector)` tuple.
-- **Inspection extensions on `FakeLogCollector`:** `Filter(params ILogRecordFilter[])` returns matching records, `CountMatching(params ILogRecordFilter[])` returns the count, `DumpTo(TextWriter)` writes the captured-records snapshot.
+- **Inspection extensions on `FakeLogCollector`:** `Filter(params ILogRecordFilter[])` returns matching records, `CountMatching(params ILogRecordFilter[])` returns the count, `DumpTo(TextWriter)` and `DumpTo(TextWriter, DumpVerbosity)` *(v0.4.0+)* write the captured-records snapshot.
 
 ## Test-framework adapters
 

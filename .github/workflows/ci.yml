@@ -33,12 +33,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5
         with:
           dotnet-version: |
             10.0.x
@@ -78,12 +78,13 @@ jobs:
             --configuration Release --no-build
 
       - name: Test snapshot suite (no coverage)
-        # SnapshotTests is a separate project because Verify.TUnit's Verify.props forces
-        # Deterministic=false (Verify needs absolute PDB paths to find .verified.txt files),
-        # and Deterministic=false breaks Microsoft.CodeCoverage's instrumentation pipeline
-        # on Linux runners (produces empty cobertura). Running this project WITHOUT --coverage
-        # keeps the main suite's coverage report clean. The whole snapshot assembly is also
-        # annotated [ExcludeFromCodeCoverage] for completeness.
+        # SnapshotTests pins the public API surface using SnapshotAssertions.TUnit's
+        # MatchesSnapshot() chain — same canonical example a downstream consumer would use.
+        # Run in a separate step (not inside the main coverage run) because: (1) the project
+        # measures API surface, not behaviour, so its execution contributes nothing useful to
+        # the coverage rate; (2) the .config/codecoverage.settings.xml already restricts
+        # ModulePaths to the production DLLs so SnapshotTests-internal code is excluded
+        # automatically — the separate step makes that intent explicit.
         run: |
           dotnet run --project tests/LogAssertions.TUnit.SnapshotTests/LogAssertions.TUnit.SnapshotTests.csproj \
             --configuration Release --no-build
@@ -108,7 +109,7 @@ jobs:
         if: steps.coverage.outputs.report != ''
         env:
           LINE_THRESHOLD: '0.90'
-          BRANCH_THRESHOLD: '0.80'
+          BRANCH_THRESHOLD: '0.90'
         run: |
           REPORT='${{ steps.coverage.outputs.report }}'
           LINE_RATE=$(grep -oP 'line-rate="\K[^"]+' "$REPORT" | head -1)
@@ -138,7 +139,7 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: steps.coverage.outputs.report != ''
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6
         with:
           files: ${{ steps.coverage.outputs.report }}
           fail_ci_if_error: false
@@ -179,7 +180,7 @@ jobs:
           dotnet run --project tests/LogAssertions.TUnit.SmokeTest/LogAssertions.TUnit.SmokeTest.csproj --configuration Release --no-build
 
       - name: Upload package artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: nupkg
           path: ./artifacts/*.nupkg

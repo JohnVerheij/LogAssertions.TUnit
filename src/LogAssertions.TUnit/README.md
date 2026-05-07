@@ -5,6 +5,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
 
+> **Scope:** Test projects only. Not intended for production code.
+
 TUnit-native fluent log-assertion DSL on top of `Microsoft.Extensions.Logging.Testing.FakeLogCollector`. AOT-compatible, trimmable, no reflection.
 
 > **Full documentation, full filter reference, design notes, and roadmap:** [github.com/JohnVerheij/LogAssertions.TUnit](https://github.com/JohnVerheij/LogAssertions.TUnit)
@@ -15,7 +17,7 @@ TUnit-native fluent log-assertion DSL on top of `Microsoft.Extensions.Logging.Te
 dotnet add package LogAssertions.TUnit
 ```
 
-`LogAssertions` (the framework-agnostic core) comes transitively. **Requirements:** TUnit 1.43.2+, .NET 10.
+`LogAssertions` (the framework-agnostic core) comes transitively. **Requirements:** TUnit 1.43.11+, .NET 10.
 
 ## Quick start
 
@@ -53,7 +55,7 @@ public async Task Validation_failure_is_logged()
 
 Plus shorthands: `HasLoggedOnce()`, `HasLoggedExactly(int)`, `HasLoggedAtLeast(int)`, `HasLoggedBetween(int, int)`, `HasLoggedNothing()`, `HasLoggedWarningOrAbove()`, `HasLoggedErrorOrAbove()`.
 
-Filters chain with AND semantics: `AtLevel`, `AtLevelOrAbove`, `Containing`, `WithException<T>`, `WithProperty`, `WithCategory`, `WithEventId`, `WithScope<T>`, `WithScopeProperty`, plus combinators `MatchingAny`/`MatchingAll`/`Not`/`WithFilter` for composable filter objects. [Full filter reference on GitHub.](https://github.com/JohnVerheij/LogAssertions.TUnit#filter-reference)
+Filters chain with AND semantics: `AtLevel`, `AtLevelOrAbove`, `Containing`, `WithException<T>`, `WithInnerException<T>` *(v0.4.0+)*, `WithInnerExceptionMessage` *(v0.4.0+)*, `WithProperty`, `WithCategory`, `WithEventId`, `WithScope<T>`, `WithScopeProperty`, `WithScopeProperties` *(v0.4.0+)*, plus combinators `MatchingAny`/`MatchingAll`/`Not`/`WithFilter` for composable filter objects. Sequence assertions chain via `Then()` (strict order) or `ThenAnyOrder(...)` *(v0.4.0+)* (concurrent group; sub-steps may match in any order). [Full filter reference on GitHub.](https://github.com/JohnVerheij/LogAssertions.TUnit#filter-reference)
 
 ## Cookbook
 
@@ -76,12 +78,30 @@ await Assert.That(collector).HasLogged()
     .Once();
 ```
 
+**Assert a wrapped exception (gRPC / RPC pattern, v0.4.0+):**
+```csharp
+await Assert.That(collector).HasLogged()
+    .WithException<RpcException>()
+    .WithInnerException<TimeoutException>()
+    .Once();
+```
+
 **Assert a startup → work → shutdown sequence:**
 ```csharp
 await Assert.That(collector).HasLoggedSequence()
     .WithEventName("Startup")
     .Then().AtLevel(LogLevel.Information).Containing("processed", StringComparison.Ordinal)
     .Then().WithEventName("Shutdown");
+```
+
+**Assert a fan-out completion in any order (v0.4.0+):**
+```csharp
+await Assert.That(collector).HasLoggedSequence()
+    .Containing("Request received", StringComparison.Ordinal)
+    .ThenAnyOrder(
+        s => s.Containing("Auth check passed", StringComparison.Ordinal),
+        s => s.Containing("Quota check passed", StringComparison.Ordinal))
+    .Then().Containing("Response sent", StringComparison.Ordinal);
 ```
 
 **Assert several invariants and report all failures together:**

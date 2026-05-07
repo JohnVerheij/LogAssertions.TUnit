@@ -9,7 +9,7 @@ namespace LogAssertions;
 /// <summary>
 /// Shared helpers for rendering captured log records into human-readable text. Used both by
 /// the assertion classes (failure-message snapshot rendering) and by the
-/// <see cref="FakeLogCollectorInspectionExtensions.DumpTo"/> extension.
+/// <c>FakeLogCollectorInspectionExtensions.DumpTo</c> extension.
 /// </summary>
 /// <remarks>
 /// The rendering format is documented as <b>not stable</b>; see the README "Stability
@@ -27,12 +27,25 @@ public static class LogAssertionRendering
     /// <summary>
     /// Appends the captured-records section to <paramref name="sb"/>: one summary line per
     /// record (<c>[lvl] category: message</c>) followed by indented detail lines for any
-    /// structured properties, active scopes, and exception (when present).
+    /// structured properties, active scopes, and exception (when present). Equivalent to
+    /// <see cref="AppendCapturedRecords(StringBuilder, IReadOnlyList{FakeLogRecord}, DumpVerbosity)"/>
+    /// with <see cref="DumpVerbosity.Default"/>.
     /// </summary>
     /// <param name="sb">The target string builder.</param>
     /// <param name="snapshot">All captured records.</param>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     public static void AppendCapturedRecords(StringBuilder sb, IReadOnlyList<FakeLogRecord> snapshot)
+        => AppendCapturedRecords(sb, snapshot, DumpVerbosity.Default);
+
+    /// <summary>
+    /// Verbosity-controlled overload of <see cref="AppendCapturedRecords(StringBuilder, IReadOnlyList{FakeLogRecord})"/>.
+    /// </summary>
+    /// <param name="sb">The target string builder.</param>
+    /// <param name="snapshot">All captured records.</param>
+    /// <param name="verbosity">How much detail to render per record. See
+    /// <see cref="DumpVerbosity"/> for the contract of each level.</param>
+    /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+    public static void AppendCapturedRecords(StringBuilder sb, IReadOnlyList<FakeLogRecord> snapshot, DumpVerbosity verbosity)
     {
         ArgumentNullException.ThrowIfNull(sb);
         ArgumentNullException.ThrowIfNull(snapshot);
@@ -50,6 +63,9 @@ public static class LogAssertionRendering
                 sb.Append(record.Category).Append(": ");
             sb.Append(record.Message).AppendLine();
 
+            if (verbosity == DumpVerbosity.Compact)
+                continue;
+
             AppendStructuredState(sb, record);
             AppendScopes(sb, record);
 
@@ -60,6 +76,17 @@ public static class LogAssertionRendering
                     .Append(": ")
                     .Append(record.Exception.Message)
                     .AppendLine();
+
+                if (verbosity == DumpVerbosity.Verbose)
+                {
+                    // Full ToString() carries the stack trace and inner-exception chain. Indented
+                    // by 6 spaces so it visually nests under the "exception:" line and survives
+                    // log-aggregator rendering.
+                    foreach (var line in record.Exception.ToString().Split('\n'))
+                    {
+                        sb.Append("      ").Append(line.TrimEnd('\r')).AppendLine();
+                    }
+                }
             }
         }
     }

@@ -14,6 +14,7 @@ namespace LogAssertions.TUnit
     public static class FakeLogCollectorTUnitInspectionExtensions
     {
         public static void DumpToTestOutput(this Microsoft.Extensions.Logging.Testing.FakeLogCollector collector) { }
+        public static void DumpToTestOutput(this Microsoft.Extensions.Logging.Testing.FakeLogCollector collector, LogAssertions.DumpVerbosity verbosity) { }
     }
     [TUnit.Assertions.Attributes.AssertionExtension("HasLogged")]
     public sealed class HasLoggedAssertion : LogAssertions.TUnit.LogAssertionBase<LogAssertions.TUnit.HasLoggedAssertion>
@@ -38,6 +39,7 @@ namespace LogAssertions.TUnit
         protected override System.Threading.Tasks.Task<TUnit.Assertions.Core.AssertionResult> CheckAsync(TUnit.Assertions.Core.EvaluationMetadata<Microsoft.Extensions.Logging.Testing.FakeLogCollector> metadata) { }
         protected override string GetExpectation() { }
         public LogAssertions.TUnit.HasLoggedSequenceAssertion Then() { }
+        public LogAssertions.TUnit.HasLoggedSequenceAssertion ThenAnyOrder(params System.Action<LogAssertions.TUnit.HasLoggedSequenceAssertion>[] subSteps) { }
     }
     [TUnit.Assertions.Attributes.AssertionExtension("HasNotLogged")]
     public sealed class HasNotLoggedAssertion : LogAssertions.TUnit.LogAssertionBase<LogAssertions.TUnit.HasNotLoggedAssertion>
@@ -79,14 +81,21 @@ namespace LogAssertions.TUnit
         public TSelf WithException(System.Func<System.Exception, bool> predicate) { }
         public TSelf WithException<TException>()
             where TException : System.Exception { }
+        [System.Obsolete("Use WithExceptionMessage(string substring, StringComparison comparison). This imp" +
+            "licit-Ordinal overload will be removed in v0.6.0.", false)]
         public TSelf WithExceptionMessage(string substring) { }
+        public TSelf WithExceptionMessage(string substring, System.StringComparison comparison) { }
         public TSelf WithFilter(LogAssertions.ILogRecordFilter filter) { }
+        public TSelf WithInnerException<TInner>()
+            where TInner : System.Exception { }
+        public TSelf WithInnerExceptionMessage(string substring, System.StringComparison comparison) { }
         public TSelf WithLoggerName(string loggerName) { }
         public TSelf WithMessage(System.Func<string, bool> predicate) { }
         public TSelf WithMessageTemplate(string template) { }
         public TSelf WithProperty(string key, System.Func<string?, bool> predicate) { }
         public TSelf WithProperty(string key, string? value) { }
         public TSelf WithScope<TScope>() { }
+        public TSelf WithScopeProperties(System.Collections.Generic.IReadOnlyDictionary<string, object?> required) { }
         public TSelf WithScopeProperty(string key, System.Func<object?, bool> predicate) { }
         public TSelf WithScopeProperty(string key, object? value) { }
         protected static void AppendCapturedRecords(System.Text.StringBuilder sb, System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord> snapshot) { }
