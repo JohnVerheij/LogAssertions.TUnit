@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] — Filter polish, sequence relaxation, dependency refresh
+
+Feature release plus rolled-in housekeeping. Lockstep version bump for both packages; ApiCompat baseline pinned to 0.3.0 (the previous shipped release). The intermediate v0.3.1 housekeeping work is folded into this release rather than shipping as a separate intermediate version.
+
+### Added (LogAssertions, framework-agnostic core)
+
+- **`LogFilter.WithInnerException<TInner>()` and `LogFilter.WithInnerExceptionMessage(string substring, StringComparison comparison)`** — match records whose `Exception.InnerException` is assignable to `TInner` (or whose inner-exception message contains a substring under the supplied comparison). Walks one level only; designed for the gRPC / RPC pattern where a transport exception wraps the underlying domain exception once.
+- **`LogFilter.WithExceptionMessage(string substring, StringComparison comparison)` overload** — explicit-comparison variant of the legacy `WithExceptionMessage(string)`. The single-arg overload is now `[Obsolete]` and removed in v0.6.0; see `### Deprecated` below.
+- **`LogFilter.WithScopeProperties(IDictionary<string, object?>)`** — subset match across all active scopes for the record. Each key/value pair must match in some scope; different pairs may match in different scopes. The dictionary is snapshotted on construction; mutating the input afterwards does not affect the filter.
+- **`DumpVerbosity` enum + `DumpTo(TextWriter, DumpVerbosity)` overload** — three levels: `Compact` (headlines only), `Default` (existing one-liner detail), `Verbose` (Default plus full exception `ToString()` including stack trace). The no-arg overload is unchanged (`Default`).
+
+### Added (LogAssertions.TUnit)
+
+- **`WithInnerException<TInner>()` and `WithInnerExceptionMessage(string substring, StringComparison comparison)` chain methods** on `HasLoggedAssertion` / `HasNotLoggedAssertion` / `HasLoggedSequenceAssertion`. Compose with the existing `WithException<T>()` filter via the chain (no `LogFilter.All(...)` boilerplate needed).
+- **`WithExceptionMessage(string substring, StringComparison comparison)` chain-method overload** on the same assertion classes — paired with the same overload on `LogFilter`.
+- **`WithScopeProperties(IDictionary<string, object?>)` chain method** on the same assertion classes.
+- **`DumpToTestOutput(DumpVerbosity)` overload** on `FakeLogCollectorTUnitInspectionExtensions`. The no-arg overload now delegates to this with `DumpVerbosity.Default`.
+- **`HasLoggedSequence.ThenAnyOrder(params Action<HasLoggedSequenceAssertion>[])`** — concurrent step group: all sub-steps must match somewhere in the remaining records, but the order among them is unconstrained. Records that match no sub-step are skipped. Sub-steps are matched via backtracking, so an order-independent valid assignment is found if one exists — broad filters never starve more specific filters. Sub-step configurators must add filters only; calls to `Then()` or nested `ThenAnyOrder()` from within a configurator throw `InvalidOperationException`. The `Then()` chain still works for strictly-ordered next steps before / after a `ThenAnyOrder` group.
+
+### Deprecated
+
+- **`LogFilter.WithExceptionMessage(string substring)` and the corresponding chain method** — single-arg overloads now carry `[Obsolete(error: false)]`. They default to `StringComparison.Ordinal` and delegate to the new explicit-comparison overload. Removed in v0.6.0 (two-minor cycle). Migrate by appending `, StringComparison.Ordinal` to existing call sites, or pick a different comparison if you want case-insensitive / culture-aware behaviour.
+
+### Changed
+
+- **Dependency refresh.** Bumped to latest stable for every direct and analyzer dependency:
+  - `TUnit` / `TUnit.Assertions` / `TUnit.Core`: 1.43.2 → 1.43.11
+  - `Microsoft.Extensions.Diagnostics.Testing`: 10.0.0 → 10.5.0
+  - `PublicApiGenerator`: 11.4.6 → 11.5.4
+  - `Microsoft.Sbom.Targets`: 3.0.1 → 4.1.5
+  - `Microsoft.SourceLink.GitHub`: 8.0.0 → 10.0.203
+  - `DotNetProjectFile.Analyzers`: 1.12.2 → 1.13.1
+  - `Meziantou.Analyzer`: 2.0.219 → 3.0.72
+  - `Microsoft.VisualStudio.Threading.Analyzers`: 17.13.61 → 17.14.15
+  - `Roslynator.Analyzers`: 4.13.1 → 4.15.0
+  - `SonarAnalyzer.CSharp`: 10.24.0.138807 → 10.25.0.139117
+- **CI branch-coverage gate raised from 80% → 90%.** The line-coverage gate stays at 90%. The previous 80% branch threshold was set early when the suite was still maturing; current branch coverage is comfortably above 90% (see `Quality numbers` below) so the threshold is tightened to keep regressions visible.
+
+### Added (housekeeping rolled in from intermediate v0.3.1)
+
+- **`BannedSymbols.txt` wired into both `src/` projects.** `Microsoft.CodeAnalysis.BannedApiAnalyzers` is now referenced from `LogAssertions` and `LogAssertions.TUnit`; the shared `BannedSymbols.txt` at the repo root codifies the no-reflection convention from `CONVENTIONS.md` as a build-time error (RS0030 + `TreatWarningsAsErrors=true`). Test projects do not reference the banned-symbols file, so reflection-using helpers (e.g. `PublicApiGenerator`) stay usable in tests. Aligns LogAssertions with the family-wide convention already in place on `TimeAssertions.TUnit` and `SnapshotAssertions.TUnit`.
+
+### Documentation
+
+- **`CONVENTIONS.md` upgraded to v0.2.** Codifies the family-wide conventions shared across `LogAssertions.TUnit`, `TimeAssertions.TUnit`, and `SnapshotAssertions.TUnit`: trailing `CancellationToken ct = default` on every new async API, `Task.Delay(TimeSpan, TimeProvider, ct)` for polling loops, the 100/200/400/800/1000ms exponential schedule for time-based polls, the `# <Package> snapshot v<N>` header convention for `ToSnapshotString()`, TFM policy (LTS-anchored; multi-target during STS support windows), and the explicit "Verify is not promoted by this family — `MatchesSnapshot()` is the canonical example" stance.
+- **Root `README.md`:** added a `Pair with` section cross-referencing `TimeAssertions.TUnit` and `SnapshotAssertions.TUnit`.
+- **Per-package short READMEs:** added the `> **Scope:** Test projects only. Not intended for production code.` blockquote to match the family-wide README opening.
+
 ## [0.3.0] — TUnit-deepening release: GetMatch/GetMatches, DumpToTestOutput, Because/Assert.Multiple docs, smoke-test CI
 
 First substantive feature release driven by the second-round consumer adoption review. Lockstep version bump for both packages; ApiCompat baseline pinned to 0.2.4. Bumps the upstream TUnit dependency from 1.41.0 → 1.43.2.
@@ -222,7 +270,7 @@ Why the split: positions the package family for hypothetical future adapters (`L
 - Fourteen filter methods (chain any combination, all AND together within a step):
   - **Level:** `AtLevel(LogLevel)`, `AtLevelOrAbove(LogLevel)`, `AtLevelOrBelow(LogLevel)`
   - **Message:** `Containing(string, StringComparison)` (comparison explicit by design), `WithMessage(Func<string, bool>)`, `WithMessageTemplate(string)` (matches the pre-substitution template via MEL's `{OriginalFormat}` entry)
-  - **Exception:** `WithException<TException>()`, `WithExceptionMessage(string)`
+  - **Exception:** `WithException<TException>()`, `WithExceptionMessage(string, StringComparison)` *(v0.4.0+; legacy single-arg `WithExceptionMessage(string)` still available, [Obsolete] until v0.6.0)*
   - **Structured state:** `WithProperty(string key, string? value)` (ordinal), `WithProperty(string key, Func<string?, bool> predicate)` (predicate over formatted value)
   - **Scope:** `WithScope<TScope>()` (by scope type), `WithScopeProperty(string key, object? value)` (`object.Equals` on scope-property value), `WithScopeProperty(string key, Func<object?, bool> predicate)` — recognises dictionary scopes and `LoggerMessage.DefineScope` scopes; anonymous-object scopes intentionally not supported (would require reflection, breaking AOT)
   - **Identity:** `WithCategory(string)`, `WithEventId(int)`, `WithEventName(string)`
@@ -279,7 +327,8 @@ Why the split: positions the package family for hypothetical future adapters (`L
 
 This package implements the user-space pattern that the TUnit maintainer pointed at when declining [thomhurst/TUnit#5627](https://github.com/thomhurst/TUnit/issues/5627). The `[AssertionExtension]` infrastructure that makes this clean shipped in TUnit 1.41.0 via [thomhurst/TUnit#5785](https://github.com/thomhurst/TUnit/pull/5785).
 
-[Unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.4.0
 [0.3.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.3.0
 [0.2.4]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.2.4
 [0.2.3]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.2.3

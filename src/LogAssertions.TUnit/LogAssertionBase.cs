@@ -213,15 +213,62 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
 
     /// <summary>
     /// Filters to records whose <see cref="FakeLogRecord.Exception"/> is non-null and whose
-    /// <see cref="Exception.Message"/> contains <paramref name="substring"/> (ordinal).
+    /// <see cref="Exception.Message"/> contains <paramref name="substring"/> under the supplied
+    /// <paramref name="comparison"/>.
+    /// </summary>
+    /// <param name="substring">The substring to search for in the exception's message. Must be non-null.</param>
+    /// <param name="comparison">The string comparison rules. Project convention: pass explicitly.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="substring"/> is <see langword="null"/>.</exception>
+    public TSelf WithExceptionMessage(string substring, StringComparison comparison)
+    {
+        AddFilter(LogFilter.WithExceptionMessage(substring, comparison));
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithExceptionMessage(\"{substring}\", {comparison})");
+        return (TSelf)this;
+    }
+
+    /// <summary>
+    /// Legacy ordinal-comparison overload kept for binary compatibility with v0.3.x. Prefer
+    /// the explicit-comparison overload above; this alias defaults to
+    /// <see cref="StringComparison.Ordinal"/> and will be removed in v0.6.0.
     /// </summary>
     /// <param name="substring">The substring to search for in the exception's message. Must be non-null.</param>
     /// <returns>This assertion for chaining.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="substring"/> is <see langword="null"/>.</exception>
+    [Obsolete("Use WithExceptionMessage(string substring, StringComparison comparison). This implicit-Ordinal overload will be removed in v0.6.0.", error: false)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S1133:Do not forget to remove this deprecated code someday", Justification = "Two-minor [Obsolete] cycle is intentional; v0.6.0 removes this alias per CONVENTIONS.md StringComparison rule.")]
     public TSelf WithExceptionMessage(string substring)
+        => WithExceptionMessage(substring, StringComparison.Ordinal);
+
+    /// <summary>
+    /// Filters to records whose <see cref="FakeLogRecord.Exception"/> wraps an
+    /// <see cref="Exception.InnerException"/> assignable to <typeparamref name="TInner"/>. Walks
+    /// only one level (does not search deeper inner exceptions). Designed for the gRPC / RPC
+    /// pattern where a transport exception (e.g. <c>RpcException</c>) wraps the underlying
+    /// domain exception once.
+    /// </summary>
+    /// <typeparam name="TInner">The inner-exception type to match.</typeparam>
+    /// <returns>This assertion for chaining.</returns>
+    public TSelf WithInnerException<TInner>() where TInner : Exception
     {
-        AddFilter(LogFilter.WithExceptionMessage(substring));
-        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithExceptionMessage(\"{substring}\")");
+        AddFilter(LogFilter.WithInnerException<TInner>());
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithInnerException<{typeof(TInner).Name}>()");
+        return (TSelf)this;
+    }
+
+    /// <summary>
+    /// Filters to records whose <see cref="Exception.InnerException"/>'s
+    /// <see cref="Exception.Message"/> contains <paramref name="substring"/> under the supplied
+    /// <paramref name="comparison"/>. Walks only one level.
+    /// </summary>
+    /// <param name="substring">The substring to search for in the inner exception's message. Must be non-null.</param>
+    /// <param name="comparison">The string comparison rules. Project convention: pass explicitly.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="substring"/> is <see langword="null"/>.</exception>
+    public TSelf WithInnerExceptionMessage(string substring, StringComparison comparison)
+    {
+        AddFilter(LogFilter.WithInnerExceptionMessage(substring, comparison));
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithInnerExceptionMessage(\"{substring}\", {comparison})");
         return (TSelf)this;
     }
 
@@ -284,6 +331,22 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     {
         AddFilter(LogFilter.WithScopeProperty(key, predicate));
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithScopeProperty(\"{key}\", predicate)");
+        return (TSelf)this;
+    }
+
+    /// <summary>
+    /// Filters to records whose active scopes collectively contain every key/value pair in
+    /// <paramref name="required"/> (subset match: each pair must match in some scope; different
+    /// pairs may match in different scopes).
+    /// </summary>
+    /// <param name="required">The required scope-property key/value pairs. Must be non-null.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="required"/> is <see langword="null"/>.</exception>
+    public TSelf WithScopeProperties(IReadOnlyDictionary<string, object?> required)
+    {
+        ArgumentNullException.ThrowIfNull(required);
+        AddFilter(LogFilter.WithScopeProperties(required));
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithScopeProperties({{{required.Count} pairs}})");
         return (TSelf)this;
     }
 
@@ -562,7 +625,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
 
     /// <summary>
     /// Appends the captured-records section to <paramref name="sb"/>; delegates to
-    /// <see cref="LogAssertionRendering.AppendCapturedRecords"/> so the same rendering is
+    /// <c>LogAssertionRendering.AppendCapturedRecords</c> so the same rendering is
     /// available to the public <c>FakeLogCollector.DumpTo(...)</c> extension.
     /// </summary>
     /// <param name="sb">The target string builder.</param>

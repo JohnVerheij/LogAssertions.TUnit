@@ -58,13 +58,26 @@ public static class FakeLogCollectorInspectionExtensions
     /// <summary>
     /// Renders every captured record to <paramref name="writer"/> using the same formatter
     /// the failure-message snapshot uses (4-character level abbreviation, props line, scopes
-    /// line, exception line). Useful during test development to see what was actually logged
-    /// before writing the assertion.
+    /// line, exception line). Equivalent to
+    /// <see cref="DumpTo(FakeLogCollector, TextWriter, DumpVerbosity)"/> with
+    /// <see cref="DumpVerbosity.Default"/>.
     /// </summary>
     /// <param name="collector">The collector to dump.</param>
     /// <param name="writer">The text destination. Must be non-null.</param>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     public static void DumpTo(this FakeLogCollector collector, TextWriter writer)
+        => DumpTo(collector, writer, DumpVerbosity.Default);
+
+    /// <summary>
+    /// Verbosity-controlled overload of
+    /// <see cref="DumpTo(FakeLogCollector, TextWriter)"/>.
+    /// </summary>
+    /// <param name="collector">The collector to dump.</param>
+    /// <param name="writer">The text destination. Must be non-null.</param>
+    /// <param name="verbosity">How much detail to render per record. See
+    /// <see cref="DumpVerbosity"/> for the contract of each level.</param>
+    /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+    public static void DumpTo(this FakeLogCollector collector, TextWriter writer, DumpVerbosity verbosity)
     {
         ArgumentNullException.ThrowIfNull(collector);
         ArgumentNullException.ThrowIfNull(writer);
@@ -72,7 +85,7 @@ public static class FakeLogCollectorInspectionExtensions
         var snapshot = collector.GetSnapshot();
         StringBuilder sb = new();
         sb.Append("Captured records (").Append(snapshot.Count).AppendLine(" total):");
-        LogAssertionRendering.AppendCapturedRecords(sb, snapshot);
+        LogAssertionRendering.AppendCapturedRecords(sb, snapshot, verbosity);
         writer.Write(sb.ToString());
     }
 }
