@@ -52,7 +52,7 @@ internal sealed class FakeLogCollectorTUnitInspectionExtensionsTests
     /// does NOT capture the calling <see cref="System.Threading.ExecutionContext"/>. The new
     /// thread therefore observes a null <c>TestContext.Current</c> exactly as a non-TUnit
     /// caller would. <see cref="TaskCompletionSource{TResult}"/> bridges the result back to
-    /// the test's await chain — including any unexpected exception, so a real fault on the
+    /// the test's await chain: including any unexpected exception, so a real fault on the
     /// worker thread surfaces as a test failure with the original exception's stack trace
     /// rather than as a timeout that hides the cause.
     /// </summary>
@@ -96,7 +96,7 @@ internal sealed class FakeLogCollectorTUnitInspectionExtensionsTests
     }
 
     /// <summary>
-    /// Pins the null-collector contract — the extension must throw
+    /// Pins the null-collector contract: the extension must throw
     /// <see cref="ArgumentNullException"/> rather than NRE on a null receiver.
     /// </summary>
     [Test]

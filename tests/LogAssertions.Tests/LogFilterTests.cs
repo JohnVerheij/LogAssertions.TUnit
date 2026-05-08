@@ -177,7 +177,7 @@ internal sealed class LogFilterTests
     }
 
     /// <summary>The scope-property filters return <see langword="false"/> when the record has
-    /// NO active scopes — the predicate path that scans <c>record.Scopes</c> short-circuits
+    /// NO active scopes: the predicate path that scans <c>record.Scopes</c> short-circuits
     /// because the loop doesn't execute. Pins this and exercises the
     /// <see cref="LogFilter.TryMatchScope{TValue}"/> early-exit cast-failure path that gets
     /// hit when a scope is non-null but doesn't implement the expected

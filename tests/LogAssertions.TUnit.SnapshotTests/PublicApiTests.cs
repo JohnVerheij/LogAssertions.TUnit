@@ -23,7 +23,7 @@ namespace LogAssertions.TUnit.SnapshotTests;
 /// Cross-package dogfooding: this project consumes <c>SnapshotAssertions.TUnit</c> as a
 /// downstream user of the family would, demonstrating that the family's snapshot helper is
 /// suitable for the package's own public-API surface checks. Replaces the earlier Verify-based
-/// approach (Verify is not promoted by this family — see <c>CONVENTIONS.md</c>) and removes
+/// approach (Verify is not promoted by this family: see <c>CONVENTIONS.md</c>) and removes
 /// the Verify <c>Deterministic=false</c> / <c>Microsoft.CodeCoverage</c> Linux interaction
 /// that previously required a separate no-coverage CI step.
 /// </para>
@@ -43,7 +43,12 @@ internal sealed class PublicApiTests
     {
         ct.ThrowIfCancellationRequested();
         var assembly = typeof(ILogRecordFilter).Assembly;
-        var publicApi = assembly.GeneratePublicApi();
+        // Normalize line endings so the snapshot baseline survives both Linux CI (LF native)
+        // and Windows local dev (CRLF native). Without this, PublicApiGenerator emits the
+        // platform's native EOL while the committed .expected.txt baseline is always LF
+        // (per .gitattributes), and Windows local runs would diff against the CI-accepted
+        // baseline.
+        var publicApi = assembly.GeneratePublicApi().ReplaceLineEndings("\n");
 
         await Assert.That(publicApi).MatchesSnapshot();
     }
@@ -60,7 +65,12 @@ internal sealed class PublicApiTests
     {
         ct.ThrowIfCancellationRequested();
         var assembly = typeof(LogAssertionBase<HasLoggedAssertion>).Assembly;
-        var publicApi = assembly.GeneratePublicApi();
+        // Normalize line endings so the snapshot baseline survives both Linux CI (LF native)
+        // and Windows local dev (CRLF native). Without this, PublicApiGenerator emits the
+        // platform's native EOL while the committed .expected.txt baseline is always LF
+        // (per .gitattributes), and Windows local runs would diff against the CI-accepted
+        // baseline.
+        var publicApi = assembly.GeneratePublicApi().ReplaceLineEndings("\n");
 
         await Assert.That(publicApi).MatchesSnapshot();
     }

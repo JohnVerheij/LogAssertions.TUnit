@@ -114,10 +114,10 @@ await Assert.That(collector).AssertAllAsync(
 
 ## Failure diagnostics
 
-On a failed assertion, the exception message includes the expected match count, the actual count, and a snapshot of every captured record (level abbreviation, category, message, structured properties, scopes, exception). No need for `Console.WriteLine` debugging — every dimension you can filter on is also rendered in the failure message.
+On a failed assertion, the exception message includes the expected match count, the actual count, and a snapshot of every captured record (level abbreviation, category, message, structured properties, scopes, exception). No need for `Console.WriteLine` debugging: every dimension you can filter on is also rendered in the failure message.
 
 [Full failure-diagnostics example, design notes, stability intent, and roadmap on GitHub.](https://github.com/JohnVerheij/LogAssertions.TUnit#failure-diagnostics)
 
 ## License
 
-[MIT](https://github.com/JohnVerheij/LogAssertions.TUnit/blob/main/LICENSE) — Copyright (c) 2026 John Verheij
+[MIT](https://github.com/JohnVerheij/LogAssertions.TUnit/blob/main/LICENSE). Copyright (c) 2026 John Verheij.

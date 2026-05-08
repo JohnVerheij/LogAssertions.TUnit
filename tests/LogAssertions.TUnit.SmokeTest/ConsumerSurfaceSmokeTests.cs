@@ -2,10 +2,10 @@ namespace Smoke.Consumer;
 
 /// <summary>
 /// Smoke tests proving that an external consumer can adopt LogAssertions.TUnit purely via
-/// the README's recommended GlobalUsings.cs snippet — no extra <c>using LogAssertions.TUnit;</c>
+/// the README's recommended GlobalUsings.cs snippet: no extra <c>using LogAssertions.TUnit;</c>
 /// directive, no other wiring. The test class lives in <c>Smoke.Consumer</c> deliberately:
 /// LogAssertions.TUnit's own test project is in the <c>LogAssertions.TUnit.Tests</c> namespace,
-/// which inherits parent-namespace visibility into <c>LogAssertions.TUnit</c> — that
+/// which inherits parent-namespace visibility into <c>LogAssertions.TUnit</c>: that
 /// inheritance masked the v0.2.0/v0.2.1 shorthand-resolution bug. By placing this file in a
 /// namespace with NO parent relationship to LogAssertions.TUnit, this project is the canonical
 /// regression coverage for the resolution-pathway bug class.
@@ -57,7 +57,7 @@ internal sealed class ConsumerSurfaceSmokeTests
 
     /// <summary>
     /// Pins that the shorthand entry point <c>HasLoggedOnce()</c> resolves cleanly. This is
-    /// the canonical regression test for the v0.2.0/v0.2.1 bug — the shorthands originally
+    /// the canonical regression test for the v0.2.0/v0.2.1 bug: the shorthands originally
     /// lived in the <c>LogAssertions.TUnit</c> namespace and were invisible to consumers who
     /// only pulled in the README's GlobalUsings. v0.2.2 moved them to
     /// <c>TUnit.Assertions.Extensions</c>; this test pins that fix.

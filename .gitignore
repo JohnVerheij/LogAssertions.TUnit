@@ -52,7 +52,8 @@ TestResults/
 # Stryker
 StrykerOutput/
 
-# Verify (snapshot test framework) — never commit *.received.*
+# Snapshot test transient output (never commit; the .expected.txt baseline is what's tracked)
+*.actual.txt
 *.received.*
 
 # Rider

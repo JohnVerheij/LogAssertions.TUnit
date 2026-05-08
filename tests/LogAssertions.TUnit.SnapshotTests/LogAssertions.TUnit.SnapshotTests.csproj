@@ -3,7 +3,7 @@
   <!--
     Public-API surface snapshot test project for LogAssertions / LogAssertions.TUnit. Uses
     SnapshotAssertions.TUnit's MatchesSnapshot() against the public surface emitted by
-    PublicApiGenerator — same pattern the family promotes for downstream consumers, so the
+    PublicApiGenerator: same pattern the family promotes for downstream consumers, so the
     test stack runs the canonical example end-to-end on the package's own surface.
 
     Why a separate project from LogAssertions.TUnit.Tests:
@@ -13,7 +13,7 @@
 
     No Verify dependency: this project deliberately does NOT use Verify.TUnit. The family-wide
     "Verify is not promoted" rule (see CONVENTIONS.md) applies to the package's own test stack
-    too — the canonical example, including for our own public-API testing, is
+    too: the canonical example, including for our own public-API testing, is
     Assert.That(api).MatchesSnapshot(). This also removes the Verify Deterministic=false /
     Microsoft.CodeCoverage Linux interaction that previously required a separate no-coverage
     CI step.

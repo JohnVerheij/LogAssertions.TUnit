@@ -13,7 +13,7 @@ namespace LogAssertions;
 /// </summary>
 /// <remarks>
 /// The rendering format is documented as <b>not stable</b>; see the README "Stability
-/// promise" section. Tests should not pin exact failure-message text — pin filter
+/// promise" section. Tests should not pin exact failure-message text: pin filter
 /// match counts and broad markers (e.g. <c>"[warn]"</c>) only.
 /// </remarks>
 public static class LogAssertionRendering

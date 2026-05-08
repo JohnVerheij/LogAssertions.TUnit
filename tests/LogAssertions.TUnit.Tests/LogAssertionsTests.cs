@@ -27,7 +27,7 @@ internal sealed class LogAssertionsTests
     /// Builds a <see cref="FakeLogCollector"/> seeded with one record at every level
     /// (Trace / Debug / Information / Warning / Error) plus an exception-bearing entry.
     /// Centralising the seed shape lets each test assert against a fixed, well-known set
-    /// of records — counts and substrings throughout the file are anchored to this seed.
+    /// of records: counts and substrings throughout the file are anchored to this seed.
     /// </summary>
     /// <returns>A populated collector with five sample log records.</returns>
     private static FakeLogCollector CreateCollectorWithSampleRecords()
@@ -67,7 +67,7 @@ internal sealed class LogAssertionsTests
     /// <summary>
     /// Verifies that <c>Once()</c> throws <see cref="AssertionException"/> when zero records
     /// match. The seeded collector has no Critical-level entries, so asserting one yields
-    /// the failure path. Pins the throw shape — without it, downstream tests can't rely on
+    /// the failure path. Pins the throw shape: without it, downstream tests can't rely on
     /// failures being observable.
     /// </summary>
     /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
@@ -86,7 +86,7 @@ internal sealed class LogAssertionsTests
     /// Verifies <c>AtLevel</c> isolates records at the exact level requested. The seed has
     /// exactly one record at each of Trace / Debug / Information / Warning / Error and zero
     /// at Critical, so a per-level <c>Once()</c> sweep plus a <c>HasNotLogged</c> on Critical
-    /// pins the level-equality semantics — a mutation that flips it to <c>&gt;=</c> or
+    /// pins the level-equality semantics: a mutation that flips it to <c>&gt;=</c> or
     /// <c>&lt;=</c> would make the sweep fail.
     /// </summary>
     /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
@@ -177,7 +177,7 @@ internal sealed class LogAssertionsTests
     /// <summary>
     /// Verifies <c>WithException&lt;T&gt;</c> with an unrelated exception type
     /// (<see cref="ArgumentException"/> versus the seeded <see cref="InvalidOperationException"/>)
-    /// fails the <c>Once()</c> terminator. Pins the assignability semantics — a mutation that
+    /// fails the <c>Once()</c> terminator. Pins the assignability semantics: a mutation that
     /// matched on type-name string instead of <see langword="is"/> assignability would not catch this.
     /// </summary>
     /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
@@ -195,7 +195,7 @@ internal sealed class LogAssertionsTests
     /// <summary>
     /// Verifies <c>WithProperty</c> matches records whose structured-state contains the given
     /// key/value pair (ordinal). Uses a fresh collector seeded with a single
-    /// <c>logger.LogWarning("Item {ItemId} failed", "42")</c> — the structured-state entry
+    /// <c>logger.LogWarning("Item {ItemId} failed", "42")</c>: the structured-state entry
     /// <c>ItemId = "42"</c> is what the assertion targets, pinning the
     /// <c>GetStructuredStateValue</c> + ordinal-equality contract.
     /// </summary>
@@ -219,7 +219,7 @@ internal sealed class LogAssertionsTests
     /// <summary>
     /// Verifies <c>WithProperty</c> with a value that doesn't match (asks for "99" against a
     /// record bearing <c>ItemId = "42"</c>) fails the <c>Once()</c> terminator. Pins the
-    /// value-equality contract — a mutation that compared keys only and ignored values would
+    /// value-equality contract: a mutation that compared keys only and ignored values would
     /// not catch this.
     /// </summary>
     /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
@@ -259,7 +259,7 @@ internal sealed class LogAssertionsTests
 
     /// <summary>
     /// Verifies <c>Exactly(n)</c> throws when the count differs (asks for 3 Warnings against
-    /// a seed with 1). Pins the must-equal-not-just-be-bounded contract — a mutation that
+    /// a seed with 1). Pins the must-equal-not-just-be-bounded contract: a mutation that
     /// implemented <c>Exactly</c> as <c>AtLeast</c> would slip through this test.
     /// </summary>
     /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
@@ -370,7 +370,7 @@ internal sealed class LogAssertionsTests
 
     /// <summary>
     /// Verifies the <c>HasNotLogged</c> entry point passes when zero records match the filter
-    /// chain (no terminator required — the entry point itself implies "exactly 0 matches").
+    /// chain (no terminator required: the entry point itself implies "exactly 0 matches").
     /// Two rows: a level filter (Critical) and a substring filter (an absent token), each
     /// independently confirming the implicit-zero contract.
     /// </summary>
@@ -405,7 +405,7 @@ internal sealed class LogAssertionsTests
     /// Verifies that multiple filters chain as a logical AND. The seed's exception-bearing
     /// Error record satisfies all three filters simultaneously: level Error, exception type
     /// <see cref="InvalidOperationException"/>, and message containing "failed". The
-    /// <c>Once()</c> terminator confirms exactly one match — a mutation that turned the
+    /// <c>Once()</c> terminator confirms exactly one match: a mutation that turned the
     /// chain into OR semantics would yield more matches and fail.
     /// </summary>
     /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
@@ -484,7 +484,7 @@ internal sealed class LogAssertionsTests
     // --- No filters + terminators ---
 
     /// <summary>
-    /// Verifies the no-filter case — every terminator counts the entire collector. Three rows
+    /// Verifies the no-filter case: every terminator counts the entire collector. Three rows
     /// pin the three boundary terminators on the seed of 5 records: <c>Exactly(5)</c>,
     /// <c>AtLeast(1)</c>, <c>AtMost(10)</c>. A mutation that introduced an implicit filter
     /// (e.g., always filter to Information+) would make at least one row fail.
@@ -545,13 +545,13 @@ internal sealed class LogAssertionsTests
         cancellationToken.ThrowIfCancellationRequested();
         FakeLogCollector collector = new();
 
-        // HasLogged path — null guards applied uniformly via the shared base class.
+        // HasLogged path: null guards applied uniformly via the shared base class.
         await Assert.That(async () => await Assert.That(collector).HasLogged().Containing(null!, StringComparison.Ordinal)).Throws<ArgumentNullException>();
         await Assert.That(async () => await Assert.That(collector).HasLogged().WithMessage(null!)).Throws<ArgumentNullException>();
         await Assert.That(async () => await Assert.That(collector).HasLogged().WithProperty(null!, "value")).Throws<ArgumentNullException>();
         await Assert.That(async () => await Assert.That(collector).HasLogged().WithCategory(null!)).Throws<ArgumentNullException>();
 
-        // HasNotLogged path — same guards, separate code-path through the inverse entry point.
+        // HasNotLogged path: same guards, separate code-path through the inverse entry point.
         await Assert.That(async () => await Assert.That(collector).HasNotLogged().Containing(null!, StringComparison.Ordinal)).Throws<ArgumentNullException>();
         await Assert.That(async () => await Assert.That(collector).HasNotLogged().WithMessage(null!)).Throws<ArgumentNullException>();
         await Assert.That(async () => await Assert.That(collector).HasNotLogged().WithProperty(null!, "value")).Throws<ArgumentNullException>();
@@ -716,7 +716,7 @@ internal sealed class LogAssertionsTests
 
     /// <summary>
     /// Verifies <c>HasLoggedSequence</c> fails when an expected step never matches. Pins the
-    /// failure-path contract — without it, the positive sequence test could be a false positive
+    /// failure-path contract: without it, the positive sequence test could be a false positive
     /// against an implementation that always returns success.
     /// </summary>
     /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
@@ -744,7 +744,7 @@ internal sealed class LogAssertionsTests
     /// <summary>
     /// Verifies <c>HasLoggedSequence</c> respects strict order: a sequence that exists in the
     /// records but in the wrong order fails. The collector here has Information then Warning,
-    /// but the assertion asks for Warning-then-Information — pins that the walk only advances
+    /// but the assertion asks for Warning-then-Information: pins that the walk only advances
     /// forward through records.
     /// </summary>
     /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
@@ -792,7 +792,7 @@ internal sealed class LogAssertionsTests
 
     /// <summary>
     /// Verifies the case-insensitive <c>Containing</c> overload. The seed has a Warning record
-    /// "validation failed: TimeoutMs out of range" — the lowercase "validation" matches by ordinal,
+    /// "validation failed: TimeoutMs out of range": the lowercase "validation" matches by ordinal,
     /// the uppercase "VALIDATION" only matches with <c>OrdinalIgnoreCase</c>. Pins both that the
     /// overload exists AND that it routes the comparison to the underlying string contains call.
     /// </summary>
@@ -849,7 +849,7 @@ internal sealed class LogAssertionsTests
     /// Verifies <c>WithExceptionMessage</c> matches records whose exception's message contains
     /// the substring (ordinal). Composed with <c>WithException&lt;T&gt;</c> for the typical
     /// "specific exception type with specific message" pattern. The seed has one Error record
-    /// bearing <c>InvalidOperationException("boom")</c> — both filters together match it.
+    /// bearing <c>InvalidOperationException("boom")</c>: both filters together match it.
     /// </summary>
     /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
     [Test]
@@ -892,7 +892,7 @@ internal sealed class LogAssertionsTests
     /// <summary>
     /// Verifies the predicate overload of <c>WithProperty</c>: applies a <c>Func&lt;string?, bool&gt;</c>
     /// to the formatted property value (FakeLogRecord stores structured-state values as strings).
-    /// Use case is range or pattern matching where exact equality is too strict — here we accept
+    /// Use case is range or pattern matching where exact equality is too strict: here we accept
     /// any cycle number that parses to an even integer.
     /// </summary>
     /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
@@ -1031,7 +1031,7 @@ internal sealed class LogAssertionsTests
 
     /// <summary>
     /// Verifies the failure-message format pins three contracts: 4-character level abbreviations
-    /// (matching the MEL console formatter — <c>info</c>, <c>warn</c>, <c>fail</c>), an indented
+    /// (matching the MEL console formatter: <c>info</c>, <c>warn</c>, <c>fail</c>), an indented
     /// <c>props:</c> line listing structured properties (excluding the magic
     /// <c>{OriginalFormat}</c> key), and an indented <c>scope:</c> line rendering scope content
     /// as <c>key=value</c> pairs. These are the user-visible debugging surfaces; changing them
@@ -1093,7 +1093,7 @@ internal sealed class LogAssertionsTests
 
     /// <summary>
     /// Verifies that when outer and inner scopes carry the same key with different values,
-    /// <c>WithScopeProperty(key, value)</c> matches against either value independently — the
+    /// <c>WithScopeProperty(key, value)</c> matches against either value independently: the
     /// predicate walks every active scope. A consumer relying on this can be confident that
     /// pushing a context value in a nested scope shadows the outer for tests, not just for
     /// runtime structured logging.
@@ -1144,7 +1144,7 @@ internal sealed class LogAssertionsTests
     /// <summary>
     /// Verifies records emitted concurrently from multiple threads are all captured in the
     /// snapshot. <see cref="FakeLogCollector"/> is documented as thread-safe; this test pins
-    /// our reliance on that contract — a regression in MEL that broke FakeLogCollector
+    /// our reliance on that contract: a regression in MEL that broke FakeLogCollector
     /// concurrency would surface here rather than in production-suspecting silence.
     /// </summary>
     /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
@@ -1196,7 +1196,7 @@ internal sealed class LogAssertionsTests
     // --- Edge cases: sequence corner cases ---
 
     /// <summary>
-    /// Verifies a step with zero filters in <c>HasLoggedSequence</c> is silently skipped — the
+    /// Verifies a step with zero filters in <c>HasLoggedSequence</c> is silently skipped: the
     /// sequence walk advances to the next step without consuming a record. Pins the documented
     /// behaviour: empty step never affects matching.
     /// </summary>
@@ -1213,7 +1213,7 @@ internal sealed class LogAssertionsTests
 
         await Assert.That(collector).HasLoggedSequence()
             .AtLevel(LogLevel.Information)
-            .Then()                              // empty step — skipped
+            .Then()                              // empty step: skipped
             .Then().AtLevel(LogLevel.Warning);
     }
 
@@ -1254,7 +1254,7 @@ internal sealed class LogAssertionsTests
     // --- Edge cases: filter ordering invariance ---
 
     /// <summary>
-    /// Verifies filter ordering does not change semantics — the same filter set in any order
+    /// Verifies filter ordering does not change semantics: the same filter set in any order
     /// produces the same match. Pins the AND-combine contract documented for the filter chain;
     /// guards against a regression where one filter type's evaluation accidentally short-circuits
     /// another.
@@ -1341,7 +1341,7 @@ internal sealed class LogAssertionsTests
 
     /// <summary>
     /// Verifies the failure-snapshot renders multiple structured properties on a single record
-    /// joined by a comma — not as separate <c>props:</c> lines, not as a single concatenated
+    /// joined by a comma: not as separate <c>props:</c> lines, not as a single concatenated
     /// blob. Pins the comma-separator branch in the props rendering.
     /// </summary>
     /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
@@ -1425,7 +1425,7 @@ internal sealed class LogAssertionsTests
 
     /// <summary>
     /// Verifies the failure-snapshot renders 4-character abbreviations for every standard
-    /// <see cref="LogLevel"/>. Pins the <c>LevelAbbreviation</c> switch — a regression that
+    /// <see cref="LogLevel"/>. Pins the <c>LevelAbbreviation</c> switch: a regression that
     /// dropped one of the level arms would surface here. The pre-existing
     /// <see cref="ExceptionMessageContainsAllPartsAsync"/> only covers <c>warn</c>; this
     /// covers the rest.
@@ -1847,8 +1847,8 @@ internal sealed class LogAssertionsTests
         using (factory)
         {
             ILogger logger = factory.CreateLogger("Test");
-            TestLogMessages.TraceSample(logger);          // Trace — below minimum, dropped
-            TestLogMessages.StartedProcessing(logger);    // Information — captured
+            TestLogMessages.TraceSample(logger);          // Trace: below minimum, dropped
+            TestLogMessages.StartedProcessing(logger);    // Information: captured
 
             await Assert.That(collector).HasLogged().AtLevel(LogLevel.Information).Once();
             await Assert.That(collector).HasNotLogged().AtLevel(LogLevel.Trace);
@@ -2007,7 +2007,7 @@ internal sealed class LogAssertionsTests
         cancellationToken.ThrowIfCancellationRequested();
         FakeLogCollector collector = CreateCollectorWithSampleRecords();
 
-        // No async/await on the lambdas — each just returns the configured fluent assertion.
+        // No async/await on the lambdas: each just returns the configured fluent assertion.
         await Assert.That(collector).AssertAllAsync(
             c => c.HasLogged().AtLevel(LogLevel.Warning).Once(),
             c => c.HasLogged().AtLevel(LogLevel.Error).Once(),
