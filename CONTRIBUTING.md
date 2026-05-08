@@ -15,7 +15,7 @@ For larger ideas (new entry points, breaking changes, cross-cutting refactors), 
 ## Submitting a pull request
 
 1. Fork the repo and create a branch from `main`. Branch name convention: `fix/short-description`, `feat/short-description`, `docs/short-description`.
-2. Make your change. Keep it focused — a single logical change per PR.
+2. Make your change. Keep it focused: a single logical change per PR.
 3. Add or update tests. The project uses TUnit; existing tests in `tests/LogAssertions.TUnit.Tests/` show the patterns.
 4. Build clean: `dotnet build` must produce zero warnings (`TreatWarningsAsErrors=true` is enforced).
 5. Test green: `dotnet test` must pass.
@@ -34,15 +34,28 @@ For larger ideas (new entry points, breaking changes, cross-cutting refactors), 
 
 ## Tests
 
-- Tests live in `tests/LogAssertions.TUnit.Tests/`.
+- Tests live in `tests/LogAssertions.TUnit.Tests/` (main behavior), `tests/LogAssertions.Tests/` (framework-agnostic core, no TUnit reference), and `tests/LogAssertions.TUnit.SnapshotTests/` (public API surface pin via `MatchesSnapshot()`).
 - Each public method on the assertion classes should have at least one test covering its happy path and at least one covering an invalid-input path.
 - Tests use TUnit's `[Test]` and the project's own assertion style (we eat our own dog food where possible).
 - Add `[Category("Smoke")]` to tests that should run in the pre-commit / fast feedback loop.
 
+## Snapshot files (when contributing tests)
+
+Tests that use `MatchesSnapshot()` produce two file types:
+
+- `*.expected.txt`. The committed baseline. Diffed against actual output on every run.
+- `*.actual.txt`. The transient diff output, written when actual diverges from expected. Gitignored; never commit.
+
+To accept a snapshot change:
+
+1. Locally, use your IDE's diff-and-merge view, or `cp Snapshots/Foo.actual.txt Snapshots/Foo.expected.txt`.
+2. Or run `SNAPSHOT_ACCEPT=1 dotnet test` to bulk-accept all changes.
+3. CI never sets `SNAPSHOT_ACCEPT`; mismatches fail the build.
+
 ## Releases
 
 Versioning follows [Semantic Versioning](https://semver.org/):
-- `0.x.y` while the API is evolving — minor bumps may include breaking changes.
+- `0.x.y` while the API is evolving: minor bumps may include breaking changes.
 - `1.0.0` and beyond: breaking changes only on major-version bumps.
 
 Releases are published to NuGet via a tagged commit on `main`. The `<Version>` in `LogAssertions.TUnit.csproj` is the source of truth for the package version.

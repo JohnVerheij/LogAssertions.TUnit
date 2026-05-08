@@ -203,7 +203,7 @@ public static class LogFilter
     /// <paramref name="comparison"/>. Walks only one level.</summary>
     /// <param name="substring">The substring to find in the inner exception's message. Must be non-null.</param>
     /// <param name="comparison">The string comparison rules. Project convention: pass explicitly (no default)
-    /// — every public string-matching API in this package requires the caller to pick the comparison so
+    ///: every public string-matching API in this package requires the caller to pick the comparison so
     /// culture / case behavior is never silently inherited from the runtime locale.</param>
     /// <returns>A filter accepting records whose first-level inner exception's message contains the substring.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="substring"/> is <see langword="null"/>.</exception>

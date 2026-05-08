@@ -82,7 +82,7 @@ internal sealed class DumpVerbosityTests
 
         await Assert.That(text).Contains("[fail]");
         await Assert.That(text).Contains("exception: InvalidOperationException: boom");
-        // Verbose includes the full ToString() — stack frame from this test method should appear.
+        // Verbose includes the full ToString(): stack frame from this test method should appear.
         await Assert.That(text).Contains("at LogAssertions.Tests.DumpVerbosityTests");
     }
 

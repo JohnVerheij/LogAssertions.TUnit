@@ -62,7 +62,7 @@ internal sealed class HasLoggedAssertionGetMatchTests
 
     /// <summary>
     /// Pins that <c>GetMatch()</c> works equivalently after <c>Exactly(1)</c> as it does
-    /// after <c>Once()</c> — both terminators express "exactly one match", and both should
+    /// after <c>Once()</c>: both terminators express "exactly one match", and both should
     /// satisfy <c>GetMatch</c>'s precondition.
     /// </summary>
     [Test]
@@ -92,7 +92,7 @@ internal sealed class HasLoggedAssertionGetMatchTests
         InvalidOperationException? caught = null;
         try
         {
-            // Two Error records, AtLeast(1) is satisfied — but GetMatch should reject the
+            // Two Error records, AtLeast(1) is satisfied: but GetMatch should reject the
             // expectation upfront because "at least 1" is not "exactly 1".
             await Assert.That(collector)
                 .HasLogged()

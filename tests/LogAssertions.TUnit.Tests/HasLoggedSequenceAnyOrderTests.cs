@@ -27,7 +27,7 @@ internal sealed class HasLoggedSequenceAnyOrderTests
         TestLogMessages.Second(logger);
         TestLogMessages.Third(logger);
 
-        // ThenAnyOrder of (second, third) — declared in order. Pass.
+        // ThenAnyOrder of (second, third): declared in order. Pass.
         await Assert.That(collector).HasLoggedSequence()
             .Containing("first", StringComparison.Ordinal)
             .ThenAnyOrder(
@@ -46,7 +46,7 @@ internal sealed class HasLoggedSequenceAnyOrderTests
         TestLogMessages.Second(logger);
         TestLogMessages.Third(logger);
 
-        // ThenAnyOrder of (third, second) — declared in REVERSE; should still match.
+        // ThenAnyOrder of (third, second): declared in REVERSE; should still match.
         await Assert.That(collector).HasLoggedSequence()
             .Containing("first", StringComparison.Ordinal)
             .ThenAnyOrder(
@@ -201,7 +201,7 @@ internal sealed class HasLoggedSequenceAnyOrderTests
         var (factory, collector) = LogCollectorBuilder.Create();
         using var __ = factory;
         var logger = factory.CreateLogger("Test");
-        TestLogMessages.First(logger);  // single record — both sub-steps target it
+        TestLogMessages.First(logger);  // single record: both sub-steps target it
 
         await Assert.That(async () =>
             await Assert.That(collector).HasLoggedSequence()
@@ -243,7 +243,7 @@ internal sealed class HasLoggedSequenceAnyOrderTests
     /// <summary>
     /// Coverage for the legacy <c>WithExceptionMessage(string)</c> obsolete overload: it
     /// delegates to the explicit-comparison overload with <see cref="StringComparison.Ordinal"/>.
-    /// Suppressing CS0618 here is intentional — the test exists to keep the alias body
+    /// Suppressing CS0618 here is intentional: the test exists to keep the alias body
     /// covered by tests until v0.6.0 removes it.
     /// </summary>
     [Test]
@@ -262,7 +262,7 @@ internal sealed class HasLoggedSequenceAnyOrderTests
         }
 
 #pragma warning disable CS0618 // Legacy overload: tested intentionally to cover the [Obsolete] alias body.
-#pragma warning disable CA1307, MA0074 // Same — analyzers correctly suggest the explicit-comparison overload, but here we exercise the obsolete one on purpose.
+#pragma warning disable CA1307, MA0074 // Same: analyzers correctly suggest the explicit-comparison overload, but here we exercise the obsolete one on purpose.
         await Assert.That(collector).HasLogged().WithExceptionMessage("boom").Once();
 #pragma warning restore CA1307, MA0074
 #pragma warning restore CS0618

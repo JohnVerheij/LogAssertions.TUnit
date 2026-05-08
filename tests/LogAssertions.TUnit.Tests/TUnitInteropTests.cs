@@ -12,7 +12,7 @@ namespace LogAssertions.TUnit.Tests;
 /// Pins the interop contract between LogAssertions.TUnit's [AssertionExtension] chains and
 /// TUnit's general-purpose assertion features (WithMessage() justification, Assert.Multiple()
 /// failure aggregation). The README documents that these features compose with our chains
-/// "for free" because the chains derive from TUnit's assertion types — these tests guarantee
+/// "for free" because the chains derive from TUnit's assertion types: these tests guarantee
 /// that the documentation stays true across TUnit upstream releases. A failure here is either
 /// a TUnit upstream regression (file upstream) or a LogAssertions design break (fix here and
 /// update the README). The Should() interop is intentionally not pinned here: the upstream
@@ -43,8 +43,8 @@ internal sealed class TUnitInteropTests
     /// <summary>
     /// Pins that TUnit core's .Because("reason") chains cleanly on our assertion types and
     /// surfaces the justification in the failure message. (Note: TUnit's .WithMessage(...)
-    /// is a predicate-based assertion *on* a failure message — used for negative-testing
-    /// patterns — and does NOT add a reason annotation. The reason-annotation API is
+    /// is a predicate-based assertion *on* a failure message: used for negative-testing
+    /// patterns: and does NOT add a reason annotation. The reason-annotation API is
     /// .Because, mirroring FluentAssertions.) If this regresses, the README's documented
     /// "use Because() to explain why a HasNotLogged assertion matters" example would mislead
     /// consumers.
@@ -74,7 +74,7 @@ internal sealed class TUnitInteropTests
     /// <summary>
     /// Pins that TUnit's Assert.Multiple() aggregates failures from multiple LogAssertions
     /// chains rather than fast-failing on the first. The aggregated exception must reference
-    /// both failures — if only the first surfaces, Assert.Multiple is fast-failing on our
+    /// both failures: if only the first surfaces, Assert.Multiple is fast-failing on our
     /// chains and the documented "Assert.Multiple works with our chains" guidance would be
     /// wrong. AssertAllAsync remains the log-specific batch terminator; Assert.Multiple is
     /// the general-purpose alternative for batches that mix log and non-log assertions.

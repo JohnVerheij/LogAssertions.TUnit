@@ -10,7 +10,7 @@ namespace LogAssertions;
 /// <c>All</c>, <c>Any</c>, and <c>Not</c>.
 /// </summary>
 /// <remarks>
-/// Implementations should be inexpensive to evaluate — they are invoked once per captured
+/// Implementations should be inexpensive to evaluate: they are invoked once per captured
 /// record per assertion. The <see cref="Description"/> is rendered into the expectation line
 /// of failure messages and should be terse and human-readable (e.g. <c>"Level = Warning"</c>,
 /// not a full sentence).

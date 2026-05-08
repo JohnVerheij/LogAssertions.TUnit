@@ -72,7 +72,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
     /// Commits the current step and adds a concurrent group: all <paramref name="subSteps"/>
     /// must match somewhere in the remaining records, but the order among them does not matter.
     /// Records that match no sub-step are skipped. Sub-steps are matched via backtracking, so
-    /// any order-independent valid assignment is found if one exists — even when sub-step
+    /// any order-independent valid assignment is found if one exists: even when sub-step
     /// filters overlap (a broad filter never starves a more specific filter).
     /// </summary>
     /// <param name="subSteps">Configurators for each concurrent sub-step. Each receives the
@@ -82,7 +82,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     /// <exception cref="InvalidOperationException">Called inside another sub-step configurator,
     /// or a sub-step configurator calls <see cref="Then"/> or <see cref="ThenAnyOrder"/>.
-    /// Sub-step configurators must add filters only — outer sequence structure must be expressed
+    /// Sub-step configurators must add filters only: outer sequence structure must be expressed
     /// at the top level, not inside a configurator.</exception>
     public HasLoggedSequenceAssertion ThenAnyOrder(params Action<HasLoggedSequenceAssertion>[] subSteps)
     {
@@ -95,7 +95,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
         var subStepFilters = new List<List<ILogRecordFilter>>(subSteps.Length);
 
         // _isCapturingSubStep guards against a configurator calling Then() / ThenAnyOrder() on
-        // the live assertion instance — those would mutate _steps mid-capture and silently
+        // the live assertion instance: those would mutate _steps mid-capture and silently
         // produce a sequence shape different from what the fluent chain implies. The guard
         // throws InvalidOperationException if it happens; try/finally ensures the flag clears
         // even if a configurator throws.
@@ -117,7 +117,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
             _isCapturingSubStep = false;
         }
 
-        // The AnyOrder step's Filters field is unused at evaluation time — only AnyOrderSubSteps
+        // The AnyOrder step's Filters field is unused at evaluation time: only AnyOrderSubSteps
         // is read by MatchAnyOrderStep. Pass an empty (sentinel) list rather than redirecting
         // _currentFilters to it: any subsequent .AtLevel/.Containing calls must land in a NEW
         // strictly-ordered Simple step, not in the AnyOrder step's dead-code Filters list.
@@ -199,7 +199,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
             return true;
 
         // Backtracking matcher: explore record-to-sub-step assignments rather than greedy
-        // first-match. The greedy version was order-dependent — a broad filter could consume
+        // first-match. The greedy version was order-dependent: a broad filter could consume
         // a record needed by a later specific filter even when a valid assignment existed.
         // Worst case is O(N^k) where N=remaining records, k=sub-step count; fine in practice
         // because k is typically 2-5.
@@ -248,7 +248,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
                     return true;
                 // Backtracking: reset this sub-step's claim so the next iteration of the outer
                 // for-loop can try a different record. The double-write to assigned[subStepIdx]
-                // is intentional (assign-then-reset) — Sonar S4143 is suppressed because the
+                // is intentional (assign-then-reset): Sonar S4143 is suppressed because the
                 // analyzer can't see that the first write was conditional on the recursive call
                 // succeeding.
 #pragma warning disable S4143

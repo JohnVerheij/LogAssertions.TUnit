@@ -64,7 +64,7 @@ internal sealed class LogFilterCoverageTests
     }
 
     /// <summary>The scope-property filters return <see langword="false"/> when the record has
-    /// NO active scopes — the predicate path that scans <c>record.Scopes</c> short-circuits
+    /// NO active scopes: the predicate path that scans <c>record.Scopes</c> short-circuits
     /// because the loop doesn't execute. Drives the empty-scope branch.</summary>
     [Test]
     public async Task WithScopeProperty_NoActiveScopes_ReturnsFalseAsync(CancellationToken ct)

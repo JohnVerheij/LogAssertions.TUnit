@@ -79,12 +79,12 @@ jobs:
 
       - name: Test snapshot suite (no coverage)
         # SnapshotTests pins the public API surface using SnapshotAssertions.TUnit's
-        # MatchesSnapshot() chain — same canonical example a downstream consumer would use.
+        # MatchesSnapshot() chain: same canonical example a downstream consumer would use.
         # Run in a separate step (not inside the main coverage run) because: (1) the project
         # measures API surface, not behaviour, so its execution contributes nothing useful to
         # the coverage rate; (2) the .config/codecoverage.settings.xml already restricts
         # ModulePaths to the production DLLs so SnapshotTests-internal code is excluded
-        # automatically — the separate step makes that intent explicit.
+        # automatically: the separate step makes that intent explicit.
         run: |
           dotnet run --project tests/LogAssertions.TUnit.SnapshotTests/LogAssertions.TUnit.SnapshotTests.csproj \
             --configuration Release --no-build
@@ -155,7 +155,7 @@ jobs:
 
       - name: External-consumer smoke test (restore+build+test against just-packed nupkgs)
         # The smoke-test project lives outside LogAssertions.TUnit.slnx and consumes
-        # LogAssertions.TUnit ONLY via PackageReference (NOT ProjectReference) — its NuGet.config
+        # LogAssertions.TUnit ONLY via PackageReference (NOT ProjectReference): its NuGet.config
         # routes LogAssertions.* to the just-packed local feed at ./artifacts. The project's
         # namespace is deliberately NOT under LogAssertions.TUnit, so any future regression of
         # the v0.2.0/v0.2.1 namespace bug class (entry points hidden behind an explicit using)
@@ -168,10 +168,10 @@ jobs:
         # NuGet's path-resolution context. The existing NuGet.config still provides the
         # packageSourceMapping that routes LogAssertions.* to local-pack at restore time.
         # The explicit "ls" gives a one-line diagnostic if pack ever silently fails to
-        # produce artifacts — saves a CI rerun on diagnosis.
+        # produce artifacts: saves a CI rerun on diagnosis.
         run: |
           echo "Workspace: $GITHUB_WORKSPACE"
-          ls -la "$GITHUB_WORKSPACE/artifacts/" || (echo "::error::artifacts/ missing — Pack steps did not produce nupkgs" && exit 1)
+          ls -la "$GITHUB_WORKSPACE/artifacts/" || (echo "::error::artifacts/ missing: Pack steps did not produce nupkgs" && exit 1)
           dotnet restore tests/LogAssertions.TUnit.SmokeTest/LogAssertions.TUnit.SmokeTest.csproj \
             --force-evaluate \
             --source "$GITHUB_WORKSPACE/artifacts" \

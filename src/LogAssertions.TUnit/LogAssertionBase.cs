@@ -24,7 +24,7 @@ namespace LogAssertions.TUnit;
 /// <b>Not for external derivation.</b> This type is public only because the curiously-recurring
 /// template pattern (CRTP) used here requires public visibility wherever the public sealed
 /// derived classes (<see cref="HasLoggedAssertion"/> etc.) appear. The shape of this base
-/// class — protected members, virtual hooks, internal helpers — is implementation detail
+/// class: protected members, virtual hooks, internal helpers: is implementation detail
 /// and may change in any release. Do not derive from it; do not reference its protected
 /// members from outside this assembly. The supported public surface is the entry-point
 /// extension methods on <c>FakeLogCollector</c> plus the fluent chain methods returning
@@ -100,7 +100,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
 
     /// <summary>
     /// Filters to records whose message contains <paramref name="substring"/> using the specified
-    /// <paramref name="comparison"/>. The comparison is explicit by design — pass
+    /// <paramref name="comparison"/>. The comparison is explicit by design: pass
     /// <see cref="StringComparison.Ordinal"/> for the most common case.
     /// </summary>
     /// <param name="substring">The substring to search for. Must be non-null.</param>

@@ -11,10 +11,10 @@ namespace LogAssertions;
 /// dump output should rely on broad markers (e.g. <c>"[warn]"</c>) rather than exact whitespace
 /// or punctuation. The verbosity contract is:
 /// <list type="bullet">
-/// <item><see cref="Compact"/> — one line per record, headline only.</item>
-/// <item><see cref="Default"/> — one line per record + indented detail lines for structured
+/// <item><see cref="Compact"/>: one line per record, headline only.</item>
+/// <item><see cref="Default"/>: one line per record + indented detail lines for structured
 /// state, scopes, and a one-line exception summary.</item>
-/// <item><see cref="Verbose"/> — same as <see cref="Default"/> plus the full exception
+/// <item><see cref="Verbose"/>: same as <see cref="Default"/> plus the full exception
 /// <c>ToString()</c> (including stack trace and inner-exception chain) for any record that
 /// carries an exception.</item>
 /// </list>

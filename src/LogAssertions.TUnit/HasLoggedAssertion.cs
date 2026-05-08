@@ -127,7 +127,7 @@ public sealed class HasLoggedAssertion : LogAssertionBase<HasLoggedAssertion>
 
     /// <summary>
     /// Returns the single matched record once the assertion passes. Requires the chain's count
-    /// expectation to be exactly one — typically expressed via <see cref="Once"/> or
+    /// expectation to be exactly one: typically expressed via <see cref="Once"/> or
     /// <see cref="Exactly"/> with count <c>1</c>, but any terminator that constrains the count
     /// to exactly one (including <see cref="Between"/> with both bounds equal to <c>1</c>) is
     /// also accepted. Throws <see cref="InvalidOperationException"/> for any other expectation
@@ -143,7 +143,7 @@ public sealed class HasLoggedAssertion : LogAssertionBase<HasLoggedAssertion>
         if (_minCount != 1 || _maxCount != 1)
         {
             throw new InvalidOperationException(
-                "GetMatch() requires the chain to constrain the match count to exactly one — " +
+                "GetMatch() requires the chain to constrain the match count to exactly one: " +
                 "use .Once() or .Exactly(1) (or any terminator with both bounds equal to 1) " +
                 "before .GetMatch(). Use .GetMatches() to retrieve any number of matches.");
         }

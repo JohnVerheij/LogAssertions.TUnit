@@ -110,7 +110,7 @@ internal sealed class LogAssertionsFiltersV040Tests
     }
 
     /// <summary>F1 composition: WithException&lt;TOuter&gt; AND WithInnerException&lt;TInner&gt;
-    /// can be chained — typical gRPC pattern (RpcException-wraps-domain-exception).</summary>
+    /// can be chained: typical gRPC pattern (RpcException-wraps-domain-exception).</summary>
     [Test]
     public async Task WithException_AndWithInnerException_Compose(CancellationToken ct)
     {
@@ -247,7 +247,7 @@ internal sealed class LogAssertionsFiltersV040Tests
         };
         var filter = LogFilter.WithScopeProperties(required);
 
-        // Mutate after construction — should not affect the snapshot the filter holds.
+        // Mutate after construction: should not affect the snapshot the filter holds.
         required["CycleNumber"] = 99;
         required["Extra"] = "should-not-leak";
 

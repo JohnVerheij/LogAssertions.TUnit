@@ -9,8 +9,8 @@ namespace LogAssertions;
 
 /// <summary>
 /// Non-asserting inspection helpers on <see cref="FakeLogCollector"/>. Use these when a test
-/// needs to read the captured records as data — for downstream calculations, debugging output,
-/// or cross-checking — rather than to assert. None of these methods throw on mismatch.
+/// needs to read the captured records as data: for downstream calculations, debugging output,
+/// or cross-checking: rather than to assert. None of these methods throw on mismatch.
 /// </summary>
 public static class FakeLogCollectorInspectionExtensions
 {

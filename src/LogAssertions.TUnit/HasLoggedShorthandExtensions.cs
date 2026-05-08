@@ -7,7 +7,7 @@ namespace TUnit.Assertions.Extensions;
 
 /// <summary>
 /// Top-level shorthand entry points that wrap the most common <c>HasLogged()...</c> chains.
-/// Each shorthand is equivalent to spelling out the underlying chain — they exist purely to
+/// Each shorthand is equivalent to spelling out the underlying chain: they exist purely to
 /// reduce ceremony for high-frequency assertions.
 /// </summary>
 /// <remarks>
@@ -16,7 +16,7 @@ namespace TUnit.Assertions.Extensions;
 /// core entry-point extension methods like <c>HasLogged()</c>) so consumers do not need a
 /// second <c>using</c> directive to discover these shorthands. If you can call
 /// <c>Assert.That(collector).HasLogged()</c> in a file, you can also call
-/// <c>Assert.That(collector).HasLoggedOnce()</c> there — same auto-import path.
+/// <c>Assert.That(collector).HasLoggedOnce()</c> there: same auto-import path.
 /// </para>
 /// <para>
 /// All shorthands return a <see cref="HasLoggedAssertion"/>, so additional filters can still

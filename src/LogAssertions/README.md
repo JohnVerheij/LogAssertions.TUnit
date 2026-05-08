@@ -14,10 +14,10 @@ Framework-agnostic core for fluent log assertions over `Microsoft.Extensions.Log
 
 ## What's in this package
 
-- **`ILogRecordFilter`** — composable filter interface (`Matches(FakeLogRecord)` + `Description`).
-- **`LogFilter`** — static factory for every built-in filter shape (`AtLevel`, `Containing`, `WithMessageTemplate`, `WithException`, `WithInnerException` *(v0.4.0+)*, `WithInnerExceptionMessage` *(v0.4.0+)*, `WithProperty`, `WithCategory`, `WithEventId`, `WithScope`, `WithScopeProperty`, `WithScopeProperties` *(v0.4.0+)*, `Where`, etc.) plus combinators (`All`, `Any`, `Not`).
-- **`LogAssertionRendering`** — failure-snapshot rendering (4-character level abbreviation, props line, scopes line, exception line) with `DumpVerbosity`-controlled detail level *(v0.4.0+: `Compact` / `Default` / `Verbose`)*. Used by adapter packages and by the `DumpTo` extension below.
-- **`LogCollectorBuilder.Create(LogLevel)`** — one-line factory returning a wired `(ILoggerFactory, FakeLogCollector)` tuple.
+- **`ILogRecordFilter`**: composable filter interface (`Matches(FakeLogRecord)` + `Description`).
+- **`LogFilter`**: static factory for every built-in filter shape (`AtLevel`, `Containing`, `WithMessageTemplate`, `WithException`, `WithInnerException` *(v0.4.0+)*, `WithInnerExceptionMessage` *(v0.4.0+)*, `WithProperty`, `WithCategory`, `WithEventId`, `WithScope`, `WithScopeProperty`, `WithScopeProperties` *(v0.4.0+)*, `Where`, etc.) plus combinators (`All`, `Any`, `Not`).
+- **`LogAssertionRendering`**: failure-snapshot rendering (4-character level abbreviation, props line, scopes line, exception line) with `DumpVerbosity`-controlled detail level *(v0.4.0+: `Compact` / `Default` / `Verbose`)*. Used by adapter packages and by the `DumpTo` extension below.
+- **`LogCollectorBuilder.Create(LogLevel)`**: one-line factory returning a wired `(ILoggerFactory, FakeLogCollector)` tuple.
 - **Inspection extensions on `FakeLogCollector`:** `Filter(params ILogRecordFilter[])` returns matching records, `CountMatching(params ILogRecordFilter[])` returns the count, `DumpTo(TextWriter)` and `DumpTo(TextWriter, DumpVerbosity)` *(v0.4.0+)* write the captured-records snapshot.
 
 ## Test-framework adapters
@@ -29,7 +29,7 @@ Framework-agnostic core for fluent log assertions over `Microsoft.Extensions.Log
 | `LogAssertions.xUnit` | xUnit | Possible if there is demand |
 | `LogAssertions.MSTest` | MSTest | Possible if there is demand |
 
-If you'd find a non-TUnit adapter useful, [open a feature request](https://github.com/JohnVerheij/LogAssertions.TUnit/issues/new?template=feature_request.yml) — adapters are not built proactively.
+If you'd find a non-TUnit adapter useful, [open a feature request](https://github.com/JohnVerheij/LogAssertions.TUnit/issues/new?template=feature_request.yml): adapters are not built proactively.
 
 ## Installation
 
@@ -76,7 +76,7 @@ A test-framework adapter package needs to:
 3. Use `LogFilter` factory methods to build the filter chain.
 4. Use `LogAssertionRendering.AppendCapturedRecords(...)` for failure-message snapshot output (so the format stays consistent across adapters).
 
-`LogAssertions.TUnit` is the reference implementation — see its source for the pattern.
+`LogAssertions.TUnit` is the reference implementation: see its source for the pattern.
 
 ## Stability
 
@@ -85,4 +85,4 @@ A test-framework adapter package needs to:
 
 ## License
 
-[MIT](https://github.com/JohnVerheij/LogAssertions.TUnit/blob/main/LICENSE) — Copyright (c) 2026 John Verheij
+[MIT](https://github.com/JohnVerheij/LogAssertions.TUnit/blob/main/LICENSE). Copyright (c) 2026 John Verheij.
