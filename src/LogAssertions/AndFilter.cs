@@ -14,7 +14,7 @@ internal sealed class AndFilter(IReadOnlyList<ILogRecordFilter> children) : ILog
     public bool Matches(FakeLogRecord record) => children.All(c => c.Matches(record));
 
     /// <inheritdoc/>
-    public string Description { get; } = children.Count == 0
+    public string Description { get; } = children.Count is 0
         ? "(any)"
         : "(" + string.Join(" AND ", children.Select(c => c.Description)) + ")";
 }

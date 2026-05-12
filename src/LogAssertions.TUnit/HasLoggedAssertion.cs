@@ -135,12 +135,10 @@ public sealed class HasLoggedAssertion : LogAssertionBase<HasLoggedAssertion>
     /// that allows N matches.
     /// </summary>
     /// <returns>The single matched record.</returns>
-    /// <exception cref="InvalidOperationException">
-    /// The chain's count expectation does not constrain the match count to exactly one.
-    /// </exception>
+    /// <exception cref="InvalidOperationException">The chain's count expectation does not constrain the match count to exactly one.</exception>
     public Task<FakeLogRecord> GetMatch()
     {
-        if (_minCount != 1 || _maxCount != 1)
+        if (_minCount is not 1 || _maxCount is not 1)
         {
             throw new InvalidOperationException(
                 "GetMatch() requires the chain to constrain the match count to exactly one: " +

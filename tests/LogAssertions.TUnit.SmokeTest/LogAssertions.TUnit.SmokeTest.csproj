@@ -17,7 +17,8 @@
         is incompatible with the centrally-pinned versions used by the main build.
       - Lives outside LogAssertions.TUnit.slnx so dotnet restore on the main solution doesn't
         try to resolve the unpublished local-feed version. The CI step packs the package first,
-        then restores + builds + tests this project against the local feed.
+        then restores + builds + tests this project against the local feed, then publishes
+        with native AOT to validate the AOT-clean claim end-to-end.
   -->
 
   <PropertyGroup>
@@ -26,7 +27,7 @@
     <AssemblyName>Smoke.Consumer</AssemblyName>
 
     <IsPackable>false</IsPackable>
-    <IsPublishable>false</IsPublishable>
+    <IsPublishable>true</IsPublishable>
     <IsTestProject>true</IsTestProject>
     <OutputType>Exe</OutputType>
 
@@ -46,6 +47,11 @@
          calls because the production code shape (LoggerMessage source generator) is not what
          this project is testing. -->
     <NoWarn>$(NoWarn);CA1848</NoWarn>
+
+    <!-- AOT publish is conditional on RuntimeIdentifier (so day-to-day `dotnet build` doesn't
+         pull ILCompiler). The CI step calls `dotnet publish -r linux-x64` to validate the
+         AOT-clean claim end-to-end; without -r, this is a normal MTP test exe. -->
+    <PublishAot Condition="'$(RuntimeIdentifier)' != ''">true</PublishAot>
 
     <!-- Detect whether the local NuGet feed at ../../artifacts has been populated by CI's
          pack steps. The LogAssertions.TUnit PackageReference below is conditional on this:
@@ -70,15 +76,15 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" Version="10.5.0" />
-    <PackageReference Include="TUnit" Version="1.43.11" />
+    <PackageReference Include="TUnit" Version="1.44.0" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(ArtifactsLocalFeedExists)' == 'true'">
     <!-- Floating version: consumes whatever 0.4.x preview was packed into the local feed at
-         ../../artifacts. Use a wide pre-release pattern so any 0.4.0-rc / 0.4.0 also resolves
+         ../../artifacts. Use a wide pre-release pattern so any 0.4.1-rc / 0.4.1 also resolves
          once published, which lets local devs run this against either a freshly-packed nupkg
          or a real published version. -->
-    <PackageReference Include="LogAssertions.TUnit" Version="0.4.0-*" />
+    <PackageReference Include="LogAssertions.TUnit" Version="0.4.1-*" />
   </ItemGroup>
 
 </Project>

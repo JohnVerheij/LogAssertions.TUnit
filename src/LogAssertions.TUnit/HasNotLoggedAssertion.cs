@@ -34,7 +34,7 @@ public sealed class HasNotLoggedAssertion : LogAssertionBase<HasNotLoggedAsserti
         var snapshot = collector.GetSnapshot();
         var matchCount = CountMatches(snapshot);
 
-        if (matchCount == 0)
+        if (matchCount is 0)
             return Task.FromResult(AssertionResult.Passed);
 
         return Task.FromResult(AssertionResult.Failed(BuildFailureMessage(matchCount, snapshot)));

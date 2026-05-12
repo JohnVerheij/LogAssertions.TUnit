@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Testing;
@@ -41,7 +42,7 @@ public static class AssertAllExtensions
         for (var i = 0; i < assertions.Length; i++)
         {
             var assertion = assertions[i] ?? throw new ArgumentException(
-                "AssertAll: assertion at index " + i + " is null", nameof(assertions));
+                string.Create(CultureInfo.InvariantCulture, $"AssertAll: assertion at index {i} is null"), nameof(assertions));
 
             try
             {
@@ -97,7 +98,7 @@ public static class AssertAllExtensions
         for (var i = 0; i < assertions.Length; i++)
         {
             var configurator = assertions[i] ?? throw new ArgumentException(
-                "AssertAll: assertion at index " + i + " is null", nameof(assertions));
+                string.Create(CultureInfo.InvariantCulture, $"AssertAll: assertion at index {i} is null"), nameof(assertions));
 
             try
             {
@@ -130,7 +131,7 @@ public static class AssertAllExtensions
         if (failures is null)
             return;
 
-        if (failures.Count == 1)
+        if (failures.Count is 1)
             throw failures[0];
 
         StringBuilder sb = new();

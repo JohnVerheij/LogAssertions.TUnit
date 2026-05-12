@@ -14,7 +14,7 @@ namespace TUnit.Assertions.Extensions;
 /// <para>
 /// Lives in <c>TUnit.Assertions.Extensions</c> (where TUnit's source generator emits the
 /// core entry-point extension methods like <c>HasLogged()</c>) so consumers do not need a
-/// second <c>using</c> directive to discover these shorthands. If you can call
+/// second <see langword="using"/> directive to discover these shorthands. If you can call
 /// <c>Assert.That(collector).HasLogged()</c> in a file, you can also call
 /// <c>Assert.That(collector).HasLoggedOnce()</c> there: same auto-import path.
 /// </para>

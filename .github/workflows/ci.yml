@@ -179,6 +179,20 @@ jobs:
           dotnet build tests/LogAssertions.TUnit.SmokeTest/LogAssertions.TUnit.SmokeTest.csproj --configuration Release --no-restore
           dotnet run --project tests/LogAssertions.TUnit.SmokeTest/LogAssertions.TUnit.SmokeTest.csproj --configuration Release --no-build
 
+      - name: AOT-publish gate (smoke project, linux-x64)
+        # End-to-end AOT validation: the package's csproj sets IsAotCompatible=true (which keeps
+        # the build-time AOT analyzer active during normal `dotnet build`), but only `dotnet
+        # publish -r <RID> -p:PublishAot=true` actually invokes ILCompiler and proves there are
+        # no late-bound surprises. The smoke project sets PublishAot=true conditional on
+        # RuntimeIdentifier so day-to-day builds aren't dragged through ILCompiler. Failing this
+        # step blocks a release; passing means an AOT-targeting consumer will publish cleanly.
+        run: |
+          dotnet publish tests/LogAssertions.TUnit.SmokeTest/LogAssertions.TUnit.SmokeTest.csproj \
+            --configuration Release \
+            --runtime linux-x64 \
+            --source "$GITHUB_WORKSPACE/artifacts" \
+            --source "https://api.nuget.org/v3/index.json"
+
       - name: Upload package artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:

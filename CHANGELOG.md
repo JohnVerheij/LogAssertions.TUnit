@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-05-12: Dependency refresh and source-style modernisation
+
+Patch release. Brings dependency pins into lockstep with the rest of the assertion family, tightens the source-style ratchet for production code via `MeziantouAnalysisMode=all-warnings`, and folds in the family-wide `CONVENTIONS.md` v0.3. No public API change.
+
+### Changed
+
+- **Dependency refresh** to the family-lockstep versions:
+  - `TUnit` / `TUnit.Assertions` / `TUnit.Core`: 1.43.11 -> 1.44.0
+  - `Microsoft.CodeAnalysis.BannedApiAnalyzers`: 3.3.4 -> 4.14.0
+  - `Meziantou.Analyzer`: 3.0.72 -> 3.0.78
+  - `SnapshotAssertions.TUnit`: 0.2.0 -> 0.3.0
+- **`MeziantouAnalysisMode=all-warnings` for `src/` projects** (path-conditional via the normalised `Replace('\','/').Contains('/tests/')` predicate). Test projects retain Meziantou defaults. Production-code findings surfaced and fixed at source rather than via NoWarn: CRTP self-cast pattern centralised via an `Unsafe.As<TSelf>(this)` helper property; discrete-value equality comparisons modernised to pattern-matching form (`is 0`, `is SequenceStepKind.Simple`); trailing-`null` constructor arguments given explicit `AnyOrderSubSteps:` named-argument form; culture-sensitive string concatenations switched to `string.Create(CultureInfo.InvariantCulture, ...)`. `<NoWarn>` extended with `MA0038;MA0137;MA0174;MA0190` per family convention.
+- **`BannedSymbols.txt`** collapsed bare `#` comment lines into adjacent text-bearing lines so the file parses cleanly under the stricter BannedApiAnalyzers 4.x grammar.
+
+### Documentation
+
+- **`CONVENTIONS.md` upgraded to v0.3** with the `SnapshotAssertions.Render` namespace reservation for sibling-package text renderers.
+- Root README and packaged README updated for the four-package family compatibility / pairing sections.
+
+### Quality
+
+- ApiCompat strict-mode validation against the 0.4.0 baseline. No new suppressions in `CompatibilitySuppressions.xml`.
+- All existing tests pass after the analyzer-driven source modernisation.
+- CHANGELOG entry adopts the Keep a Changelog 1.1.0 dated header format for this release onward; historical entries unchanged.
+
 ## [0.4.0]: Filter polish, sequence relaxation, dependency refresh
 
 Feature release plus rolled-in housekeeping. Lockstep version bump for both packages; ApiCompat baseline pinned to 0.3.0 (the previous shipped release). The intermediate v0.3.1 housekeeping work is folded into this release rather than shipping as a separate intermediate version.

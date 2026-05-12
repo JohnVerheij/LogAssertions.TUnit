@@ -50,7 +50,7 @@ public static class LogAssertionRendering
         ArgumentNullException.ThrowIfNull(sb);
         ArgumentNullException.ThrowIfNull(snapshot);
 
-        if (snapshot.Count == 0)
+        if (snapshot.Count is 0)
         {
             sb.AppendLine("  (no records)");
             return;
@@ -63,7 +63,7 @@ public static class LogAssertionRendering
                 sb.Append(record.Category).Append(": ");
             sb.Append(record.Message).AppendLine();
 
-            if (verbosity == DumpVerbosity.Compact)
+            if (verbosity is DumpVerbosity.Compact)
                 continue;
 
             AppendStructuredState(sb, record);
@@ -77,7 +77,7 @@ public static class LogAssertionRendering
                     .Append(record.Exception.Message)
                     .AppendLine();
 
-                if (verbosity == DumpVerbosity.Verbose)
+                if (verbosity is DumpVerbosity.Verbose)
                 {
                     // Full ToString() carries the stack trace and inner-exception chain. Indented
                     // by 6 spaces so it visually nests under the "exception:" line and survives
@@ -116,7 +116,7 @@ public static class LogAssertionRendering
         // FakeLogRecord.StructuredState throws when State is not a key-value-pair list
         // (e.g. ILogger.Log<TState> with custom typed state). Defensive cast on State
         // directly avoids the throwing getter.
-        if (record.State is not IReadOnlyList<KeyValuePair<string, string?>> kvps || kvps.Count == 0)
+        if (record.State is not IReadOnlyList<KeyValuePair<string, string?>> kvps || kvps.Count is 0)
             return;
 
         var first = true;
@@ -136,7 +136,7 @@ public static class LogAssertionRendering
 
     private static void AppendScopes(StringBuilder sb, FakeLogRecord record)
     {
-        if (record.Scopes.Count == 0)
+        if (record.Scopes.Count is 0)
             return;
 
         var first = true;
