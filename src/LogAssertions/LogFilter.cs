@@ -45,7 +45,7 @@ public static class LogFilter
     public static ILogRecordFilter AtLevel(params LogLevel[] levels)
     {
         ArgumentNullException.ThrowIfNull(levels);
-        var snapshot = (LogLevel[])levels.Clone();
+        LogLevel[] snapshot = [.. levels];
         var description = "Level in [" + string.Join(", ", snapshot) + "]";
         return new PredicateFilter(r => Array.IndexOf(snapshot, r.Level) >= 0, description);
     }
@@ -85,7 +85,7 @@ public static class LogFilter
     public static ILogRecordFilter ContainingAll(StringComparison comparison, params string[] substrings)
     {
         ArgumentNullException.ThrowIfNull(substrings);
-        var snapshot = (string[])substrings.Clone();
+        string[] snapshot = [.. substrings];
         var description = "Message contains all [" + string.Join(", ", snapshot.Select(s => "\"" + s + "\"")) + "] (" + comparison + ")";
         return new PredicateFilter(r => snapshot.All(s => r.Message.Contains(s, comparison)), description);
     }
@@ -98,7 +98,7 @@ public static class LogFilter
     public static ILogRecordFilter ContainingAny(StringComparison comparison, params string[] substrings)
     {
         ArgumentNullException.ThrowIfNull(substrings);
-        var snapshot = (string[])substrings.Clone();
+        string[] snapshot = [.. substrings];
         var description = "Message contains any [" + string.Join(", ", snapshot.Select(s => "\"" + s + "\"")) + "] (" + comparison + ")";
         return new PredicateFilter(r => snapshot.Any(s => r.Message.Contains(s, comparison)), description);
     }
@@ -367,7 +367,8 @@ public static class LogFilter
     public static ILogRecordFilter All(params ILogRecordFilter[] filters)
     {
         ArgumentNullException.ThrowIfNull(filters);
-        return new AndFilter((ILogRecordFilter[])filters.Clone());
+        ILogRecordFilter[] snapshot = [.. filters];
+        return new AndFilter(snapshot);
     }
 
     /// <summary>Disjunction: records matching any one of <paramref name="filters"/>.</summary>
@@ -377,7 +378,8 @@ public static class LogFilter
     public static ILogRecordFilter Any(params ILogRecordFilter[] filters)
     {
         ArgumentNullException.ThrowIfNull(filters);
-        return new OrFilter((ILogRecordFilter[])filters.Clone());
+        ILogRecordFilter[] snapshot = [.. filters];
+        return new OrFilter(snapshot);
     }
 
     /// <summary>Logical negation: records that do not match <paramref name="filter"/>.</summary>
@@ -393,7 +395,7 @@ public static class LogFilter
     /// <summary>
     /// Walks every active scope on <paramref name="record"/>, looking for a key-value pair whose
     /// key equals <paramref name="key"/> (ordinal) and whose value satisfies
-    /// <paramref name="predicate"/>. Recognises both <c>object</c> and <c>object?</c> value-type
+    /// <paramref name="predicate"/>. Recognises both <see langword="object"/> and <c>object?</c> value-type
     /// variants of the <see cref="IEnumerable{T}"/>-of-<see cref="KeyValuePair{TKey, TValue}"/>
     /// shape used by dictionary scopes and <see cref="LoggerMessage.DefineScope{T1}(string)"/>.
     /// </summary>
@@ -431,8 +433,6 @@ public static class LogFilter
         if (scope is not IEnumerable<KeyValuePair<string, TValue>> kvps)
             return false;
 
-        return kvps
-            .Where(kvp => string.Equals(kvp.Key, key, StringComparison.Ordinal))
-            .Any(kvp => predicate(kvp.Value));
+        return kvps.Any(kvp => string.Equals(kvp.Key, key, StringComparison.Ordinal) && predicate(kvp.Value));
     }
 }

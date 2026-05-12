@@ -30,7 +30,8 @@ internal sealed class DumpVerbosityTests
         var (factory, collector) = LogCollectorBuilder.Create();
         using var __ = factory;
         var logger = factory.CreateLogger("Compact");
-        try { throw new InvalidOperationException("boom"); }
+        try
+        { throw new InvalidOperationException("boom"); }
         catch (InvalidOperationException ex) { logger.LogError(ex, "Op {Id} failed", 7); }
 
         using var sw = new StringWriter();
@@ -51,7 +52,8 @@ internal sealed class DumpVerbosityTests
         var (factory, collector) = LogCollectorBuilder.Create();
         using var __ = factory;
         var logger = factory.CreateLogger("Default");
-        try { throw new InvalidOperationException("boom"); }
+        try
+        { throw new InvalidOperationException("boom"); }
         catch (InvalidOperationException ex) { logger.LogError(ex, "Op {Id} failed", 7); }
 
         using var sw = new StringWriter();
@@ -73,7 +75,8 @@ internal sealed class DumpVerbosityTests
         var (factory, collector) = LogCollectorBuilder.Create();
         using var __ = factory;
         var logger = factory.CreateLogger("Verbose");
-        try { throw new InvalidOperationException("boom"); }
+        try
+        { throw new InvalidOperationException("boom"); }
         catch (InvalidOperationException ex) { logger.LogError(ex, "Op {Id} failed", 7); }
 
         using var sw = new StringWriter();

@@ -72,7 +72,7 @@ This library replaces both with a fluent DSL that integrates with TUnit's assert
 dotnet add package LogAssertions.TUnit
 ```
 
-**Requirements:** TUnit 1.43.11+ (declares `TUnit.Core` 1.43.11 and `TUnit.Assertions` 1.43.11 as transitive dependencies; `[AssertionExtension]` itself ships from TUnit 1.41.0+, but `DumpToTestOutput()` requires `TestContext` from `TUnit.Core` 1.43.11+), .NET 10. The package is AOT-compatible, trimmable, and uses no reflection in the assertion path.
+**Requirements:** TUnit 1.44.0+ (declares `TUnit.Core` 1.44.0 and `TUnit.Assertions` 1.44.0 as transitive dependencies; `[AssertionExtension]` itself ships from TUnit 1.41.0+, but `DumpToTestOutput()` requires `TestContext` from `TUnit.Core` 1.43.11+), .NET 10. The package is AOT-compatible, trimmable, and uses no reflection in the assertion path.
 
 ## Package layout
 
@@ -594,7 +594,7 @@ A failure renders both the captured-records snapshot AND the reason, so the next
 
 `[NotInParallel]` becomes necessary only when the test interacts with **global** logging state (e.g. NLog's `LogManager.Configuration`, Serilog's static `Log.Logger`, or any singleton logging configuration). In that case, give every test that touches the same global a single shared `[NotInParallel("global-logging-config")]` key: different keys do NOT serialize against each other, which is a subtle source of latent races.
 
-**`Should()` style: currently deferred.** Upstream TUnit ships a separate `TUnit.Assertions.Should` package that adds `value.Should().BeEqualTo(...)` style on top of `TUnit.Assertions`. In principle, our `[AssertionExtension]`-decorated chains could auto-generate `collector.Should().HaveLogged()...` counterparts via that package's source generator. **In practice we have not verified this hands-on:** the upstream `TUnit.Assertions.Should` package is currently beta-only, this project's dependency policy forbids beta packages, and our own quick spike could not resolve `collector.Should()` from a consumer test project. We have parked the investigation pending the upstream package reaching stable. If you adopt LogAssertions.TUnit and care about Should-style ergonomics, please open an issue on the GitHub repo and we will prioritize verification.
+**`Should()` style: currently deferred.** Upstream TUnit ships a separate `TUnit.Assertions.Should` package that adds `value.Should().BeEqualTo(...)` style on top of `TUnit.Assertions`. Hands-on verification against the LogAssertions.TUnit chain is pending the upstream package reaching stable; the rest of the chain works today via the canonical `Assert.That(collector).HasLogged(...)` form.
 
 ---
 
@@ -960,17 +960,19 @@ If you'd find any of the candidate items useful, [open a feature request](https:
 
 ## Family compatibility
 
-The three assertion-family packages: `LogAssertions.TUnit`, `TimeAssertions.TUnit`, and `SnapshotAssertions.TUnit`: release independently and target the same .NET TFM at any moment (LTS-anchored, multi-target during STS support windows; see the [TFM policy in CONVENTIONS.md](CONVENTIONS.md#tfm-policy) for the rotation schedule). **Mix versions freely.** Each package ships under SemVer with `EnablePackageValidation` strict-mode ApiCompat against its previous baseline, so binary breaks within a version line are caught at pack time.
+The four assertion-family packages: `LogAssertions.TUnit`, `TimeAssertions.TUnit`, `SnapshotAssertions.TUnit`, and `MathAssertions.TUnit`: release independently and target the same .NET TFM at any moment (LTS-anchored, multi-target during STS support windows; see the [TFM policy in CONVENTIONS.md](CONVENTIONS.md#tfm-policy) for the rotation schedule). **Mix versions freely.** Each package ships under SemVer with `EnablePackageValidation` strict-mode ApiCompat against its previous baseline, so binary breaks within a version line are caught at pack time.
 
 For per-package release notes:
 - [LogAssertions.TUnit CHANGELOG](https://github.com/JohnVerheij/LogAssertions.TUnit/blob/main/CHANGELOG.md)
 - [TimeAssertions.TUnit CHANGELOG](https://github.com/JohnVerheij/TimeAssertions.TUnit/blob/main/CHANGELOG.md)
 - [SnapshotAssertions.TUnit CHANGELOG](https://github.com/JohnVerheij/SnapshotAssertions.TUnit/blob/main/CHANGELOG.md)
+- [MathAssertions.TUnit CHANGELOG](https://github.com/JohnVerheij/MathAssertions.TUnit/blob/main/CHANGELOG.md)
 
 ## Pair with
 
 - **[`TimeAssertions.TUnit`](https://www.nuget.org/packages/TimeAssertions.TUnit/)**: `FakeTimeProvider` state assertions, `TimeProvider`-aware `DateTimeOffset` recency / past / future checks, and the cross-cutting `.And.WithinTimeBudget(TimeSpan)` chain extension. Compose with `HasLogged()` to add a timing budget to log assertions.
 - **[`SnapshotAssertions.TUnit`](https://www.nuget.org/packages/SnapshotAssertions.TUnit/)**: text-snapshot assertions for API-surface tests and similar deterministic-string scenarios. Use `MatchesSnapshot()` to pin the rendered output of `LogAssertionRendering` (e.g. `DumpTo` output) in integration tests.
+- **[`MathAssertions.TUnit`](https://www.nuget.org/packages/MathAssertions.TUnit/)**: tolerance-aware fluent assertions over numeric and geometric types (vectors, quaternions, matrices, planes, complex numbers, arrays).
 
 ---
 

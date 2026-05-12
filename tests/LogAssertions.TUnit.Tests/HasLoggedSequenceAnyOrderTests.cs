@@ -253,7 +253,8 @@ internal sealed class HasLoggedSequenceAnyOrderTests
         var (factory, collector) = LogCollectorBuilder.Create();
         using var __ = factory;
         var logger = factory.CreateLogger("Test");
-        try { throw new InvalidOperationException("boom"); }
+        try
+        { throw new InvalidOperationException("boom"); }
         catch (InvalidOperationException ex)
         {
 #pragma warning disable CA1848

@@ -2,9 +2,7 @@ using Microsoft.Extensions.Logging.Testing;
 
 namespace LogAssertions;
 
-/// <summary>
-/// Logical negation of an inner filter. A record matches when the inner filter does not.
-/// </summary>
+/// <summary>Logical negation of an inner filter. A record matches when the inner filter does not.</summary>
 internal sealed class NotFilter(ILogRecordFilter inner) : ILogRecordFilter
 {
     /// <inheritdoc/>
