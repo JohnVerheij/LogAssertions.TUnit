@@ -8,7 +8,7 @@ file is copied identically into each repo.
 namespace reservation for sibling-package text renderers so consumers discover renderer
 entry points via a single `using SnapshotAssertions.Render;`.
 
-### Version history
+## Version history
 
 - **v0.2 (2026-05-07).** Changes from v0.1: codified the family rule against promoting Verify;
   added polling-loop default-schedule agreement; added `ToSnapshotString()` format-version
