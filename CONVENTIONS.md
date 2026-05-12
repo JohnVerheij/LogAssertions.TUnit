@@ -8,12 +8,13 @@ file is copied identically into each repo.
 namespace reservation for sibling-package text renderers so consumers discover renderer
 entry points via a single `using SnapshotAssertions.Render;`.
 
-**Document version:** v0.2 (2026-05-07). Changes from v0.1: codified the family rule against
-promoting Verify; added polling-loop default-schedule agreement; added `ToSnapshotString()`
-format-version header rule; added test-projects-only scope blockquote as a binding
-cross-repo convention; codified TFM policy (LTS-anchored; multi-target during STS support
-windows); expanded the `CancellationToken` plumbing rule with provider-driven polling-sleep
-semantics.
+### Version history
+
+- **v0.2 (2026-05-07).** Changes from v0.1: codified the family rule against promoting Verify;
+  added polling-loop default-schedule agreement; added `ToSnapshotString()` format-version
+  header rule; added test-projects-only scope blockquote as a binding cross-repo convention;
+  codified TFM policy (LTS-anchored; multi-target during STS support windows); expanded the
+  `CancellationToken` plumbing rule with provider-driven polling-sleep semantics.
 
 ## Naming patterns
 

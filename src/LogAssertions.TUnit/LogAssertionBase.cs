@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
@@ -48,12 +47,14 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     /// <summary>
     /// Returns <see langword="this"/> typed as <typeparamref name="TSelf"/> for fluent
     /// chaining. The CRTP constraint <c>where TSelf : LogAssertionBase&lt;TSelf&gt;</c>
-    /// makes the reinterpretation always safe at runtime; <see cref="Unsafe.As{T}(object)"/>
-    /// expresses this without a runtime cast, satisfying Meziantou's MA0181 "Do not use cast"
-    /// without scattering 37 individual <c>[SuppressMessage]</c> attributes across the
-    /// fluent-chain methods below.
+    /// makes the cast safe in well-formed consumer code; an <see cref="InvalidCastException"/>
+    /// surfaces at the first chain call if a deriving type violates the constraint, so the
+    /// failure is loud and immediate rather than a silent reinterpretation. A single
+    /// <c>[SuppressMessage]</c> on this property satisfies Meziantou's MA0181 for every
+    /// fluent-chain method returning <typeparamref name="TSelf"/>.
     /// </summary>
-    private TSelf Self => Unsafe.As<TSelf>(this);
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("MeziantouAnalyzer", "MA0181:Do not use cast", Justification = "CRTP self-reference: the cast is fail-fast on a misconfigured derived type; a runtime InvalidCastException is preferable to a silent Unsafe.As reinterpretation.")]
+    private TSelf Self => (TSelf)this;
 
     /// <summary>
     /// Records a filter. Default implementation appends to the shared filter chain used by
