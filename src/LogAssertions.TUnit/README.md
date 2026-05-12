@@ -17,7 +17,7 @@ TUnit-native fluent log-assertion DSL on top of `Microsoft.Extensions.Logging.Te
 dotnet add package LogAssertions.TUnit
 ```
 
-`LogAssertions` (the framework-agnostic core) comes transitively. **Requirements:** TUnit 1.43.11+, .NET 10.
+`LogAssertions` (the framework-agnostic core) comes transitively. **Requirements:** TUnit 1.44.0+, .NET 10.
 
 ## Quick start
 
@@ -117,6 +117,14 @@ await Assert.That(collector).AssertAllAsync(
 On a failed assertion, the exception message includes the expected match count, the actual count, and a snapshot of every captured record (level abbreviation, category, message, structured properties, scopes, exception). No need for `Console.WriteLine` debugging: every dimension you can filter on is also rendered in the failure message.
 
 [Full failure-diagnostics example, design notes, stability intent, and roadmap on GitHub.](https://github.com/JohnVerheij/LogAssertions.TUnit#failure-diagnostics)
+
+## Family
+
+Part of an assertion family for TUnit:
+
+- [TimeAssertions.TUnit](https://github.com/JohnVerheij/TimeAssertions.TUnit)
+- [SnapshotAssertions.TUnit](https://github.com/JohnVerheij/SnapshotAssertions.TUnit)
+- [MathAssertions.TUnit](https://github.com/JohnVerheij/MathAssertions.TUnit)
 
 ## License
 

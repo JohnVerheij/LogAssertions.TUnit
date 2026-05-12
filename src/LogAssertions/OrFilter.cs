@@ -14,7 +14,7 @@ internal sealed class OrFilter(IReadOnlyList<ILogRecordFilter> children) : ILogR
     public bool Matches(FakeLogRecord record) => children.Any(c => c.Matches(record));
 
     /// <inheritdoc/>
-    public string Description { get; } = children.Count == 0
+    public string Description { get; } = children.Count is 0
         ? "(none)"
         : "(" + string.Join(" OR ", children.Select(c => c.Description)) + ")";
 }

@@ -29,7 +29,7 @@ public static class FakeLogCollectorInspectionExtensions
         ArgumentNullException.ThrowIfNull(filters);
 
         var snapshot = collector.GetSnapshot();
-        if (filters.Length == 0)
+        if (filters.Length is 0)
             return [.. snapshot];
 
         return [.. snapshot.Where(r => filters.All(f => f.Matches(r)))];
@@ -49,7 +49,7 @@ public static class FakeLogCollectorInspectionExtensions
         ArgumentNullException.ThrowIfNull(filters);
 
         var snapshot = collector.GetSnapshot();
-        if (filters.Length == 0)
+        if (filters.Length is 0)
             return snapshot.Count;
 
         return snapshot.Count(r => filters.All(f => f.Matches(r)));

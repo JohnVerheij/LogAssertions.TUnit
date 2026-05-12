@@ -16,9 +16,15 @@ namespace LogAssertions.TUnit.Tests;
 /// that the documentation stays true across TUnit upstream releases. A failure here is either
 /// a TUnit upstream regression (file upstream) or a LogAssertions design break (fix here and
 /// update the README). The Should() interop is intentionally not pinned here: the upstream
-/// TUnit.Assertions.Should package is currently beta-only, and this repo's dpfa Proj1101
-/// rule forbids beta dependencies. The Should() interop will be added to this file once
-/// the upstream package goes stable.
+/// TUnit.Assertions.Should source generator (currently 1.44.0-beta) scans the current
+/// compilation only and does NOT conjugate [AssertionExtension] classes from referenced
+/// assemblies, so a consumer test project that references LogAssertions.TUnit cannot opt
+/// into Should() ergonomics without LogAssertions.TUnit itself shipping pre-generated
+/// Should() classes (which would require the package to take a hard beta dependency on
+/// TUnit.Assertions.Should). v0.5.0 surfaced this finding; the verification + documentation
+/// of Should() interop moves to a later release pending either the upstream generator
+/// adding referenced-assembly support or a deliberate decision to ship the beta dep
+/// transitively from LogAssertions.TUnit.
 /// </summary>
 [Category("TUnitInterop")]
 [Timeout(10_000)]

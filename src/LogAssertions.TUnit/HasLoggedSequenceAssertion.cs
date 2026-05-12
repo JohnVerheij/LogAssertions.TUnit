@@ -40,7 +40,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
     public HasLoggedSequenceAssertion(AssertionContext<FakeLogCollector> context) : base(context)
     {
         _currentFilters = [];
-        _steps.Add(new SequenceStep(SequenceStepKind.Simple, _currentFilters, null));
+        _steps.Add(new SequenceStep(SequenceStepKind.Simple, _currentFilters, AnyOrderSubSteps: null));
     }
 
     /// <summary>
@@ -63,7 +63,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
                 "Sub-step configurators describe filters for one concurrent group; structure " +
                 "the outer sequence at the top level after ThenAnyOrder(...) returns.");
         _currentFilters = [];
-        _steps.Add(new SequenceStep(SequenceStepKind.Simple, _currentFilters, null));
+        _steps.Add(new SequenceStep(SequenceStepKind.Simple, _currentFilters, AnyOrderSubSteps: null));
         Context.ExpressionBuilder.Append(".Then()");
         return this;
     }
@@ -129,7 +129,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
         // The seam step is empty unless a filter call follows ThenAnyOrder; per MatchSimpleStep
         // semantics, an empty step is a no-op.
         _currentFilters = [];
-        _steps.Add(new SequenceStep(SequenceStepKind.Simple, _currentFilters, null));
+        _steps.Add(new SequenceStep(SequenceStepKind.Simple, _currentFilters, AnyOrderSubSteps: null));
         return this;
     }
 
@@ -159,13 +159,13 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
         for (var stepIndex = 0; stepIndex < _steps.Count; stepIndex++)
         {
             var step = _steps[stepIndex];
-            var ok = step.Kind == SequenceStepKind.Simple
+            var ok = step.Kind is SequenceStepKind.Simple
                 ? MatchSimpleStep(step, snapshot, ref recordIndex)
                 : MatchAnyOrderStep(step, snapshot, ref recordIndex);
 
             if (!ok)
             {
-                var label = step.Kind == SequenceStepKind.Simple ? "Step" : "Any-order group";
+                var label = step.Kind is SequenceStepKind.Simple ? "Step" : "Any-order group";
                 return Task.FromResult(AssertionResult.Failed(BuildSequenceFailureMessage(stepIndex, snapshot, label)));
             }
         }
@@ -179,7 +179,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
         // documented behavior verified by SequenceEmptyStepIsSkippedAsync: chains like
         // .AtLevel(Info).Then().Then().AtLevel(Warning) match exactly the records the named
         // filters describe; the empty .Then() acts as an inert separator.
-        if (step.Filters.Count == 0)
+        if (step.Filters.Count is 0)
             return true;
 
         while (recordIndex < snapshot.Count)
@@ -195,7 +195,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
     private static bool MatchAnyOrderStep(SequenceStep step, IReadOnlyList<FakeLogRecord> snapshot, ref int recordIndex)
     {
         var subSteps = step.AnyOrderSubSteps!;
-        if (subSteps.Count == 0)
+        if (subSteps.Count is 0)
             return true;
 
         // Backtracking matcher: explore record-to-sub-step assignments rather than greedy
@@ -269,12 +269,12 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
         for (var i = 0; i < _steps.Count; i++)
         {
             var step = _steps[i];
-            if (step.Kind == SequenceStepKind.Simple && step.Filters.Count == 0)
+            if (step.Kind is SequenceStepKind.Simple && step.Filters.Count is 0)
                 continue;
 
             sb.Append(hasContent ? " then " : ": ");
 
-            if (step.Kind == SequenceStepKind.Simple)
+            if (step.Kind is SequenceStepKind.Simple)
             {
                 sb.AppendJoin(" + ", step.Filters.Select(f => f.Description));
             }
@@ -305,7 +305,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
             .AppendLine();
 
         var step = _steps[failedStepIndex];
-        if (step.Kind == SequenceStepKind.Simple)
+        if (step.Kind is SequenceStepKind.Simple)
         {
             sb.Append("Step filters: ")
                 .AppendJoin(" + ", step.Filters.Select(f => f.Description));
