@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`LogSnapshotRendererSnapshotTests`** in `LogAssertions.TUnit.SnapshotTests`: an end-to-end test pairing `LogSnapshotRenderer.Render(...)` with `MatchesSnapshot()` against a committed baseline, the same renderer-snapshot pairing test `MathAssertions.TUnit` and `TimeAssertions.TUnit` already carry. Closes the family-consistency gap noted as a fast-follow in the v0.5.0 cycle.
+
+### Changed
+
+- **TUnit dependency bumped `1.44.0` -> `1.44.39`** (and the external-consumer smoke-test pin). 1.44.39 carries the `[GenerateAssertion]` source-generator fix for value-type optional parameters; no behavioural change for this package, taken for family lockstep. `packages.lock.json` regenerated.
+- **`CONVENTIONS.md` updated to v0.4**: added `JsonAssertions.TUnit` (the fifth family package, JSON path / value / shape assertions) to the family roster. The file is copied identically across all five repos.
+
+### Documentation
+
+- Dropped brittle, hard-to-verify upstream-TUnit version archaeology from `README.md` (the exact TUnit version that first shipped `[AssertionExtension]` / `TestContext`); the requirement line now states the current pinned floor only.
+
 ## [0.5.0] - 2026-05-14: LogSnapshotRenderer + family dependency lockstep
 
 Minor release. Adds the first concrete renderer under the family-shared `*.Render` namespace convention: `LogAssertions.Render.LogSnapshotRenderer` turns a `FakeLogCollector`'s captured records into deterministic, snapshot-friendly text, complementing the per-record `HasLogged()` predicate chain with full-sequence pinning. Also brings the dependency pins back into lockstep with the rest of the assertion family (TimeAssertions v0.4.0 moved the baseline forward on 2026-05-13). No breaking changes; the public surface grows by one new namespace; no behavioural change to existing API. The `LogAssertions.TUnit` adapter package carries a lockstep version bump with no functional change.
