@@ -72,7 +72,7 @@ This library replaces both with a fluent DSL that integrates with TUnit's assert
 dotnet add package LogAssertions.TUnit
 ```
 
-**Requirements:** TUnit 1.44.0+ (declares `TUnit.Core` 1.44.0 and `TUnit.Assertions` 1.44.0 as transitive dependencies; `[AssertionExtension]` itself ships from TUnit 1.41.0+, but `DumpToTestOutput()` requires `TestContext` from `TUnit.Core` 1.43.11+), .NET 10. The package is AOT-compatible, trimmable, and uses no reflection in the assertion path.
+**Requirements:** TUnit 1.44.39+, .NET 10. The package is AOT-compatible, trimmable, and uses no reflection in the assertion path.
 
 ## Package layout
 
@@ -873,7 +873,7 @@ Three issues that surface during early adoption. If you hit something not listed
 
 ## Design notes
 
-- **Built on `[AssertionExtension]`** (TUnit 1.41.0+, [thomhurst/TUnit#5785](https://github.com/thomhurst/TUnit/pull/5785)): the entry-point methods are emitted by TUnit's source generator. No extension-method wrappers needed.
+- **Built on `[AssertionExtension]`** ([thomhurst/TUnit#5785](https://github.com/thomhurst/TUnit/pull/5785)): the entry-point methods are emitted by TUnit's source generator. No extension-method wrappers needed.
 - **No cross-package coupling.** This package depends on `TUnit.Assertions` and `Microsoft.Extensions.Diagnostics.Testing`. Neither of those depends on the other; this library is the bridge.
 - **AOT-compatible / trimmable.** `IsAotCompatible=true`, `IsTrimmable=true`, `EnableTrimAnalyzer=true`. No reflection in the assertion path. Scope-property matching uses interface casts only, never reflection.
 - **TFM policy: LTS-anchored, multi-target during STS support windows:** targets `net10.0` today (the current LTS, supported through November 2028). When .NET 11 ships as a non-LTS (STS) release, the package multi-targets `net10.0;net11.0`. When the next LTS (.NET 12) ships, both 10 and 11 are dropped on the same release; the new LTS becomes the single target until its STS sibling lands the following November. Wide multi-targeting (`net8;net9;net10`) is explicitly out: the goal is "current LTS, plus current STS while it exists", never long historical tails. See `CONVENTIONS.md` for the full schedule.
@@ -1010,7 +1010,7 @@ For per-package release notes:
 
 ## Background
 
-The TUnit feature request that motivated this package was [thomhurst/TUnit#5627](https://github.com/thomhurst/TUnit/issues/5627), declined on architectural grounds (no cross-package coupling between `TUnit.Logging.Microsoft` and `TUnit.Assertions`). The user-space pattern was unblocked when [thomhurst/TUnit#5785](https://github.com/thomhurst/TUnit/pull/5785) shipped `[AssertionExtension]` infrastructure in TUnit 1.41.0. This package implements the user-space pattern.
+The TUnit feature request that motivated this package was [thomhurst/TUnit#5627](https://github.com/thomhurst/TUnit/issues/5627), declined on architectural grounds (no cross-package coupling between `TUnit.Logging.Microsoft` and `TUnit.Assertions`). The user-space pattern was unblocked when [thomhurst/TUnit#5785](https://github.com/thomhurst/TUnit/pull/5785) shipped `[AssertionExtension]` infrastructure. This package implements the user-space pattern.
 
 ## Contributing
 
