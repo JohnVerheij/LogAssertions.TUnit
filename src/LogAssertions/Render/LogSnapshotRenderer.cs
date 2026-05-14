@@ -59,10 +59,11 @@ namespace LogAssertions.Render;
 /// </para>
 /// <para>
 /// <b>Defensive structured-state handling.</b> The renderer reads <see cref="FakeLogRecord"/>
-/// state via a direct cast on <see cref="FakeLogRecord.State"/> rather than the
-/// <see cref="FakeLogRecord.StructuredState"/> property, which throws when state is not a
-/// key-value-pair list (e.g. <c>ILogger.Log&lt;TState&gt;</c> with a custom typed state). A
-/// record with non-KVP state simply renders without a <c>state:</c> line instead of throwing.
+/// state through the <see cref="FakeLogRecord.StructuredState"/> property inside a
+/// <see langword="try"/>/<see langword="catch"/> for <see cref="InvalidCastException"/>. That
+/// property hard-casts the captured state to a key-value-pair list and throws when it is not
+/// one (e.g. <c>ILogger.Log&lt;TState&gt;</c> with a custom typed state); a record with
+/// non-KVP state simply renders without a <c>state:</c> line instead of throwing.
 /// </para>
 /// </remarks>
 public static class LogSnapshotRenderer
@@ -157,11 +158,12 @@ public static class LogSnapshotRenderer
         {
             state = record.StructuredState;
         }
-        catch (InvalidOperationException)
+        catch (InvalidCastException)
         {
-            // FakeLogRecord.StructuredState throws when the captured state is a custom typed
-            // object rather than a key-value-pair list (e.g. ILogger.Log<TState> with a
-            // custom TState). Such a record renders without a state line instead of throwing.
+            // FakeLogRecord.StructuredState hard-casts the captured state to a key-value-pair
+            // list and throws InvalidCastException when it is a custom typed object instead
+            // (e.g. ILogger.Log<TState> with a custom TState). Such a record renders without
+            // a state line instead of throwing.
             return;
         }
 
