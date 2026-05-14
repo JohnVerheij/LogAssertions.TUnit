@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-05-14: LogSnapshotRenderer + family dependency lockstep
+
+Minor release. Adds the first concrete renderer under the family-shared `*.Render` namespace convention: `LogAssertions.Render.LogSnapshotRenderer` turns a `FakeLogCollector`'s captured records into deterministic, snapshot-friendly text, complementing the per-record `HasLogged()` predicate chain with full-sequence pinning. Also brings the dependency pins back into lockstep with the rest of the assertion family (TimeAssertions v0.4.0 moved the baseline forward on 2026-05-13). No breaking changes; the public surface grows by one new namespace; no behavioural change to existing API. The `LogAssertions.TUnit` adapter package carries a lockstep version bump with no functional change.
+
+### Added (LogAssertions, framework-agnostic core)
+
+- **`LogAssertions.Render.LogSnapshotRenderer.Render(FakeLogCollector, LogSnapshotOptions?)`** renders every captured record as deterministic multi-line text suitable for snapshot comparison. Each record renders as a `[NN] level category "message"` header followed by optional indented `state:`, `scope:`, and `exception:` detail lines; records are separated by a single blank line; an empty collector renders as `string.Empty`.
+  - **Cross-platform stable.** Lines are terminated with the literal LF byte, never `Environment.NewLine`, so a baseline committed on one OS stays valid for test runs on every other.
+  - **No baked-in scrubbing.** The renderer emits captured text verbatim; volatile values (GUIDs, timestamps, durations) are the snapshot layer's concern, composed via `SnapshotAssertions.Scrubbers` at the `MatchesSnapshot()` call site. Rendering and scrubbing stay separate so neither has to know about the other.
+  - **Stability contract.** Unlike `LogAssertionRendering` (whose output is explicitly *not* stable, for failure messages only), `LogSnapshotRenderer`'s output is a stable, pin-able contract.
+  - **Defensive structured-state handling.** State is read via a guarded access to `FakeLogRecord.StructuredState`; a record carrying custom typed (non-key-value-pair) state renders without a `state:` line rather than throwing.
+  - The renderer takes no dependency on `SnapshotAssertions.TUnit`; the canonical pairing is the two-line `Assert.That(LogSnapshotRenderer.Render(collector)).MatchesSnapshot()` composition.
+- **`LogAssertions.Render.LogSnapshotOptions`** controls rendering: `LevelStyle` (`Abbreviation` / `Full`), `CategoryStyle` (`LeafOnly` / `Full`), `ScopeStyle` (`Include` / `Exclude`), `ExceptionStyle` (`TypeAndMessage` / `StackTracePlaceholder` / `Full`). `LogSnapshotOptions.Default` exposes the all-default instance.
+- **`LogAssertions.Render.LogLevelStyle`, `CategoryStyle`, `ScopeStyle`, `ExceptionStyle`** enums backing the options above.
+
+### Changed
+
+- **Dependency refresh** to bring the pins back into lockstep with the rest of the assertion family (TimeAssertions v0.4.0 moved the baseline forward):
+  - `DotNetProjectFile.Analyzers`: 1.13.1 -> 1.14.0
+  - `Meziantou.Analyzer`: 3.0.78 -> 3.0.84
+  - `Microsoft.Extensions.Diagnostics.Testing`: 10.5.0 -> 10.6.0
+  - `Microsoft.SourceLink.GitHub`: 10.0.203 -> 10.0.300
+- The external-consumer smoke-test project's explicit `Microsoft.Extensions.Diagnostics.Testing` pin and floating `LogAssertions.TUnit` pre-release pattern updated to match.
+
+### Documentation
+
+- **New cookbook section "Pin the full log sequence as a snapshot"** in `README.md`. Worked example pairing `LogSnapshotRenderer.Render(collector)` with `MatchesSnapshot()` from `SnapshotAssertions.TUnit`, documenting the two-line composition and the `LogSnapshotOptions` surface.
+- Roadmap section ("Limitations and future work") updated for the v0.5.0 surface.
+
+### Tests
+
+- **`LogSnapshotRendererTests`** (framework-agnostic, in `LogAssertions.Tests`): empty-collector renders empty string; single-record header shape; multi-record blank-line separation with zero-padded indices; `LevelStyle.Full`; `CategoryStyle` leaf-vs-full; structured-state rendering with `{OriginalFormat}` skipped; `ScopeStyle` include-vs-exclude; all three `ExceptionStyle` modes; LF-only line endings; null-collector argument validation.
+- Public API snapshot updated for the additive `LogAssertions.Render` namespace.
+
+### Quality
+
+- ApiCompat strict-mode validation against the 0.4.1 baseline. Six new `CP0001` baseline suppressions in `src/LogAssertions/CompatibilitySuppressions.xml` record the additive `LogAssertions.Render` types (`LogSnapshotRenderer`, `LogSnapshotOptions`, and the four style enums) as intentional, accepted differences from the baseline. The `CP0003` assembly-version target advanced 0.4.0 → 0.4.1 in both packages' suppression files.
+
 ## [0.4.1] - 2026-05-12: Dependency refresh and source-style modernisation
 
 Patch release. Brings dependency pins into lockstep with the rest of the assertion family, tightens the source-style ratchet for production code via `MeziantouAnalysisMode=all-warnings`, and folds in the family-wide `CONVENTIONS.md` v0.3. No public API change.
@@ -352,7 +390,9 @@ Why the split: positions the package family for hypothetical future adapters (`L
 
 This package implements the user-space pattern that the TUnit maintainer pointed at when declining [thomhurst/TUnit#5627](https://github.com/thomhurst/TUnit/issues/5627). The `[AssertionExtension]` infrastructure that makes this clean shipped in TUnit 1.41.0 via [thomhurst/TUnit#5785](https://github.com/thomhurst/TUnit/pull/5785).
 
-[Unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.5.0
+[0.4.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.4.1
 [0.4.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.4.0
 [0.3.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.3.0
 [0.2.4]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.2.4
