@@ -1,0 +1,5 @@
+[00] info OrderService "order 42 accepted"
+    state: OrderId=42
+
+[01] warn OrderService "inventory low for ABC-123"
+    state: Sku=ABC-123
