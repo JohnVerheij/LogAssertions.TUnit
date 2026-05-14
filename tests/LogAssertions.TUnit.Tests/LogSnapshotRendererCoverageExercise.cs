@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using LogAssertions;
 using LogAssertions.Render;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Testing;
 
 namespace LogAssertions.TUnit.Tests;
 
@@ -84,12 +85,15 @@ internal sealed class LogSnapshotRendererCoverageExercise
             logger.LogInformation("order {OrderId} for {Customer}", 42, "Acme");
             logger.Log(LogLevel.Information, new EventId(0), new CustomState("payload"), null, static (s, _) => s.Text);
             logger.Log<object?>(LogLevel.Information, new EventId(0), null, null, static (_, _) => "nullstate");
+            logger.LogInformation("user {UserId}", (object?)null);
 #pragma warning restore CA1848, CA1873
 
             var rendered = LogSnapshotRenderer.Render(collector);
             // Two placeholders so the state loop walks both the first (" state: ") and
-            // subsequent ("; ") separator branches.
+            // subsequent ("; ") separator branches; the null placeholder value drives the
+            // kvp.Value ?? "null" fall-back.
             await Assert.That(rendered).Contains("    state: OrderId=42; Customer=Acme\n");
+            await Assert.That(rendered).Contains("    state: UserId=null\n");
             await Assert.That(rendered).DoesNotContain("OriginalFormat");
             // Custom non-KVP state and null state both render as a header with no state line.
             await Assert.That(rendered).Contains("[01] info Svc \"payload\"\n");
@@ -190,6 +194,25 @@ internal sealed class LogSnapshotRendererCoverageExercise
             await Assert.That(rendered).Contains("    scope: null\n");
             await Assert.That(rendered).Contains("Payload=null");
         }
+    }
+
+    /// <summary>Exercises the <c>record.Category ?? string.Empty</c> null-category fall-back.
+    /// A <see cref="FakeLogger"/> constructed directly carries a null category; the logger
+    /// factory rejects a null category name, so this is the only way to reach the branch.</summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task RendersNullCategory(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var collector = new FakeLogCollector();
+        var logger = new FakeLogger(collector);
+#pragma warning disable CA1848, CA1873
+        logger.LogInformation("no category");
+#pragma warning restore CA1848, CA1873
+
+        await Assert.That(LogSnapshotRenderer.Render(collector))
+            .IsEqualTo("[00] info  \"no category\"\n");
     }
 
     /// <summary>Exercises the null-collector argument-validation branch.</summary>
