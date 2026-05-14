@@ -24,6 +24,17 @@ internal sealed class LogSnapshotRendererCoverageExercise
     /// <see cref="LogSnapshotRenderer"/> guarded-<c>StructuredState</c> branch.</summary>
     private sealed record CustomState(string Text);
 
+    /// <summary>A scope value whose <see cref="object.ToString"/> returns <see langword="null"/>,
+    /// used to drive the renderer's <c>?? "null"</c> defensive fall-backs around
+    /// <see cref="Convert.ToString(object?, IFormatProvider?)"/>.</summary>
+    private sealed class NullToString
+    {
+        /// <inheritdoc/>
+#pragma warning disable S2225 // Returning null is the point: it drives the renderer's Convert.ToString(...) ?? "null" guard.
+        public override string? ToString() => null;
+#pragma warning restore S2225
+    }
+
     /// <summary>Exercises empty input, multi-record separation, both level styles, and the
     /// category-rendering branches (leaf-only trim, plain name, full dotted name).</summary>
     /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
@@ -70,13 +81,15 @@ internal sealed class LogSnapshotRendererCoverageExercise
         {
             var logger = factory.CreateLogger("Svc");
 #pragma warning disable CA1848, CA1873
-            logger.LogInformation("order {OrderId}", 42);
+            logger.LogInformation("order {OrderId} for {Customer}", 42, "Acme");
             logger.Log(LogLevel.Information, new EventId(0), new CustomState("payload"), null, static (s, _) => s.Text);
             logger.Log<object?>(LogLevel.Information, new EventId(0), null, null, static (_, _) => "nullstate");
 #pragma warning restore CA1848, CA1873
 
             var rendered = LogSnapshotRenderer.Render(collector);
-            await Assert.That(rendered).Contains("    state: OrderId=42\n");
+            // Two placeholders so the state loop walks both the first (" state: ") and
+            // subsequent ("; ") separator branches.
+            await Assert.That(rendered).Contains("    state: OrderId=42; Customer=Acme\n");
             await Assert.That(rendered).DoesNotContain("OriginalFormat");
             // Custom non-KVP state and null state both render as a header with no state line.
             await Assert.That(rendered).Contains("[01] info Svc \"payload\"\n");
@@ -143,6 +156,39 @@ internal sealed class LogSnapshotRendererCoverageExercise
 
             var fullException = LogSnapshotOptions.Default with { ExceptionStyle = ExceptionStyle.Full };
             await Assert.That(LogSnapshotRenderer.Render(collector, fullException)).Contains("    exception:\n");
+        }
+    }
+
+    /// <summary>Exercises the renderer's <c>?? "null"</c> defensive fall-backs: a scope object
+    /// and a scope key-value-pair value whose <see cref="object.ToString"/> returns
+    /// <see langword="null"/>.</summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task RendersNullToStringDefensiveBranches(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var (factory, collector) = LogCollectorBuilder.Create();
+        using (factory)
+        {
+            var logger = factory.CreateLogger("Svc");
+#pragma warning disable CA1848, CA1873
+            // Plain-object scope whose ToString() is null: hits the fall-through Convert.ToString.
+            using (logger.BeginScope(new NullToString()))
+            {
+                logger.LogInformation("plain-object scope");
+            }
+
+            // Key-value-pair scope whose value's ToString() is null.
+            using (logger.BeginScope("data {Payload}", new NullToString()))
+            {
+                logger.LogInformation("kvp scope");
+            }
+#pragma warning restore CA1848, CA1873
+
+            var rendered = LogSnapshotRenderer.Render(collector);
+            await Assert.That(rendered).Contains("    scope: null\n");
+            await Assert.That(rendered).Contains("Payload=null");
         }
     }
 
