@@ -2,8 +2,50 @@
 <!-- https://learn.microsoft.com/dotnet/fundamentals/package-validation/diagnostic-ids -->
 <Suppressions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <Suppression>
+    <DiagnosticId>CP0001</DiagnosticId>
+    <Target>T:LogAssertions.Render.CategoryStyle</Target>
+    <Left>lib/net10.0/LogAssertions.dll</Left>
+    <Right>lib/net10.0/LogAssertions.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0001</DiagnosticId>
+    <Target>T:LogAssertions.Render.ExceptionStyle</Target>
+    <Left>lib/net10.0/LogAssertions.dll</Left>
+    <Right>lib/net10.0/LogAssertions.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0001</DiagnosticId>
+    <Target>T:LogAssertions.Render.LogLevelStyle</Target>
+    <Left>lib/net10.0/LogAssertions.dll</Left>
+    <Right>lib/net10.0/LogAssertions.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0001</DiagnosticId>
+    <Target>T:LogAssertions.Render.LogSnapshotOptions</Target>
+    <Left>lib/net10.0/LogAssertions.dll</Left>
+    <Right>lib/net10.0/LogAssertions.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0001</DiagnosticId>
+    <Target>T:LogAssertions.Render.LogSnapshotRenderer</Target>
+    <Left>lib/net10.0/LogAssertions.dll</Left>
+    <Right>lib/net10.0/LogAssertions.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0001</DiagnosticId>
+    <Target>T:LogAssertions.Render.ScopeStyle</Target>
+    <Left>lib/net10.0/LogAssertions.dll</Left>
+    <Right>lib/net10.0/LogAssertions.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
     <DiagnosticId>CP0003</DiagnosticId>
-    <Target>LogAssertions, Version=0.4.0.0, Culture=neutral, PublicKeyToken=null</Target>
+    <Target>LogAssertions, Version=0.4.1.0, Culture=neutral, PublicKeyToken=null</Target>
     <Left>lib/net10.0/LogAssertions.dll</Left>
     <Right>lib/net10.0/LogAssertions.dll</Right>
     <IsBaselineSuppression>true</IsBaselineSuppression>

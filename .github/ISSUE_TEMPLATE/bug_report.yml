@@ -13,7 +13,7 @@ body:
     id: version
     attributes:
       label: LogAssertions.TUnit version
-      placeholder: "0.4.1"
+      placeholder: "0.5.0"
     validations:
       required: true
 

@@ -74,3 +74,40 @@ namespace LogAssertions
         public static LogAssertions.ILogRecordFilter WithScopeProperty(string key, object? value) { }
     }
 }
+namespace LogAssertions.Render
+{
+    public enum CategoryStyle
+    {
+        LeafOnly = 0,
+        Full = 1,
+    }
+    public enum ExceptionStyle
+    {
+        TypeAndMessage = 0,
+        StackTracePlaceholder = 1,
+        Full = 2,
+    }
+    public enum LogLevelStyle
+    {
+        Abbreviation = 0,
+        Full = 1,
+    }
+    public sealed class LogSnapshotOptions : System.IEquatable<LogAssertions.Render.LogSnapshotOptions>
+    {
+        public LogSnapshotOptions() { }
+        public LogAssertions.Render.CategoryStyle CategoryStyle { get; init; }
+        public LogAssertions.Render.ExceptionStyle ExceptionStyle { get; init; }
+        public LogAssertions.Render.LogLevelStyle LevelStyle { get; init; }
+        public LogAssertions.Render.ScopeStyle ScopeStyle { get; init; }
+        public static LogAssertions.Render.LogSnapshotOptions Default { get; }
+    }
+    public static class LogSnapshotRenderer
+    {
+        public static string Render(Microsoft.Extensions.Logging.Testing.FakeLogCollector collector, LogAssertions.Render.LogSnapshotOptions? options = null) { }
+    }
+    public enum ScopeStyle
+    {
+        Include = 0,
+        Exclude = 1,
+    }
+}
