@@ -813,6 +813,32 @@ var retries = collector.Filter(
     LogFilter.Containing("retry", StringComparison.Ordinal));
 ```
 
+### Pin the full log sequence as a snapshot
+
+The `HasLogged().Containing(...)` chain pins individual records. To pin the *entire emitted sequence*, so a regression that reorders, drops, or inserts records is caught even when the per-record predicates still pass, render the collector to deterministic text and snapshot it:
+
+```csharp
+using LogAssertions.Render;
+
+var rendered = LogSnapshotRenderer.Render(collector);
+await Assert.That(rendered).MatchesSnapshot();
+```
+
+`LogSnapshotRenderer` lives in the framework-agnostic `LogAssertions` core; `MatchesSnapshot()` is from the sibling [`SnapshotAssertions.TUnit`](https://github.com/JohnVerheij/SnapshotAssertions.TUnit) package. The two-line composition is deliberate: the renderer never takes a hard dependency on a snapshot framework.
+
+The rendered text is verbatim and deterministic: LF line endings (a baseline committed on one OS stays valid on every other), capture order preserved, no baked-in scrubbing. Volatile values (GUIDs, timestamps, durations in message bodies) are the snapshot layer's concern: compose `SnapshotAssertions.Scrubbers` at the `MatchesSnapshot()` call site.
+
+`LogSnapshotOptions` controls the rendering: level abbreviation vs full name, leaf vs full category, scope inclusion, and exception detail:
+
+```csharp
+var options = LogSnapshotOptions.Default with
+{
+    LevelStyle = LogLevelStyle.Full,
+    ExceptionStyle = ExceptionStyle.StackTracePlaceholder,
+};
+await Assert.That(LogSnapshotRenderer.Render(collector, options)).MatchesSnapshot();
+```
+
 ---
 
 ## Troubleshooting
@@ -888,7 +914,13 @@ Per [SemVer](https://semver.org/), the `0.x` series is initial development: anyt
 
 ## Limitations and future work
 
-The current 0.4.0 surface covers the high-frequency 80%+ of real-world log-assertion needs: composable filters (now including inner-exception and multi-property scope filters), all common count terminators (including value-returning `GetMatch`/`GetMatches`), sequence assertions with both strict-order (`Then`) and concurrent-group (`ThenAnyOrder`) semantics, scope-property subset matching, batch assertions (`AssertAllAsync` and `Assert.Multiple` interop), `Because` reason annotation, the inspection extensions (including TUnit-aware `DumpToTestOutput` with verbosity control), and the framework-agnostic core split. The list below is the candidate backlog for future versions; nothing here is committed and nothing will be built without demonstrated demand.
+The current 0.5.0 surface covers the high-frequency 80%+ of real-world log-assertion needs: composable filters (now including inner-exception and multi-property scope filters), all common count terminators (including value-returning `GetMatch`/`GetMatches`), sequence assertions with both strict-order (`Then`) and concurrent-group (`ThenAnyOrder`) semantics, scope-property subset matching, batch assertions (`AssertAllAsync` and `Assert.Multiple` interop), `Because` reason annotation, the inspection extensions (including TUnit-aware `DumpToTestOutput` with verbosity control), the framework-agnostic core split, and the `LogSnapshotRenderer` for pinning a full log sequence as a deterministic snapshot. The list below is the candidate backlog for future versions; nothing here is committed and nothing will be built without demonstrated demand.
+
+### Shipped in v0.5.0
+
+Items that landed in this release. Documented here for historical context; the surfaces themselves live in the relevant sections above.
+
+- **`LogAssertions.Render.LogSnapshotRenderer` + `LogSnapshotOptions`**: renders a `FakeLogCollector` to deterministic, snapshot-friendly text (LF line endings, capture order preserved, no baked-in scrubbing). Pairs with `MatchesSnapshot()` from `SnapshotAssertions.TUnit` to pin a full log sequence, catching reorder / drop / insert regressions that per-record predicates miss. `LogSnapshotOptions` controls level, category, scope, and exception rendering. See [Pin the full log sequence as a snapshot](#pin-the-full-log-sequence-as-a-snapshot).
 
 ### Shipped in v0.4.0
 
@@ -907,7 +939,7 @@ Items that landed in this release. Documented here for historical context; the s
 - **External-consumer smoke-test project in CI**: `tests/LogAssertions.TUnit.SmokeTest/` consumes the just-packed nupkg via `PackageReference` from a deliberately-different namespace (`Smoke.Consumer.*`). Pins the v0.2.0/v0.2.1 namespace-resolution regression closed at build time.
 - **Documentation interop pins:** `Because`, `Assert.Multiple`, `[NotInParallel]` guidance, Troubleshooting FAQ. See [TUnit-native conveniences](#tunit-native-conveniences-because-parallelism-should) and [Troubleshooting](#troubleshooting).
 
-### Plausible v0.5.0 (queued; no commitment)
+### Plausible v0.6.0 (queued; no commitment)
 
 These items are concrete and tracked but require either consumer demand or upstream movement before they ship.
 
@@ -920,7 +952,7 @@ These items are concrete and tracked but require either consumer demand or upstr
 - **Cursor / direction:** `FromNewest()` / `FromOldest()` direction control, `SinceLastAssert()` watermark, `Pin()` snapshot pinning, `HasLoggedDistinct(int)` (dedupe + count).
 - **`HasNotLoggedSequence()`**: mirror of `HasLoggedSequence`, asserts a specific sequence did NOT occur.
 
-### Possible v0.5.0+ (longer horizon, no commitment)
+### Possible v0.6.0+ (longer horizon, no commitment)
 
 Larger pieces of work that need either real demand or a separate package. None of these is on a timeline.
 

@@ -75,16 +75,16 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" Version="10.5.0" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" Version="10.6.0" />
     <PackageReference Include="TUnit" Version="1.44.0" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(ArtifactsLocalFeedExists)' == 'true'">
-    <!-- Floating version: consumes whatever 0.4.x preview was packed into the local feed at
-         ../../artifacts. Use a wide pre-release pattern so any 0.4.1-rc / 0.4.1 also resolves
+    <!-- Floating version: consumes whatever 0.5.x preview was packed into the local feed at
+         ../../artifacts. Use a wide pre-release pattern so any 0.5.0-rc / 0.5.0 also resolves
          once published, which lets local devs run this against either a freshly-packed nupkg
          or a real published version. -->
-    <PackageReference Include="LogAssertions.TUnit" Version="0.4.1-*" />
+    <PackageReference Include="LogAssertions.TUnit" Version="0.5.0-*" />
   </ItemGroup>
 
 </Project>
