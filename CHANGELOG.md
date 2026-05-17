@@ -14,11 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **TUnit dependency bumped `1.44.0` -> `1.44.39`** (and the external-consumer smoke-test pin). 1.44.39 carries the `[GenerateAssertion]` source-generator fix for value-type optional parameters; no behavioural change for this package, taken for family lockstep. `packages.lock.json` regenerated.
-- **`CONVENTIONS.md` updated to v0.4**: added `JsonAssertions.TUnit` (the fifth family package, JSON path / value / shape assertions) to the family roster. The file is copied identically across all five repos.
-
-### Documentation
-
-- Dropped brittle, hard-to-verify upstream-TUnit version archaeology from `README.md` (the exact TUnit version that first shipped `[AssertionExtension]` / `TestContext`); the requirement line now states the current pinned floor only.
+- **`CONVENTIONS.md` updated to v0.7** (cumulative v0.5 -> v0.7): adds `JsonAssertions.TUnit` (the fifth family package, JSON path / value / shape assertions) and `SseAssertions.TUnit` (the sixth family package, Server-Sent Events wire-format assertions) to the family roster, formalises a per-package strict-scope policy with explicit scope statements for all six packages, and clarifies the core+adapter packaging rule (five of six packages are core+adapter; `JsonAssertions.TUnit` is the sole single-package member). The file is copied identically across all six repos.
+- **`README.md` family roster** expanded to six packages: `JsonAssertions.TUnit` and `SseAssertions.TUnit` added to the "Family compatibility", "Pair with", and the "shared across" line in the Contributing section.
+- **`README.md`** dropped brittle, hard-to-verify upstream-TUnit version archaeology (the exact TUnit version that first shipped `[AssertionExtension]` / `TestContext`); the requirement line now states the current pinned floor only.
 
 ## [0.5.0] - 2026-05-14: LogSnapshotRenderer + family dependency lockstep
 
