@@ -38,7 +38,8 @@
       "_appFooter": "MIT. Copyright (c) 2026 John Verheij.",
       "_enableSearch": true,
       "_enableNewTab": true,
-      "_disableContribution": true
+      "_disableContribution": true,
+      "_disableBreadcrumb": true
     },
     "markdownEngineName": "markdig"
   }
