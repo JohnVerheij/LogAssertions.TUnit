@@ -38,11 +38,7 @@
       "_appFooter": "MIT. Copyright (c) 2026 John Verheij.",
       "_enableSearch": true,
       "_enableNewTab": true,
-      "_disableContribution": true,
-      "_gitContribute": {
-        "repo": "https://github.com/JohnVerheij/LogAssertions.TUnit",
-        "branch": "main"
-      }
+      "_disableContribution": true
     },
     "markdownEngineName": "markdig"
   }
