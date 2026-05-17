@@ -1,0 +1,49 @@
+{
+  "metadata": [
+    {
+      "src": [
+        {
+          "src": "..",
+          "files": [
+            "src/LogAssertions/LogAssertions.csproj",
+            "src/LogAssertions.TUnit/LogAssertions.TUnit.csproj"
+          ]
+        }
+      ],
+      "dest": "api",
+      "outputFormat": "mref",
+      "memberLayout": "samePage",
+      "includePrivateMembers": false,
+      "disableGitFeatures": false,
+      "filter": "filterConfig.yml"
+    }
+  ],
+  "build": {
+    "content": [
+      {
+        "files": ["**/*.{md,yml}"],
+        "exclude": ["_site/**", "obj/**"]
+      }
+    ],
+    "resource": [
+      {
+        "files": ["CNAME"]
+      }
+    ],
+    "output": "_site",
+    "template": ["default", "modern"],
+    "globalMetadata": {
+      "_appName": "LogAssertions.TUnit",
+      "_appTitle": "LogAssertions.TUnit",
+      "_appFooter": "MIT. Copyright (c) 2026 John Verheij.",
+      "_enableSearch": true,
+      "_enableNewTab": true,
+      "_disableContribution": true,
+      "_gitContribute": {
+        "repo": "https://github.com/JohnVerheij/LogAssertions.TUnit",
+        "branch": "main"
+      }
+    },
+    "markdownEngineName": "markdig"
+  }
+}
