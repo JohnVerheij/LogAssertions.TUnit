@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`TUnit`** dependency bumped `1.44.0` → `1.44.39` (and the external-consumer smoke-test pin). 1.44.39 carries the `[GenerateAssertion]` source-generator fix for value-type optional parameters; no behavioural change for this package, taken for family lockstep. `packages.lock.json` regenerated.
 - **`README.md`**: expanded the Family roster to six packages, adding `JsonAssertions.TUnit` and `SseAssertions.TUnit` to the "Family compatibility", "Pair with", and Contributing sections.
 - **`README.md`**: removed brittle upstream-TUnit version archaeology (the exact TUnit version that first shipped `[AssertionExtension]` / `TestContext`); the requirement line now states the current pinned floor only.
-- **`docs/toc.yml`**: added a "Project" dropdown grouping `Contributing` / `Code of Conduct` / `Security` / `License` so the top nav stays at six entries instead of fanning out linearly.
+- **`docs/toc.yml`**: surfaced `Security` and `License` in the top nav as flat entries. `Contributing` and `Code of Conduct` remain accessible via the README cross-links on the home page (the DocFX modern template does not render nested-`items:` top-level entries as dropdowns, only as sidebar groupings on child pages, so a "Project" parent was unreachable from the top nav).
 - **`.github/workflows/docs.yml`**: extended the doc-source copy step to ship `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, and `LICENSE` alongside the existing `README.md` / `CHANGELOG.md` / `CONVENTIONS.md` copies. All sources already lived in the repo; the docs site now surfaces them.
 
 ### Fixed
