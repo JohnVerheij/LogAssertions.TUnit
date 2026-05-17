@@ -1,7 +1,7 @@
 - name: Home
   href: index.md
 - name: API
-  href: api/
+  href: api/LogAssertions.html
 - name: CHANGELOG
   href: changelog.md
 - name: Conventions
