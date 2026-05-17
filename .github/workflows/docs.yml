@@ -43,6 +43,10 @@ jobs:
           cp README.md docs/index.md
           cp CHANGELOG.md docs/changelog.md
           cp CONVENTIONS.md docs/conventions.md
+          cp CONTRIBUTING.md docs/contributing.md
+          cp CODE_OF_CONDUCT.md docs/coc.md
+          cp SECURITY.md docs/security.md
+          { echo "# License"; echo; echo '```'; cat LICENSE; echo '```'; } > docs/license.md
 
       - name: Build docs
         run: docfx docs/docfx.json
