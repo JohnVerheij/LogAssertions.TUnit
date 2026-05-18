@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`README.md`**: removed brittle upstream-TUnit version archaeology (the exact TUnit version that first shipped `[AssertionExtension]` / `TestContext`); the requirement line now states the current pinned floor only.
 - **`docs/toc.yml`**: added a "Project" dropdown in the top nav grouping `Contributing` / `Code of Conduct` / `Security` / `License` so the top nav stays at six entries instead of fanning out linearly.
 - **`.github/workflows/docs.yml`**: extended the doc-source copy step to ship `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, and `LICENSE` alongside the existing `README.md` / `CHANGELOG.md` / `CONVENTIONS.md` copies. All sources already lived in the repo; the docs site now surfaces them.
+- **`docs/public/main.css`** + `docs/docfx.json` resource glob: hid the default DocFX template logo via `.navbar-brand img { display: none; }`. The navbar now shows only the `_appName` text. No custom logo authored.
 
 ### Fixed
 
