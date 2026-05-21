@@ -255,7 +255,6 @@
         "type": "Project",
         "dependencies": {
           "LogAssertions": "[0.5.0, )",
-          "Microsoft.Extensions.Diagnostics.Testing": "[10.6.0, )",
           "TUnit.Assertions": "[1.44.39, )",
           "TUnit.Core": "[1.44.39, )"
         }
