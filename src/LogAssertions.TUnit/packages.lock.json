@@ -20,17 +20,6 @@
         "resolved": "4.14.0",
         "contentHash": "gSWJlDWwmDhtbrEJGiHqvEjz9KthIiFD0qYB8zZ6a7z+xpMSPEtM9yTYELSa58iFWYlzSRqP9FXO6KoT3+ZMtg=="
       },
-      "Microsoft.Extensions.Diagnostics.Testing": {
-        "type": "Direct",
-        "requested": "[10.6.0, )",
-        "resolved": "10.6.0",
-        "contentHash": "WFgkep0Nxz0aht9k/OKwXdBOZ/uIB8VULY35ou91BiK4k0gj9CJz985T8GN0Q7XjCOMjNgjVFnv/9FmqcDEivg==",
-        "dependencies": {
-          "Microsoft.Extensions.Logging": "10.0.8",
-          "Microsoft.Extensions.Options.ConfigurationExtensions": "10.0.8",
-          "Microsoft.Extensions.Telemetry.Abstractions": "10.6.0"
-        }
-      },
       "Microsoft.NET.ILLink.Tasks": {
         "type": "Direct",
         "requested": "[10.0.8, )",
@@ -214,6 +203,17 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Extensions.Diagnostics.Testing": "[10.6.0, )"
+        }
+      },
+      "Microsoft.Extensions.Diagnostics.Testing": {
+        "type": "CentralTransitive",
+        "requested": "[10.6.0, )",
+        "resolved": "10.6.0",
+        "contentHash": "WFgkep0Nxz0aht9k/OKwXdBOZ/uIB8VULY35ou91BiK4k0gj9CJz985T8GN0Q7XjCOMjNgjVFnv/9FmqcDEivg==",
+        "dependencies": {
+          "Microsoft.Extensions.Logging": "10.0.8",
+          "Microsoft.Extensions.Options.ConfigurationExtensions": "10.0.8",
+          "Microsoft.Extensions.Telemetry.Abstractions": "10.6.0"
         }
       }
     }

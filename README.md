@@ -914,7 +914,7 @@ Per [SemVer](https://semver.org/), the `0.x` series is initial development: anyt
 
 ## Limitations and future work
 
-The current 0.5.0 surface covers the high-frequency 80%+ of real-world log-assertion needs: composable filters (now including inner-exception and multi-property scope filters), all common count terminators (including value-returning `GetMatch`/`GetMatches`), sequence assertions with both strict-order (`Then`) and concurrent-group (`ThenAnyOrder`) semantics, scope-property subset matching, batch assertions (`AssertAllAsync` and `Assert.Multiple` interop), `Because` reason annotation, the inspection extensions (including TUnit-aware `DumpToTestOutput` with verbosity control), the framework-agnostic core split, and the `LogSnapshotRenderer` for pinning a full log sequence as a deterministic snapshot. The list below is the candidate backlog for future versions; nothing here is committed and nothing will be built without demonstrated demand.
+The current surface covers the high-frequency 80%+ of real-world log-assertion needs: composable filters (now including inner-exception and multi-property scope filters), all common count terminators (including value-returning `GetMatch`/`GetMatches`), sequence assertions with both strict-order (`Then`) and concurrent-group (`ThenAnyOrder`) semantics, scope-property subset matching, batch assertions (`AssertAllAsync` and `Assert.Multiple` interop), `Because` reason annotation, the inspection extensions (including TUnit-aware `DumpToTestOutput` with verbosity control), the framework-agnostic core split, and the `LogSnapshotRenderer` for pinning a full log sequence as a deterministic snapshot. The list below is the candidate backlog for future versions; nothing here is committed and nothing will be built without demonstrated demand.
 
 ### Shipped in v0.5.0
 
@@ -939,7 +939,7 @@ Items that landed in this release. Documented here for historical context; the s
 - **External-consumer smoke-test project in CI**: `tests/LogAssertions.TUnit.SmokeTest/` consumes the just-packed nupkg via `PackageReference` from a deliberately-different namespace (`Smoke.Consumer.*`). Pins the v0.2.0/v0.2.1 namespace-resolution regression closed at build time.
 - **Documentation interop pins:** `Because`, `Assert.Multiple`, `[NotInParallel]` guidance, Troubleshooting FAQ. See [TUnit-native conveniences](#tunit-native-conveniences-because-parallelism-should) and [Troubleshooting](#troubleshooting).
 
-### Plausible v0.6.0 (queued; no commitment)
+### Plausible (queued; no commitment)
 
 These items are concrete and tracked but require either consumer demand or upstream movement before they ship.
 
