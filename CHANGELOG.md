@@ -32,11 +32,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`docs/toc.yml`**: added a "Project" dropdown in the top nav grouping `Contributing` / `Code of Conduct` / `Security` / `License` so the top nav stays at six entries instead of fanning out linearly.
 - **`.github/workflows/docs.yml`**: extended the doc-source copy step to ship `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, and `LICENSE` alongside the existing `README.md` / `CHANGELOG.md` / `CONVENTIONS.md` copies. All sources already lived in the repo; the docs site now surfaces them.
 - **`docs/public/main.css`** + `docs/docfx.json` resource glob: hid the default DocFX template logo via `.navbar-brand img { display: none; }`. The navbar now shows only the `_appName` text. No custom logo authored.
+- Added GitHub Actions workflow security scanning. `.github/workflows/zizmor.yml` runs `zizmor` (blocking, with findings shown as inline annotations) on every workflow change; `.github/workflows/codeql.yml` now analyzes the `actions` language alongside `csharp`; `.github/workflows/scorecard.yml` (OpenSSF Scorecard) and `.github/workflows/dependency-review.yml` (fails a PR that adds a high-severity-vulnerable dependency) are new. Added the Renovate `helpers:pinGitHubActionDigestsToSemver` preset so any newly-introduced action is auto-pinned to a commit SHA. CI-only; no effect on shipped packages.
 
 ### Fixed
 
 - **`docs/toc.yml`**: pointed the top-nav "API" link at `api/LogAssertions.html` rather than the directory `api/`, which DocFX does not render an `index.html` for.
 - **`docs/docfx.json`**: set `_disableBreadcrumb: true` in `globalMetadata` so each rendered page no longer carries a redundant single-segment breadcrumb above the H1.
+
+### Security
+
+- Hardened GitHub Actions token handling: set `persist-credentials: false` on every `actions/checkout` so the repository token is not written into `.git/config`; moved the inline coverage-report expression in `ci.yml` into an `env:` variable to remove a template-injection vector; and scoped workflow write permissions (`security-events` on `codeql`; `contents`/`id-token`/`packages`/`attestations` on `release`) to the job level with a read-only workflow-level default. Also pinned the GitHub Actions in the docs-site workflow (`docs.yml`) to commit SHAs and scoped its `pages` / `id-token` write permissions to the deploy job. CI-only; no released package is affected.
 
 ## [0.5.0] - 2026-05-14
 
