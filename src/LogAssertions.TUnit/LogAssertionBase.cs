@@ -254,19 +254,6 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     }
 
     /// <summary>
-    /// Legacy ordinal-comparison overload kept for binary compatibility with v0.3.x. Prefer
-    /// the explicit-comparison overload above; this alias defaults to
-    /// <see cref="StringComparison.Ordinal"/> and will be removed in v0.6.0.
-    /// </summary>
-    /// <param name="substring">The substring to search for in the exception's message. Must be non-null.</param>
-    /// <returns>This assertion for chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="substring"/> is <see langword="null"/>.</exception>
-    [Obsolete("Use WithExceptionMessage(string substring, StringComparison comparison). This implicit-Ordinal overload will be removed in v0.6.0.", error: false)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S1133:Do not forget to remove this deprecated code someday", Justification = "Two-minor [Obsolete] cycle is intentional; v0.6.0 removes this alias per CONVENTIONS.md StringComparison rule.")]
-    public TSelf WithExceptionMessage(string substring)
-        => WithExceptionMessage(substring, StringComparison.Ordinal);
-
-    /// <summary>
     /// Filters to records whose <see cref="FakeLogRecord.Exception"/> wraps an
     /// <see cref="Exception.InnerException"/> assignable to <typeparamref name="TInner"/>. Walks
     /// only one level (does not search deeper inner exceptions). Designed for the gRPC / RPC

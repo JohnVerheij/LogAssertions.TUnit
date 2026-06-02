@@ -37,6 +37,13 @@
     <IsBaselineSuppression>true</IsBaselineSuppression>
   </Suppression>
   <Suppression>
+    <DiagnosticId>CP0002</DiagnosticId>
+    <Target>M:LogAssertions.TUnit.LogAssertionBase`1.WithExceptionMessage(System.String)</Target>
+    <Left>lib/net10.0/LogAssertions.TUnit.dll</Left>
+    <Right>lib/net10.0/LogAssertions.TUnit.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
     <DiagnosticId>CP0003</DiagnosticId>
     <Target>LogAssertions.TUnit, Version=0.5.0.0, Culture=neutral, PublicKeyToken=null</Target>
     <Left>lib/net10.0/LogAssertions.TUnit.dll</Left>

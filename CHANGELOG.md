@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.6.0] - 2026-06-02
 
+### BREAKING
+
+- The single-arg `WithExceptionMessage(string substring)` overload (on `LogFilter` and on the `HasLoggedAssertion` / `HasNotLoggedAssertion` / `HasLoggedSequenceAssertion` chain), `[Obsolete]` since v0.4.0, has been removed. Append `, StringComparison.Ordinal` to existing call sites to keep the previous behavior, or pass a different comparison for case-insensitive / culture-aware matching. See `### Removed` below.
+
 ### Added
 
 - **`LogFilter.WithoutException()`** and the matching **`WithoutException()`** chain method on `HasLoggedAssertion` / `HasNotLoggedAssertion` / `HasLoggedSequenceAssertion`: matched records whose `Exception` is `null`. The complement of `WithException()`. Lets a test assert the deliberate absence of an exception (for example a record logged at warning or error level with no exception object attached) without the `.Where(r => r.Exception is null)` escape hatch.
@@ -25,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **`TUnit`** / **`TUnit.Assertions`** / **`TUnit.Core`** dependency bumped `1.44.0` → `1.48.6`. Taken for family lockstep; the sibling adapters are on the same pin.
+
+### Removed
+
+- **`LogFilter.WithExceptionMessage(string substring)`** and the matching single-arg `WithExceptionMessage(string)` chain method on `HasLoggedAssertion` / `HasNotLoggedAssertion` / `HasLoggedSequenceAssertion`: the implicit-`Ordinal` overloads, `[Obsolete]` since v0.4.0, are gone. The explicit-comparison overload `WithExceptionMessage(string substring, StringComparison comparison)` is unchanged. Migrate by appending `, StringComparison.Ordinal` to existing call sites. Removing a public member is a source-and-binary breaking change; see `### BREAKING` above.
 
 ## [0.5.0] - 2026-05-14
 

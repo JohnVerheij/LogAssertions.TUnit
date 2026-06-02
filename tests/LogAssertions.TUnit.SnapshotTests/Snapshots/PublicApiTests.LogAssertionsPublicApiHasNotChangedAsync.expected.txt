@@ -57,9 +57,6 @@ namespace LogAssertions
         public static LogAssertions.ILogRecordFilter WithException(System.Func<System.Exception, bool> predicate) { }
         public static LogAssertions.ILogRecordFilter WithException<TException>()
             where TException : System.Exception { }
-        [System.Obsolete("Use WithExceptionMessage(string substring, StringComparison comparison). This imp" +
-            "licit-Ordinal overload will be removed in v0.6.0.", false)]
-        public static LogAssertions.ILogRecordFilter WithExceptionMessage(string substring) { }
         public static LogAssertions.ILogRecordFilter WithExceptionMessage(string substring, System.StringComparison comparison) { }
         public static LogAssertions.ILogRecordFilter WithInnerException<TInner>()
             where TInner : System.Exception { }

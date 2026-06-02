@@ -81,9 +81,6 @@ namespace LogAssertions.TUnit
         public TSelf WithException(System.Func<System.Exception, bool> predicate) { }
         public TSelf WithException<TException>()
             where TException : System.Exception { }
-        [System.Obsolete("Use WithExceptionMessage(string substring, StringComparison comparison). This imp" +
-            "licit-Ordinal overload will be removed in v0.6.0.", false)]
-        public TSelf WithExceptionMessage(string substring) { }
         public TSelf WithExceptionMessage(string substring, System.StringComparison comparison) { }
         public TSelf WithFilter(LogAssertions.ILogRecordFilter filter) { }
         public TSelf WithInnerException<TInner>()

@@ -71,6 +71,6 @@ body:
     id: additional
     attributes:
       label: Additional context
-      description: Anything else relevant: error stack trace, related issues, screenshots.
+      description: "Anything else relevant: error stack trace, related issues, screenshots."
     validations:
       required: false
