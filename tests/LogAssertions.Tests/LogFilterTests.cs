@@ -192,6 +192,121 @@ internal sealed class LogFilterTests
         await Assert.That(collector.CountMatching(LogFilter.WithScopeProperty("anything", _ => true))).IsEqualTo(0);
     }
 
+    /// <summary>Verifies <see cref="LogFilter.WithoutException"/> matches records with no
+    /// exception and rejects records that carry one. The seeded collector logs every level
+    /// without an exception, so all five records match; a record logged with an exception does
+    /// not.</summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task WithoutExceptionMatchesNullExceptionAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var (factory, collector) = LogCollectorBuilder.Create();
+        var logger = factory.CreateLogger("Test");
+#pragma warning disable CA1848, CA1873
+        logger.LogWarning("no-exception");
+        logger.LogError(new InvalidOperationException("boom"), "with-exception");
+#pragma warning restore CA1848, CA1873
+        factory.Dispose();
+
+        await Assert.That(collector.CountMatching(LogFilter.WithoutException())).IsEqualTo(1);
+        await Assert.That(LogFilter.WithoutException().Description).IsEqualTo("Exception is null");
+    }
+
+    /// <summary>Verifies the typed <see cref="LogFilter.WithProperty{T}(string, T)"/> /
+    /// <see cref="LogFilter.WithProperty{T}(string, Func{T, bool})"/> overloads parse the stored
+    /// structured-state string back to the requested type before comparing. A value that does not
+    /// parse to the target type never matches.</summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task WithPropertyTypedParsesStructuredStateAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var (factory, collector) = LogCollectorBuilder.Create();
+        var logger = factory.CreateLogger("Test");
+#pragma warning disable CA1848, CA1873
+        logger.LogInformation("Order {OrderId}", 1001);
+        logger.LogInformation("Tag {Tag}", "not-a-number");
+#pragma warning restore CA1848, CA1873
+        factory.Dispose();
+
+        await Assert.That(collector.CountMatching(LogFilter.WithProperty("OrderId", 1001))).IsEqualTo(1);
+        await Assert.That(collector.CountMatching(LogFilter.WithProperty<int>("OrderId", n => n > 1000))).IsEqualTo(1);
+        await Assert.That(collector.CountMatching(LogFilter.WithProperty<int>("OrderId", 999))).IsEqualTo(0);
+        await Assert.That(collector.CountMatching(LogFilter.WithProperty<int>("Tag", 0))).IsEqualTo(0);
+        await Assert.That(LogFilter.WithProperty("OrderId", 1001).Description).IsEqualTo("OrderId = 1001");
+    }
+
+    /// <summary>Verifies the typed <see cref="LogFilter.WithScopeProperty{T}(string, T)"/> /
+    /// <see cref="LogFilter.WithScopeProperty{T}(string, Func{T, bool})"/> overloads compare
+    /// typed-to-typed against the real (non-stringified) scope value, and that a scope value of a
+    /// different runtime type never matches.</summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task WithScopePropertyTypedComparesTypedScopeValueAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var (factory, collector) = LogCollectorBuilder.Create();
+        var logger = factory.CreateLogger("Test");
+        var messageId = Guid.NewGuid();
+        using (logger.BeginScope(new[]
+        {
+            new KeyValuePair<string, object?>("MessageId", messageId),
+            new KeyValuePair<string, object?>("CallerLine", 17),
+        }))
+        {
+#pragma warning disable CA1848
+            logger.LogInformation("scoped");
+#pragma warning restore CA1848
+        }
+        factory.Dispose();
+
+        await Assert.That(collector.CountMatching(LogFilter.WithScopeProperty("MessageId", messageId))).IsEqualTo(1);
+        await Assert.That(collector.CountMatching(LogFilter.WithScopeProperty("MessageId", Guid.Empty))).IsEqualTo(0);
+        await Assert.That(collector.CountMatching(LogFilter.WithScopeProperty<int>("CallerLine", n => n > 0))).IsEqualTo(1);
+        await Assert.That(collector.CountMatching(LogFilter.WithScopeProperty<long>("CallerLine", 17L))).IsEqualTo(0);
+        await Assert.That(LogFilter.WithScopeProperty("CallerLine", 17).Description).IsEqualTo("Scope CallerLine = 17");
+    }
+
+    /// <summary>The object-typed <see cref="LogFilter.WithScopeProperty(string, object?)"/>
+    /// overload stays reachable when the value is statically typed as <see cref="object"/> (the
+    /// generic <c>WithScopeProperty&lt;T&gt;</c> overload only binds when the argument has a more
+    /// specific static type). Pins the object overload's match and description paths.</summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task WithScopePropertyObjectOverloadMatchesAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var (factory, collector) = LogCollectorBuilder.Create();
+        var logger = factory.CreateLogger("Test");
+        using (logger.BeginScope(new[] { new KeyValuePair<string, object?>("OrderId", 42) }))
+        {
+#pragma warning disable CA1848
+            logger.LogInformation("scoped");
+#pragma warning restore CA1848
+        }
+        factory.Dispose();
+
+        object boxed = 42;
+        await Assert.That(collector.CountMatching(LogFilter.WithScopeProperty("OrderId", boxed))).IsEqualTo(1);
+        await Assert.That(LogFilter.WithScopeProperty("OrderId", boxed).Description).IsEqualTo("Scope OrderId = 42");
+        await Assert.That(LogFilter.WithScopeProperty("OrderId", (object?)null).Description).IsEqualTo("Scope OrderId = null");
+    }
+
+    /// <summary>Pins null-argument validation for the v0.6.0 typed factory overloads.</summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task TypedFactoriesRejectNullArgumentsAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        await Assert.That(() => LogFilter.WithProperty<int>(null!, 1)).Throws<ArgumentNullException>();
+        await Assert.That(() => LogFilter.WithProperty<int>("k", predicate: null!)).Throws<ArgumentNullException>();
+        await Assert.That(() => LogFilter.WithProperty<int>(key: null!, predicate: _ => true)).Throws<ArgumentNullException>();
+        await Assert.That(() => LogFilter.WithScopeProperty<int>(null!, 1)).Throws<ArgumentNullException>();
+        await Assert.That(() => LogFilter.WithScopeProperty<int>("k", predicate: null!)).Throws<ArgumentNullException>();
+        await Assert.That(() => LogFilter.WithScopeProperty<int>(key: null!, predicate: _ => true)).Throws<ArgumentNullException>();
+    }
+
     /// <summary>A scope object that doesn't implement the recognised
     /// <see cref="IEnumerable{T}"/>-of-<see cref="KeyValuePair{TKey, TValue}"/> shape (e.g. a
     /// raw string passed as scope state) yields no scope-property match. Pins the cast-failure

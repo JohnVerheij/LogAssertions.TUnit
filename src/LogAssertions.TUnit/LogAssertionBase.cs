@@ -224,6 +224,20 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     }
 
     /// <summary>
+    /// Filters to records whose <see cref="FakeLogRecord.Exception"/> is <see langword="null"/>.
+    /// </summary>
+    /// <returns>This assertion for chaining.</returns>
+    /// <remarks>The complement of <see cref="WithException()"/>. Use when a code path logs at a
+    /// warning/error level but deliberately omits the exception object, and the test needs to
+    /// assert that no exception was attached.</remarks>
+    public TSelf WithoutException()
+    {
+        AddFilter(LogFilter.WithoutException());
+        Context.ExpressionBuilder.Append(".WithoutException()");
+        return Self;
+    }
+
+    /// <summary>
     /// Filters to records whose <see cref="FakeLogRecord.Exception"/> is non-null and whose
     /// <see cref="Exception.Message"/> contains <paramref name="substring"/> under the supplied
     /// <paramref name="comparison"/>.
@@ -238,19 +252,6 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithExceptionMessage(\"{substring}\", {comparison})");
         return Self;
     }
-
-    /// <summary>
-    /// Legacy ordinal-comparison overload kept for binary compatibility with v0.3.x. Prefer
-    /// the explicit-comparison overload above; this alias defaults to
-    /// <see cref="StringComparison.Ordinal"/> and will be removed in v0.6.0.
-    /// </summary>
-    /// <param name="substring">The substring to search for in the exception's message. Must be non-null.</param>
-    /// <returns>This assertion for chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="substring"/> is <see langword="null"/>.</exception>
-    [Obsolete("Use WithExceptionMessage(string substring, StringComparison comparison). This implicit-Ordinal overload will be removed in v0.6.0.", error: false)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S1133:Do not forget to remove this deprecated code someday", Justification = "Two-minor [Obsolete] cycle is intentional; v0.6.0 removes this alias per CONVENTIONS.md StringComparison rule.")]
-    public TSelf WithExceptionMessage(string substring)
-        => WithExceptionMessage(substring, StringComparison.Ordinal);
 
     /// <summary>
     /// Filters to records whose <see cref="FakeLogRecord.Exception"/> wraps an
@@ -316,6 +317,45 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     }
 
     /// <summary>
+    /// Filters to records whose structured-state value at <paramref name="key"/> parses to a
+    /// <typeparamref name="T"/> equal to <paramref name="value"/> (compared via
+    /// <see cref="EqualityComparer{T}.Default"/>).
+    /// </summary>
+    /// <typeparam name="T">The parsable value type. Must implement <see cref="IParsable{TSelf}"/>.</typeparam>
+    /// <param name="key">The structured-state key. Must be non-null.</param>
+    /// <param name="value">The expected typed value.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <remarks>FakeLogRecord stores structured-state values as their formatted strings; this
+    /// overload parses the stored string back to <typeparamref name="T"/> using
+    /// <see cref="CultureInfo.InvariantCulture"/>, removing the manual <c>int.TryParse(...)</c>
+    /// boilerplate at the call site. A value that is absent or does not parse never matches.</remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
+    public TSelf WithProperty<T>(string key, T value) where T : IParsable<T>
+    {
+        AddFilter(LogFilter.WithProperty(key, value));
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithProperty(\"{key}\", {value})");
+        return Self;
+    }
+
+    /// <summary>
+    /// Filters to records whose structured-state value at <paramref name="key"/> parses to a
+    /// <typeparamref name="T"/> satisfying <paramref name="predicate"/>.
+    /// </summary>
+    /// <typeparam name="T">The parsable value type. Must implement <see cref="IParsable{TSelf}"/>.</typeparam>
+    /// <param name="key">The structured-state key. Must be non-null.</param>
+    /// <param name="predicate">A predicate over the parsed typed value. Must be non-null.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <remarks>The stored string is parsed back to <typeparamref name="T"/> using
+    /// <see cref="CultureInfo.InvariantCulture"/>; a value that is absent or does not parse never matches.</remarks>
+    /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+    public TSelf WithProperty<T>(string key, Func<T, bool> predicate) where T : IParsable<T>
+    {
+        AddFilter(LogFilter.WithProperty(key, predicate));
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithProperty<{typeof(T).Name}>(\"{key}\", predicate)");
+        return Self;
+    }
+
+    /// <summary>
     /// Filters to records emitted while a scope on the calling logger contained a property
     /// with the specified <paramref name="key"/> and <paramref name="value"/> (compared via
     /// <see cref="object.Equals(object?, object?)"/>).
@@ -343,6 +383,43 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     {
         AddFilter(LogFilter.WithScopeProperty(key, predicate));
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithScopeProperty(\"{key}\", predicate)");
+        return Self;
+    }
+
+    /// <summary>
+    /// Filters to records whose active scopes contain a property at <paramref name="key"/> whose
+    /// value is a <typeparamref name="T"/> equal to <paramref name="value"/> (compared via
+    /// <see cref="EqualityComparer{T}.Default"/>).
+    /// </summary>
+    /// <typeparam name="T">The scope-property value type.</typeparam>
+    /// <param name="key">The scope-property key. Must be non-null.</param>
+    /// <param name="value">The expected typed value.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <remarks>Scope values keep their runtime type, so this compares typed-to-typed and avoids
+    /// the boxing-comparison boilerplate of the <see cref="WithScopeProperty(string, object?)"/>
+    /// object overload. A scope value of a different runtime type never matches.</remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
+    public TSelf WithScopeProperty<T>(string key, T value)
+    {
+        AddFilter(LogFilter.WithScopeProperty(key, value));
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithScopeProperty(\"{key}\", {value})");
+        return Self;
+    }
+
+    /// <summary>
+    /// Filters to records whose active scopes contain a property at <paramref name="key"/> whose
+    /// value is a <typeparamref name="T"/> satisfying <paramref name="predicate"/>.
+    /// </summary>
+    /// <typeparam name="T">The scope-property value type.</typeparam>
+    /// <param name="key">The scope-property key. Must be non-null.</param>
+    /// <param name="predicate">A predicate over the typed scope value. Must be non-null.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <remarks>A scope value whose runtime type is not <typeparamref name="T"/> never reaches the predicate.</remarks>
+    /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+    public TSelf WithScopeProperty<T>(string key, Func<T, bool> predicate)
+    {
+        AddFilter(LogFilter.WithScopeProperty(key, predicate));
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithScopeProperty<{typeof(T).Name}>(\"{key}\", predicate)");
         return Self;
     }
 

@@ -81,9 +81,6 @@ namespace LogAssertions.TUnit
         public TSelf WithException(System.Func<System.Exception, bool> predicate) { }
         public TSelf WithException<TException>()
             where TException : System.Exception { }
-        [System.Obsolete("Use WithExceptionMessage(string substring, StringComparison comparison). This imp" +
-            "licit-Ordinal overload will be removed in v0.6.0.", false)]
-        public TSelf WithExceptionMessage(string substring) { }
         public TSelf WithExceptionMessage(string substring, System.StringComparison comparison) { }
         public TSelf WithFilter(LogAssertions.ILogRecordFilter filter) { }
         public TSelf WithInnerException<TInner>()
@@ -94,10 +91,17 @@ namespace LogAssertions.TUnit
         public TSelf WithMessageTemplate(string template) { }
         public TSelf WithProperty(string key, System.Func<string?, bool> predicate) { }
         public TSelf WithProperty(string key, string? value) { }
+        public TSelf WithProperty<T>(string key, System.Func<T, bool> predicate)
+            where T : System.IParsable<T> { }
+        public TSelf WithProperty<T>(string key, T value)
+            where T : System.IParsable<T> { }
         public TSelf WithScope<TScope>() { }
         public TSelf WithScopeProperties(System.Collections.Generic.IReadOnlyDictionary<string, object?> required) { }
         public TSelf WithScopeProperty(string key, System.Func<object?, bool> predicate) { }
         public TSelf WithScopeProperty(string key, object? value) { }
+        public TSelf WithScopeProperty<T>(string key, System.Func<T, bool> predicate) { }
+        public TSelf WithScopeProperty<T>(string key, T value) { }
+        public TSelf WithoutException() { }
         protected static void AppendCapturedRecords(System.Text.StringBuilder sb, System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord> snapshot) { }
         protected static string BuildFailureMessage(int matchCount, System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord> snapshot) { }
     }

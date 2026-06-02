@@ -57,9 +57,6 @@ namespace LogAssertions
         public static LogAssertions.ILogRecordFilter WithException(System.Func<System.Exception, bool> predicate) { }
         public static LogAssertions.ILogRecordFilter WithException<TException>()
             where TException : System.Exception { }
-        [System.Obsolete("Use WithExceptionMessage(string substring, StringComparison comparison). This imp" +
-            "licit-Ordinal overload will be removed in v0.6.0.", false)]
-        public static LogAssertions.ILogRecordFilter WithExceptionMessage(string substring) { }
         public static LogAssertions.ILogRecordFilter WithExceptionMessage(string substring, System.StringComparison comparison) { }
         public static LogAssertions.ILogRecordFilter WithInnerException<TInner>()
             where TInner : System.Exception { }
@@ -68,10 +65,17 @@ namespace LogAssertions
         public static LogAssertions.ILogRecordFilter WithMessageTemplate(string template) { }
         public static LogAssertions.ILogRecordFilter WithProperty(string key, System.Func<string?, bool> predicate) { }
         public static LogAssertions.ILogRecordFilter WithProperty(string key, string? value) { }
+        public static LogAssertions.ILogRecordFilter WithProperty<T>(string key, System.Func<T, bool> predicate)
+            where T : System.IParsable<T> { }
+        public static LogAssertions.ILogRecordFilter WithProperty<T>(string key, T value)
+            where T : System.IParsable<T> { }
         public static LogAssertions.ILogRecordFilter WithScope<TScope>() { }
         public static LogAssertions.ILogRecordFilter WithScopeProperties(System.Collections.Generic.IReadOnlyDictionary<string, object?> required) { }
         public static LogAssertions.ILogRecordFilter WithScopeProperty(string key, System.Func<object?, bool> predicate) { }
         public static LogAssertions.ILogRecordFilter WithScopeProperty(string key, object? value) { }
+        public static LogAssertions.ILogRecordFilter WithScopeProperty<T>(string key, System.Func<T, bool> predicate) { }
+        public static LogAssertions.ILogRecordFilter WithScopeProperty<T>(string key, T value) { }
+        public static LogAssertions.ILogRecordFilter WithoutException() { }
     }
 }
 namespace LogAssertions.Render

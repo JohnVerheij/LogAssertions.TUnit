@@ -14,34 +14,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-06-02
+
+### BREAKING
+
+- The single-arg `WithExceptionMessage(string substring)` overload (on `LogFilter` and on the `HasLoggedAssertion` / `HasNotLoggedAssertion` / `HasLoggedSequenceAssertion` chain), `[Obsolete]` since v0.4.0, has been removed. Append `, StringComparison.Ordinal` to existing call sites to keep the previous behavior, or pass a different comparison for case-insensitive / culture-aware matching. See `### Removed` below.
+
 ### Added
 
-- **`LogSnapshotRendererSnapshotTests`** in `LogAssertions.TUnit.SnapshotTests`: an end-to-end test pairing `LogSnapshotRenderer.Render(...)` with `MatchesSnapshot()` against a committed baseline, matching the renderer-snapshot pairing test that `MathAssertions.TUnit` and `TimeAssertions.TUnit` already carry.
+- **`LogFilter.WithoutException()`** and the matching **`WithoutException()`** chain method on `HasLoggedAssertion` / `HasNotLoggedAssertion` / `HasLoggedSequenceAssertion`: matched records whose `Exception` is `null`. The complement of `WithException()`. Lets a test assert the deliberate absence of an exception (for example a record logged at warning or error level with no exception object attached) without the `.Where(r => r.Exception is null)` escape hatch.
+- **`LogFilter.WithScopeProperty<T>(string key, T value)`** and **`LogFilter.WithScopeProperty<T>(string key, Func<T, bool> predicate)`** plus the matching chain methods: typed scope-property filters. Scope values keep their runtime type, so the value form compares typed-to-typed via `EqualityComparer<T>.Default` and the predicate form receives the typed value; a scope value whose runtime type is not `T` never matches. Removes the object-boxing boilerplate of the existing object-typed overloads when the scope value is a known type such as `Guid` or `int`.
+- **`LogFilter.WithProperty<T>(string key, T value)`** and **`LogFilter.WithProperty<T>(string key, Func<T, bool> predicate)`** (`where T : IParsable<T>`) plus the matching chain methods: typed structured-state filters. `FakeLogRecord` stores structured-state values as their formatted strings, so the stored string is parsed back to `T` via `IParsable<T>.TryParse` using `CultureInfo.InvariantCulture` before comparing (value form) or applying the predicate; an absent or non-parsable value never matches. Removes the manual `int.TryParse(...)` boilerplate at the call site. The `IParsable<T>` constraint keeps the round-trip reflection-free and AOT-safe.
 
 ### Changed
 
-- Removed `paths-ignore` from `.github/workflows/ci.yml` so the `Build, test & pack` required check always reports a status. Without the fix, docs-only PRs stuck in `Expected - Waiting for status to be reported` and could not satisfy branch protection.
-- Dropped drift-prone own-version anchors from the root README: `### Plausible v0.6.0 (queued; no commitment)` is now `### Plausible (queued; no commitment)`; "The current 0.5.0 surface covers..." is now "The current surface covers...". Historical `### Shipped in v0.X.Y` sections, `*(v0.X.Y+)*` inline annotations, and "(added in vX.Y)" markers are unchanged. The CHANGELOG remains the single source of truth for what shipped when.
-- Migrated CI dependency automation from Dependabot to Renovate (`.github/renovate.json`), matching `SseAssertions.TUnit` and `TimeAssertions.TUnit`. Daily schedule (before 4am Europe/Amsterdam), `customManagers` keep TUnit version literals in the root README, package README, smoketest csproj, and bug-report Issue Form in lockstep with the central `Directory.Packages.props` pin. `platformAutomerge` replaces the separate `dependabot-auto-merge.yml` workflow. Dependency dashboard issue enabled. Explicit semantic commit scopes: `deps(nuget)`, `ci(github-actions)`, `ci(dotnet-sdk)`. Auto-merge covers `digest`, `pin`, `pinDigest`, and `lockFileMaintenance` updateTypes alongside `minor` and `patch`. The three TUnit packages (`TUnit`, `TUnit.Assertions`, `TUnit.Core`) are grouped into a single PR per release.
-- Removed the redundant `Microsoft.Extensions.Diagnostics.Testing` explicit `PackageReference` from `src/LogAssertions.TUnit/LogAssertions.TUnit.csproj`. The dependency was already shipped transitively via the `LogAssertions` core project reference; the duplicate declaration produced no functional behaviour change but broke parity with the sibling family adapters (`MathAssertions.TUnit`, `SseAssertions.TUnit`, `SnapshotAssertions.TUnit` all rely on transitive resolution from their core for non-TUnit runtime deps).
-- **`TUnit`** dependency bumped `1.44.0` → `1.44.39` (and the external-consumer smoke-test pin). 1.44.39 carries the `[GenerateAssertion]` source-generator fix for value-type optional parameters; no behavioural change for this package, taken for family lockstep. `packages.lock.json` regenerated.
-- **`TUnit`** dependency bumped `1.44.39` → `1.45.22` via Renovate PR #44 (and the external-consumer smoke-test pin, the bug-report Issue Form placeholder, and all four `packages.lock.json` files). Taken for family lockstep; the sibling adapters are on the same pin.
-- Synced both READMEs to use the family-standard `TUnit X.Y.Z or later` form (was `TUnit 1.44.39+` in the root README and `TUnit 1.44.0+` in the package README). The `+` suffix did not match the Renovate `customManagers` regex (which targets `or later`), so the literal TUnit version in the prose drifted out of lockstep with `Directory.Packages.props`. Aligning the prose form lets future TUnit Renovate PRs update both READMEs in the same commit that bumps the central pin.
-- **`README.md`**: expanded the Family roster to six packages, adding `JsonAssertions.TUnit` and `SseAssertions.TUnit` to the "Family compatibility", "Pair with", and Contributing sections.
-- **`README.md`**: removed brittle upstream-TUnit version archaeology (the exact TUnit version that first shipped `[AssertionExtension]` / `TestContext`); the requirement line now states the current pinned floor only.
-- **`docs/toc.yml`**: added a "Project" dropdown in the top nav grouping `Contributing` / `Code of Conduct` / `Security` / `License` so the top nav stays at six entries instead of fanning out linearly.
-- **`.github/workflows/docs.yml`**: extended the doc-source copy step to ship `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, and `LICENSE` alongside the existing `README.md` / `CHANGELOG.md` / `CONVENTIONS.md` copies. All sources already lived in the repo; the docs site now surfaces them.
-- **`docs/public/main.css`** + `docs/docfx.json` resource glob: hid the default DocFX template logo via `.navbar-brand img { display: none; }`. The navbar now shows only the `_appName` text. No custom logo authored.
-- Added GitHub Actions workflow security scanning. `.github/workflows/zizmor.yml` runs `zizmor` (blocking, with findings shown as inline annotations) on every workflow change; `.github/workflows/codeql.yml` now analyzes the `actions` language alongside `csharp`; `.github/workflows/scorecard.yml` (OpenSSF Scorecard) and `.github/workflows/dependency-review.yml` (fails a PR that adds a high-severity-vulnerable dependency) are new. Added the Renovate `helpers:pinGitHubActionDigestsToSemver` preset so any newly-introduced action is auto-pinned to a commit SHA. CI-only; no effect on shipped packages.
+- **`TUnit`** / **`TUnit.Assertions`** / **`TUnit.Core`** dependency bumped `1.44.0` → `1.48.6`. Taken for family lockstep; the sibling adapters are on the same pin.
 
-### Fixed
+### Removed
 
-- **`docs/toc.yml`**: pointed the top-nav "API" link at `api/LogAssertions.html` rather than the directory `api/`, which DocFX does not render an `index.html` for.
-- **`docs/docfx.json`**: set `_disableBreadcrumb: true` in `globalMetadata` so each rendered page no longer carries a redundant single-segment breadcrumb above the H1.
-
-### Security
-
-- Hardened GitHub Actions token handling: set `persist-credentials: false` on every `actions/checkout` so the repository token is not written into `.git/config`; moved the inline coverage-report expression in `ci.yml` into an `env:` variable to remove a template-injection vector; and scoped workflow write permissions (`security-events` on `codeql`; `contents`/`id-token`/`packages`/`attestations` on `release`) to the job level with a read-only workflow-level default. Also pinned the GitHub Actions in the docs-site workflow (`docs.yml`) to commit SHAs and scoped its `pages` / `id-token` write permissions to the deploy job. CI-only; no released package is affected.
+- **`LogFilter.WithExceptionMessage(string substring)`** and the matching single-arg `WithExceptionMessage(string)` chain method on `HasLoggedAssertion` / `HasNotLoggedAssertion` / `HasLoggedSequenceAssertion`: the implicit-`Ordinal` overloads, `[Obsolete]` since v0.4.0, are gone. The explicit-comparison overload `WithExceptionMessage(string substring, StringComparison comparison)` is unchanged. Migrate by appending `, StringComparison.Ordinal` to existing call sites. Removing a public member is a source-and-binary breaking change; see `### BREAKING` above.
 
 ## [0.5.0] - 2026-05-14
 
@@ -200,7 +191,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Failure-message snapshot rendering** with 4-character level abbreviations matching the `Microsoft.Extensions.Logging` console formatter (`trce`, `dbug`, `info`, `warn`, `fail`, `crit`, `none`), indented `props:` line listing each record's structured properties (excluding the `{OriginalFormat}` entry, already implied by the message line), indented `scope:` line rendering each active scope's content as `key=value` pairs (or `ToString()` for opaque scopes), and indented `exception:` line with type name and message.
 - **`.And` / `.Or`** chaining via TUnit's `Assertion<T>` base class.
 
-[Unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.6.0
 [0.5.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.5.0
 [0.4.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.4.1
 [0.4.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.4.0

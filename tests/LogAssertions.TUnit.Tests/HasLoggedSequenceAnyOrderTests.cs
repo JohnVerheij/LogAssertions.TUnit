@@ -239,33 +239,4 @@ internal sealed class HasLoggedSequenceAnyOrderTests
                 s => s.Containing("info", StringComparison.Ordinal),
                 s => s.Containing("specific", StringComparison.Ordinal));
     }
-
-    /// <summary>
-    /// Coverage for the legacy <c>WithExceptionMessage(string)</c> obsolete overload: it
-    /// delegates to the explicit-comparison overload with <see cref="StringComparison.Ordinal"/>.
-    /// Suppressing CS0618 here is intentional: the test exists to keep the alias body
-    /// covered by tests until v0.6.0 removes it.
-    /// </summary>
-    [Test]
-    public async Task WithExceptionMessage_LegacyOverload_DelegatesToOrdinal(CancellationToken ct)
-    {
-        ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
-        var logger = factory.CreateLogger("Test");
-        try
-        { throw new InvalidOperationException("boom"); }
-        catch (InvalidOperationException ex)
-        {
-#pragma warning disable CA1848
-            logger.LogError(ex, "operation failed");
-#pragma warning restore CA1848
-        }
-
-#pragma warning disable CS0618 // Legacy overload: tested intentionally to cover the [Obsolete] alias body.
-#pragma warning disable CA1307, MA0074 // Same: analyzers correctly suggest the explicit-comparison overload, but here we exercise the obsolete one on purpose.
-        await Assert.That(collector).HasLogged().WithExceptionMessage("boom").Once();
-#pragma warning restore CA1307, MA0074
-#pragma warning restore CS0618
-    }
 }

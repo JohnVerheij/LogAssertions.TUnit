@@ -15,7 +15,7 @@ Framework-agnostic core for fluent log assertions over `Microsoft.Extensions.Log
 ## What's in this package
 
 - **`ILogRecordFilter`**: composable filter interface (`Matches(FakeLogRecord)` + `Description`).
-- **`LogFilter`**: static factory for every built-in filter shape (`AtLevel`, `Containing`, `WithMessageTemplate`, `WithException`, `WithInnerException` *(v0.4.0+)*, `WithInnerExceptionMessage` *(v0.4.0+)*, `WithProperty`, `WithCategory`, `WithEventId`, `WithScope`, `WithScopeProperty`, `WithScopeProperties` *(v0.4.0+)*, `Where`, etc.) plus combinators (`All`, `Any`, `Not`).
+- **`LogFilter`**: static factory for every built-in filter shape (`AtLevel`, `Containing`, `WithMessageTemplate`, `WithException`, `WithoutException` *(v0.6.0+)*, `WithInnerException` *(v0.4.0+)*, `WithInnerExceptionMessage` *(v0.4.0+)*, `WithProperty`, `WithProperty<T>` *(v0.6.0+)*, `WithCategory`, `WithEventId`, `WithScope`, `WithScopeProperty`, `WithScopeProperty<T>` *(v0.6.0+)*, `WithScopeProperties` *(v0.4.0+)*, `Where`, etc.) plus combinators (`All`, `Any`, `Not`).
 - **`LogAssertionRendering`**: failure-snapshot rendering (4-character level abbreviation, props line, scopes line, exception line) with `DumpVerbosity`-controlled detail level *(v0.4.0+: `Compact` / `Default` / `Verbose`)*. Used by adapter packages and by the `DumpTo` extension below.
 - **`LogCollectorBuilder.Create(LogLevel)`**: one-line factory returning a wired `(ILoggerFactory, FakeLogCollector)` tuple.
 - **Inspection extensions on `FakeLogCollector`:** `Filter(params ILogRecordFilter[])` returns matching records, `CountMatching(params ILogRecordFilter[])` returns the count, `DumpTo(TextWriter)` and `DumpTo(TextWriter, DumpVerbosity)` *(v0.4.0+)* write the captured-records snapshot.
