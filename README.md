@@ -260,6 +260,7 @@ await Assert.That(collector).HasLogged()
 |---|---|
 | `WithException<TException>()` | `record.Exception is TException` (assignable) |
 | `WithException()` | Any record with a non-null `Exception`, regardless of type |
+| `WithoutException()` *(v0.6.0+)* | `record.Exception is null`. The complement of `WithException()`: asserts the deliberate absence of an exception (for example a record logged at warning or error level with no exception attached). |
 | `WithException(Func<Exception, bool> predicate)` | Predicate over the exception (predicate not invoked for null exception) |
 | `WithExceptionMessage(string substring, StringComparison comparison)` *(explicit-comparison overload added in v0.4.0)* | `record.Exception?.Message` contains substring under the supplied comparison; records without an exception never match. The legacy single-arg `(string substring)` overload remains as `[Obsolete]` defaulting to `StringComparison.Ordinal` and is removed in v0.6.0. |
 | `WithInnerException<TInner>()` *(v0.4.0+)* | `record.Exception?.InnerException is TInner` (assignable). Walks one level only; deeper nesting is not searched. |
@@ -290,10 +291,18 @@ The `WithInnerException` filters walk only `Exception.InnerException` (one level
 |---|---|
 | `WithProperty(string key, string? value)` | Property's formatted string value equals `value` (ordinal) |
 | `WithProperty(string key, Func<string?, bool> predicate)` | Predicate over the formatted string value (use for ranges, regex, or null-checks) |
+| `WithProperty<T>(string key, T value)` *(v0.6.0+; `where T : IParsable<T>`)* | Parses the stored string back to `T` (invariant culture) and compares via `EqualityComparer<T>.Default`. An absent or non-parsable value never matches. |
+| `WithProperty<T>(string key, Func<T, bool> predicate)` *(v0.6.0+; `where T : IParsable<T>`)* | Parses the stored string back to `T` (invariant culture) and applies the predicate to the typed value. |
 
-Note: `FakeLogRecord` exposes structured-state values as **strings** (the formatted form), so the predicate receives a `string?`. Parse to your target type inside the predicate when needed:
+Note: `FakeLogRecord` exposes structured-state values as **strings** (the formatted form), so the `string?` predicate overload receives a `string?`. For a known parsable type, prefer the typed `WithProperty<T>` overloads (added in v0.6.0), which parse the stored string back to `T` for you using the invariant culture:
 
 ```csharp
+// Typed (v0.6.0+): the stored "1001" is parsed back to int before the predicate runs.
+await Assert.That(collector).HasLogged()
+    .WithProperty<int>("OrderId", n => n > 1000)
+    .AtLeast(1);
+
+// String form (still available) when you want raw-string control:
 await Assert.That(collector).HasLogged()
     .WithProperty("OrderId", v =>
         int.TryParse(v, CultureInfo.InvariantCulture, out var n) && n > 1000)
@@ -309,7 +318,17 @@ Scopes are values pushed via `logger.BeginScope(...)`. They surround any log rec
 | `WithScope<TScope>()` | A scope of type `TScope` was active when the record was emitted |
 | `WithScopeProperty(string key, object? value)` | A scope contains a property `key` matching `value` (`object.Equals` semantics) |
 | `WithScopeProperty(string key, Func<object?, bool> predicate)` | A scope contains a property `key` whose value satisfies the predicate |
+| `WithScopeProperty<T>(string key, T value)` *(v0.6.0+)* | Typed match: the scope value is a `T` equal to `value` (compared via `EqualityComparer<T>.Default`). A scope value of a different runtime type never matches. |
+| `WithScopeProperty<T>(string key, Func<T, bool> predicate)` *(v0.6.0+)* | Typed predicate: the scope value is a `T` satisfying the predicate. |
 | `WithScopeProperties(IDictionary<string, object?> required)` *(v0.4.0+)* | Subset match across all active scopes: every key/value pair in `required` must match in some scope, but different pairs may match in different scopes. Empty dictionary matches every record (vacuous truth). |
+
+Scope values keep their runtime type (unlike structured-state values, which are stored as strings), so the typed `WithScopeProperty<T>` overloads (added in v0.6.0) compare typed-to-typed without boxing boilerplate. They read cleanly when the scope value is a known type:
+
+```csharp
+// MessageId is a Guid in the scope; CallerLine is an int.
+await Assert.That(collector).HasLogged().WithScopeProperty("MessageId", messageId).AtLeast(1);
+await Assert.That(collector).HasLogged().WithScopeProperty<int>("CallerLine", line => line > 0).Once();
+```
 
 Scope-property filters recognise the two AOT-friendly idioms:
 

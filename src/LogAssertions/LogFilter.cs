@@ -159,6 +159,16 @@ public static class LogFilter
             "Exception matches predicate");
     }
 
+    /// <summary>Records whose <see cref="FakeLogRecord.Exception"/> is <see langword="null"/>.</summary>
+    /// <returns>A filter accepting records that carry no exception.</returns>
+    /// <remarks>The complement of <see cref="WithException()"/>. Useful when a code path logs at
+    /// a warning/error level but deliberately omits the exception object (for example a transport
+    /// or wire library that records a null <see cref="Exception"/> when full-exception capture is
+    /// disabled): asserting the <i>absence</i> of an exception is as meaningful as asserting its
+    /// type.</remarks>
+    public static ILogRecordFilter WithoutException()
+        => new PredicateFilter(r => r.Exception is null, "Exception is null");
+
     /// <summary>Records whose exception's message contains <paramref name="substring"/> under the supplied
     /// <paramref name="comparison"/>.</summary>
     /// <param name="substring">The substring to find in the exception's message. Must be non-null.</param>
@@ -242,6 +252,48 @@ public static class LogFilter
             key + " matches predicate");
     }
 
+    /// <summary>
+    /// Records whose structured-state value at <paramref name="key"/> parses to a <typeparamref name="T"/>
+    /// equal to <paramref name="value"/> (compared via <see cref="EqualityComparer{T}.Default"/>).
+    /// </summary>
+    /// <typeparam name="T">The parsable value type. Must implement <see cref="IParsable{TSelf}"/>.</typeparam>
+    /// <param name="key">The structured-state key. Must be non-null.</param>
+    /// <param name="value">The expected typed value.</param>
+    /// <returns>A filter accepting records whose structured-state value parses to <paramref name="value"/>.</returns>
+    /// <remarks>FakeLogRecord stores structured-state values as their formatted strings, so the stored
+    /// string is parsed back to <typeparamref name="T"/> via <see cref="IParsable{TSelf}.TryParse(string, IFormatProvider, out TSelf)"/>
+    /// using <see cref="CultureInfo.InvariantCulture"/>. A value that is absent or does not parse never matches.
+    /// The <see cref="IParsable{TSelf}"/> constraint keeps the round-trip AOT-safe (no reflection).</remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
+    public static ILogRecordFilter WithProperty<T>(string key, T value) where T : IParsable<T>
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        return new PredicateFilter(
+            r => TryParseStructuredState<T>(r, key, out var parsed) && EqualityComparer<T>.Default.Equals(parsed, value),
+            string.Format(CultureInfo.InvariantCulture, "{0} = {1}", key, value));
+    }
+
+    /// <summary>
+    /// Records whose structured-state value at <paramref name="key"/> parses to a <typeparamref name="T"/>
+    /// satisfying <paramref name="predicate"/>.
+    /// </summary>
+    /// <typeparam name="T">The parsable value type. Must implement <see cref="IParsable{TSelf}"/>.</typeparam>
+    /// <param name="key">The structured-state key. Must be non-null.</param>
+    /// <param name="predicate">A predicate over the parsed typed value. Must be non-null.</param>
+    /// <returns>A filter accepting records whose parsed structured-state value satisfies the predicate.</returns>
+    /// <remarks>The stored string is parsed back to <typeparamref name="T"/> via
+    /// <see cref="IParsable{TSelf}.TryParse(string, IFormatProvider, out TSelf)"/> using
+    /// <see cref="CultureInfo.InvariantCulture"/>; a value that is absent or does not parse never matches.</remarks>
+    /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+    public static ILogRecordFilter WithProperty<T>(string key, Func<T, bool> predicate) where T : IParsable<T>
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(predicate);
+        return new PredicateFilter(
+            r => TryParseStructuredState<T>(r, key, out var parsed) && predicate(parsed),
+            key + " matches predicate");
+    }
+
     /// <summary>Records whose category equals <paramref name="category"/> (ordinal).</summary>
     /// <param name="category">The full category name. Must be non-null.</param>
     /// <returns>A filter accepting records emitted by the specified category.</returns>
@@ -320,6 +372,50 @@ public static class LogFilter
     }
 
     /// <summary>
+    /// Records whose active scopes contain a property at <paramref name="key"/> whose value is a
+    /// <typeparamref name="T"/> equal to <paramref name="value"/> (compared via
+    /// <see cref="EqualityComparer{T}.Default"/>).
+    /// </summary>
+    /// <typeparam name="T">The scope-property value type.</typeparam>
+    /// <param name="key">The scope-property key. Must be non-null.</param>
+    /// <param name="value">The expected typed value.</param>
+    /// <returns>A filter accepting records with a matching typed scope property.</returns>
+    /// <remarks>Scope values keep their runtime type (unlike structured-state values, which are
+    /// stored as strings), so the comparison is fully typed: a scope value of a different runtime
+    /// type than <typeparamref name="T"/> never matches. Use this in place of the
+    /// <see cref="WithScopeProperty(string, object?)"/> object overload when the scope value is a
+    /// known type (for example <see cref="Guid"/> or <see cref="int"/>) to avoid boxing-comparison
+    /// boilerplate at the call site.</remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
+    public static ILogRecordFilter WithScopeProperty<T>(string key, T value)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        return new PredicateFilter(
+            r => ScopePropertyMatches(r, key, v => v is T typed && EqualityComparer<T>.Default.Equals(typed, value)),
+            string.Format(CultureInfo.InvariantCulture, "Scope {0} = {1}", key, value));
+    }
+
+    /// <summary>
+    /// Records whose active scopes contain a property at <paramref name="key"/> whose value is a
+    /// <typeparamref name="T"/> satisfying <paramref name="predicate"/>.
+    /// </summary>
+    /// <typeparam name="T">The scope-property value type.</typeparam>
+    /// <param name="key">The scope-property key. Must be non-null.</param>
+    /// <param name="predicate">A predicate over the typed scope value. Must be non-null.</param>
+    /// <returns>A filter accepting records whose typed scope-property value satisfies the predicate.</returns>
+    /// <remarks>A scope value whose runtime type is not <typeparamref name="T"/> never reaches the
+    /// predicate.</remarks>
+    /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+    public static ILogRecordFilter WithScopeProperty<T>(string key, Func<T, bool> predicate)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(predicate);
+        return new PredicateFilter(
+            r => ScopePropertyMatches(r, key, v => v is T typed && predicate(typed)),
+            "Scope " + key + " matches predicate");
+    }
+
+    /// <summary>
     /// Records whose active scopes collectively contain every key/value pair in
     /// <paramref name="required"/>. Each pair must match in <i>some</i> scope, but different
     /// pairs may match in different scopes (subset match across all active scopes).
@@ -390,6 +486,31 @@ public static class LogFilter
     {
         ArgumentNullException.ThrowIfNull(filter);
         return new NotFilter(filter);
+    }
+
+    /// <summary>
+    /// Reads the structured-state value at <paramref name="key"/> (stored as a formatted string by
+    /// <see cref="FakeLogRecord"/>) and parses it back to <typeparamref name="T"/> using
+    /// <see cref="CultureInfo.InvariantCulture"/>.
+    /// </summary>
+    /// <typeparam name="T">The parsable target type.</typeparam>
+    /// <param name="record">The record to inspect.</param>
+    /// <param name="key">The structured-state key.</param>
+    /// <param name="parsed">The parsed value when this method returns <see langword="true"/>.</param>
+    /// <returns><see langword="true"/> when the key is present and its stored string parses to <typeparamref name="T"/>.</returns>
+    private static bool TryParseStructuredState<T>(
+        FakeLogRecord record, string key, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out T parsed)
+        where T : IParsable<T>
+    {
+        var raw = record.GetStructuredStateValue(key);
+        if (raw is not null && T.TryParse(raw, CultureInfo.InvariantCulture, out var value))
+        {
+            parsed = value;
+            return true;
+        }
+
+        parsed = default;
+        return false;
     }
 
     /// <summary>

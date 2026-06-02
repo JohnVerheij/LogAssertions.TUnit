@@ -94,10 +94,17 @@ namespace LogAssertions.TUnit
         public TSelf WithMessageTemplate(string template) { }
         public TSelf WithProperty(string key, System.Func<string?, bool> predicate) { }
         public TSelf WithProperty(string key, string? value) { }
+        public TSelf WithProperty<T>(string key, System.Func<T, bool> predicate)
+            where T : System.IParsable<T> { }
+        public TSelf WithProperty<T>(string key, T value)
+            where T : System.IParsable<T> { }
         public TSelf WithScope<TScope>() { }
         public TSelf WithScopeProperties(System.Collections.Generic.IReadOnlyDictionary<string, object?> required) { }
         public TSelf WithScopeProperty(string key, System.Func<object?, bool> predicate) { }
         public TSelf WithScopeProperty(string key, object? value) { }
+        public TSelf WithScopeProperty<T>(string key, System.Func<T, bool> predicate) { }
+        public TSelf WithScopeProperty<T>(string key, T value) { }
+        public TSelf WithoutException() { }
         protected static void AppendCapturedRecords(System.Text.StringBuilder sb, System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord> snapshot) { }
         protected static string BuildFailureMessage(int matchCount, System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord> snapshot) { }
     }

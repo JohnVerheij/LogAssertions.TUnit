@@ -80,11 +80,11 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(ArtifactsLocalFeedExists)' == 'true'">
-    <!-- Floating version: consumes whatever 0.5.x preview was packed into the local feed at
-         ../../artifacts. Use a wide pre-release pattern so any 0.5.0-rc / 0.5.0 also resolves
+    <!-- Floating version: consumes whatever 0.6.x preview was packed into the local feed at
+         ../../artifacts. Use a wide pre-release pattern so any 0.6.0-rc / 0.6.0 also resolves
          once published, which lets local devs run this against either a freshly-packed nupkg
          or a real published version. -->
-    <PackageReference Include="LogAssertions.TUnit" Version="0.5.0-*" />
+    <PackageReference Include="LogAssertions.TUnit" Version="0.6.0-*" />
   </ItemGroup>
 
 </Project>
