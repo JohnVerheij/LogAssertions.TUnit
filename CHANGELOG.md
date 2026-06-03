@@ -14,6 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-06-04
+
+### Changed
+
+- **README roadmap label corrected**: the "Possible v0.6.0+ (longer horizon, no commitment)" backlog heading was renamed to "Possible v0.7.0+" now that v0.6.0 has shipped.
+- **README "Shipped in v0.6.0" section added**: documents the v0.6.0 surfaces (`WithoutException()`, the typed `WithProperty<T>` overloads, the typed `WithScopeProperty<T>` overloads) and the removal of the obsolete single-arg `WithExceptionMessage(string)`, matching the existing "Shipped in v0.5.0 / v0.4.0 / v0.3.0" entries.
+- **README family roster completed**: the package-family enumerations in the root and adapter READMEs were brought to the full seven-package roster.
+
 ## [0.6.0] - 2026-06-02
 
 ### BREAKING
@@ -191,7 +199,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Failure-message snapshot rendering** with 4-character level abbreviations matching the `Microsoft.Extensions.Logging` console formatter (`trce`, `dbug`, `info`, `warn`, `fail`, `crit`, `none`), indented `props:` line listing each record's structured properties (excluding the `{OriginalFormat}` entry, already implied by the message line), indented `scope:` line rendering each active scope's content as `key=value` pairs (or `ToString()` for opaque scopes), and indented `exception:` line with type name and message.
 - **`.And` / `.Or`** chaining via TUnit's `Assertion<T>` base class.
 
-[Unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.6.1
 [0.6.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.6.0
 [0.5.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.5.0
 [0.4.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.4.1

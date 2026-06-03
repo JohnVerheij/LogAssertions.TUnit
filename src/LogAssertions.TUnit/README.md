@@ -125,6 +125,9 @@ Part of an assertion family for TUnit:
 - [TimeAssertions.TUnit](https://github.com/JohnVerheij/TimeAssertions.TUnit)
 - [SnapshotAssertions.TUnit](https://github.com/JohnVerheij/SnapshotAssertions.TUnit)
 - [MathAssertions.TUnit](https://github.com/JohnVerheij/MathAssertions.TUnit)
+- [JsonAssertions.TUnit](https://github.com/JohnVerheij/JsonAssertions.TUnit)
+- [SseAssertions.TUnit](https://github.com/JohnVerheij/SseAssertions.TUnit)
+- [GrpcAssertions.TUnit](https://github.com/JohnVerheij/GrpcAssertions.TUnit)
 
 ## License
 
