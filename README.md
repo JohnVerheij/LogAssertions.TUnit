@@ -936,6 +936,15 @@ Per [SemVer](https://semver.org/), the `0.x` series is initial development: anyt
 
 The current surface covers the high-frequency 80%+ of real-world log-assertion needs: composable filters (now including inner-exception and multi-property scope filters), all common count terminators (including value-returning `GetMatch`/`GetMatches`), sequence assertions with both strict-order (`Then`) and concurrent-group (`ThenAnyOrder`) semantics, scope-property subset matching, batch assertions (`AssertAllAsync` and `Assert.Multiple` interop), `Because` reason annotation, the inspection extensions (including TUnit-aware `DumpToTestOutput` with verbosity control), the framework-agnostic core split, and the `LogSnapshotRenderer` for pinning a full log sequence as a deterministic snapshot. The list below is the candidate backlog for future versions; nothing here is committed and nothing will be built without demonstrated demand.
 
+### Shipped in v0.6.0
+
+Items that landed in this release. Documented here for historical context; the surfaces themselves live in the relevant sections above.
+
+- **`WithoutException()` filter**: the complement of `WithException()`; matches records with no exception attached (for example a warning or error logged without an exception). See [Exception filters](#exception-filters).
+- **`WithProperty<T>(string key, T value)` + `WithProperty<T>(string key, Func<T, bool> predicate)` overloads** (`where T : IParsable<T>`): parse a structured-state value (stored as a string) back to `T` using the invariant culture, then compare via `EqualityComparer<T>.Default` or apply a typed predicate. Removes the parse-the-string boilerplate for known parsable types. See [Structured-state (property) filters](#structured-state-property-filters).
+- **`WithScopeProperty<T>(string key, T value)` + `WithScopeProperty<T>(string key, Func<T, bool> predicate)` overloads**: typed scope-property matching. Scope values keep their runtime type, so these compare typed-to-typed without boxing boilerplate. See [Scope filters](#scope-filters).
+- **Removed the obsolete single-arg `WithExceptionMessage(string substring)`**: `[Obsolete]` from v0.4.0, removed in this release. Use the explicit-comparison overload `WithExceptionMessage(string substring, StringComparison comparison)` instead, aligning the surface with the family-wide `StringComparison` rule.
+
 ### Shipped in v0.5.0
 
 Items that landed in this release. Documented here for historical context; the surfaces themselves live in the relevant sections above.
@@ -972,7 +981,7 @@ These items are concrete and tracked but require either consumer demand or upstr
 - **Cursor / direction:** `FromNewest()` / `FromOldest()` direction control, `SinceLastAssert()` watermark, `Pin()` snapshot pinning, `HasLoggedDistinct(int)` (dedupe + count).
 - **`HasNotLoggedSequence()`**: mirror of `HasLoggedSequence`, asserts a specific sequence did NOT occur.
 
-### Possible v0.6.0+ (longer horizon, no commitment)
+### Possible v0.7.0+ (longer horizon, no commitment)
 
 Larger pieces of work that need either real demand or a separate package. None of these is on a timeline.
 
@@ -1048,7 +1057,7 @@ Issues and pull requests welcome. Before opening a PR:
 
 For larger ideas (new entry points, breaking changes, cross-cutting refactors), open a [Discussion](https://github.com/JohnVerheij/LogAssertions.TUnit/discussions) first to align on direction before investing implementation time.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the full PR review checklist and API design principles, and [CONVENTIONS.md](CONVENTIONS.md) for the family-wide code conventions shared across `LogAssertions.TUnit`, `SnapshotAssertions.TUnit`, `TimeAssertions.TUnit`, `MathAssertions.TUnit`, `JsonAssertions.TUnit`, and `SseAssertions.TUnit`.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full PR review checklist and API design principles, and [CONVENTIONS.md](CONVENTIONS.md) for the family-wide code conventions shared across `LogAssertions.TUnit`, `SnapshotAssertions.TUnit`, `TimeAssertions.TUnit`, `MathAssertions.TUnit`, `JsonAssertions.TUnit`, `SseAssertions.TUnit`, and `GrpcAssertions.TUnit`.
 
 ## License
 
