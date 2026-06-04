@@ -86,7 +86,7 @@ await Assert.That(collector).HasLogged()
     .Once();
 ```
 
-**Assert a startup → work → shutdown sequence:**
+**Assert a startup -> work -> shutdown sequence:**
 ```csharp
 await Assert.That(collector).HasLoggedSequence()
     .WithEventName("Startup")

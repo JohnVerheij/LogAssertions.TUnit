@@ -14,6 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-06-05: documentation refresh
+
+Documentation-only release. No API or behaviour change.
+
+### Changed
+
+- Refreshed the README (plain-ASCII punctuation) and rewrote the shared `CONVENTIONS.md`: removed the version-history preamble so it reads as a conventions document, not a changelog.
+
 ## [0.6.1] - 2026-06-04
 
 ### Changed
@@ -199,16 +207,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Failure-message snapshot rendering** with 4-character level abbreviations matching the `Microsoft.Extensions.Logging` console formatter (`trce`, `dbug`, `info`, `warn`, `fail`, `crit`, `none`), indented `props:` line listing each record's structured properties (excluding the `{OriginalFormat}` entry, already implied by the message line), indented `scope:` line rendering each active scope's content as `key=value` pairs (or `ToString()` for opaque scopes), and indented `exception:` line with type name and message.
 - **`.And` / `.Or`** chaining via TUnit's `Assertion<T>` base class.
 
-[Unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.6.1...HEAD
-[0.6.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.6.1
-[0.6.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.6.0
-[0.5.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.5.0
-[0.4.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.4.1
-[0.4.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.4.0
-[0.3.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.3.0
-[0.2.4]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.2.4
-[0.2.3]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.2.3
-[0.2.2]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.2.2
-[0.2.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.2.1
-[0.2.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.2.0
+[unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.6.2...HEAD
+[0.6.2]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.6.1...v0.6.2
+[0.6.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.6.0...v0.6.1
+[0.6.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.4.1...v0.5.0
+[0.4.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.2.4...v0.3.0
+[0.2.4]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.2.3...v0.2.4
+[0.2.3]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.2.2...v0.2.3
+[0.2.2]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.2.1...v0.2.2
+[0.2.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/releases/tag/v0.1.0
