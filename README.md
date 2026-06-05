@@ -188,7 +188,7 @@ Three core entry points are emitted by TUnit's source generator and surface as e
 | `HasNotLogged()` | Zero matching records | None: fixed at zero |
 | `HasLoggedSequence()` | An ordered series of matches; `Then()` separates steps | None: each step's match is implicit |
 
-All three accept the full filter chain. `HasLogged()` is the workhorse; `HasNotLogged()` is its inverse with cleaner failure semantics; `HasLoggedSequence()` is for multi-step traces (e.g. *"Started → Validation failed → Stopped"*).
+All three accept the full filter chain. `HasLogged()` is the workhorse; `HasNotLogged()` is its inverse with cleaner failure semantics; `HasLoggedSequence()` is for multi-step traces (e.g. *"Started -> Validation failed -> Stopped"*).
 
 ### Shorthand entry points
 
@@ -756,7 +756,7 @@ await Assert.That(collector).HasLogged()
     .Once();
 ```
 
-### Assert a startup → work → shutdown sequence
+### Assert a startup -> work -> shutdown sequence
 
 ```csharp
 await Assert.That(collector).HasLoggedSequence()
@@ -896,11 +896,7 @@ Three issues that surface during early adoption. If you hit something not listed
 - **Built on `[AssertionExtension]`** ([thomhurst/TUnit#5785](https://github.com/thomhurst/TUnit/pull/5785)): the entry-point methods are emitted by TUnit's source generator. No extension-method wrappers needed.
 - **No cross-package coupling.** This package depends on `TUnit.Assertions` and `Microsoft.Extensions.Diagnostics.Testing`. Neither of those depends on the other; this library is the bridge.
 - **AOT-compatible / trimmable.** `IsAotCompatible=true`, `IsTrimmable=true`, `EnableTrimAnalyzer=true`. No reflection in the assertion path. Scope-property matching uses interface casts only, never reflection.
-- **TFM policy: LTS-anchored, multi-target during STS support windows:** targets `net10.0` today (the current LTS, supported through November 2028). When .NET 11 ships as a non-LTS (STS) release, the package multi-targets `net10.0;net11.0`. When the next LTS (.NET 12) ships, both 10 and 11 are dropped on the same release; the new LTS becomes the single target until its STS sibling lands the following November. Wide multi-targeting (`net8;net9;net10`) is explicitly out: the goal is "current LTS, plus current STS while it exists", never long historical tails. See `CONVENTIONS.md` for the full schedule.
-
-  **You can still consume this package even if your production code targets an older TFM.** Test projects routinely target a higher TFM than the production code they test: the .NET SDK supports a `net10` test project referencing a `net8` production project (`net10` runtime is forward-compatible with `net8` assemblies). The test exe loads on the `net10` runtime and invokes the production code through its `net8` surface. The reverse: referencing a `net10` production lib from a `net8` test: does not work, but that's not a typical setup.
-
-  Concrete: if your production lib targets `net8.0`, set your test project's `<TargetFramework>` to `net10.0`, install `LogAssertions.TUnit`, and the production `<ProjectReference>` continues to resolve cleanly.
+- **TFM: current LTS.** Targets `net10.0` today, multi-targeting the current STS while one exists (never long historical tails). A test project may target a higher TFM than the production code it references. See `CONVENTIONS.md` for the schedule.
 - **Explicit `StringComparison`.** Every string-matching API requires the caller to pass a `StringComparison` (or uses `Ordinal` internally where unambiguous). No silent culture defaults.
 - **Source Link + deterministic builds.** Both packages ship with [`Microsoft.SourceLink.GitHub`](https://github.com/dotnet/sourcelink), a separate `.snupkg` symbol package, and embedded sources (`EmbedUntrackedSources`). When a debugger steps into the assertion code, the source is fetched directly from this GitHub repo at the exact commit the package was built from: useful when you're investigating why a filter didn't match the record you expected. Builds are deterministic by default (the SDK's `<Deterministic>true</Deterministic>`).
 
@@ -926,102 +922,23 @@ Per [SemVer](https://semver.org/), the `0.x` series is initial development: anyt
 - The exact format of failure-message snapshot text rendered by `LogAssertionRendering` and exposed via `DumpTo`. The rendering may gain extra detail or change formatting in any release. **Do not pin exact failure-message text in tests**: pin filter match counts and broad markers (e.g. `Contains("[warn]")`) only.
 - The `CompatibilitySuppressions.xml` file is a build artifact tracking baseline acceptance, not part of the API contract.
 
-**Breaking changes log (every release with a breaking change is listed in CHANGELOG.md):**
-
-- **0.2.0:** `LogAssertionBase<TSelf>` annotated `[EditorBrowsable(Never)]`; the `protected virtual void AddPredicate(Func, string)` extension hook replaced by `protected virtual void AddFilter(ILogRecordFilter)` as part of the `ILogRecordFilter` refactor. Affects only consumers who derived from `LogAssertionBase` (an unsupported scenario). Framework-agnostic types (`ILogRecordFilter`, `LogFilter`, etc.) moved from `LogAssertions.TUnit` to a new `LogAssertions` package + namespace; the `LogAssertions.TUnit` package now has a `LogAssertions` transitive dependency.
-
 ---
 
 ## Limitations and future work
 
-The current surface covers the high-frequency 80%+ of real-world log-assertion needs: composable filters (now including inner-exception and multi-property scope filters), all common count terminators (including value-returning `GetMatch`/`GetMatches`), sequence assertions with both strict-order (`Then`) and concurrent-group (`ThenAnyOrder`) semantics, scope-property subset matching, batch assertions (`AssertAllAsync` and `Assert.Multiple` interop), `Because` reason annotation, the inspection extensions (including TUnit-aware `DumpToTestOutput` with verbosity control), the framework-agnostic core split, and the `LogSnapshotRenderer` for pinning a full log sequence as a deterministic snapshot. The list below is the candidate backlog for future versions; nothing here is committed and nothing will be built without demonstrated demand.
+The current surface covers the common cases: composable filters, count terminators, sequence assertions (strict and concurrent), scope-property matching, batch assertions, and the `LogSnapshotRenderer` for pinning a full log sequence. Everything below is a demand-driven backlog; nothing is committed.
 
-### Shipped in v0.6.0
+- **Filters:** time-based (`WithElapsedTime`, `WithTimestamp`, sequence gaps), `DescribedAs` labels, a `WithinTimeout` polling terminator.
+- **Sequence:** `ThenImmediately`, `NotInterleaved`, `InOrder`, `HasNotLoggedSequence`, cursor control (`FromNewest` / `SinceLastAssert`).
+- **Bigger pieces:** a `[LoggerMessage]`-derived typed-assertion source generator, `ToVerifyString()` golden files, and `LogAssertions.NUnit` / `.xUnit` / `.MSTest` adapters (the core already supports them; built on request).
 
-Items that landed in this release. Documented here for historical context; the surfaces themselves live in the relevant sections above.
+Declined by design: an analyzer policing our own API, and silently injecting global usings via a package `.props` file. Out of scope for AOT: anonymous-object scope inspection and JSON matching.
 
-- **`WithoutException()` filter**: the complement of `WithException()`; matches records with no exception attached (for example a warning or error logged without an exception). See [Exception filters](#exception-filters).
-- **`WithProperty<T>(string key, T value)` + `WithProperty<T>(string key, Func<T, bool> predicate)` overloads** (`where T : IParsable<T>`): parse a structured-state value (stored as a string) back to `T` using the invariant culture, then compare via `EqualityComparer<T>.Default` or apply a typed predicate. Removes the parse-the-string boilerplate for known parsable types. See [Structured-state (property) filters](#structured-state-property-filters).
-- **`WithScopeProperty<T>(string key, T value)` + `WithScopeProperty<T>(string key, Func<T, bool> predicate)` overloads**: typed scope-property matching. Scope values keep their runtime type, so these compare typed-to-typed without boxing boilerplate. See [Scope filters](#scope-filters).
-- **Removed the obsolete single-arg `WithExceptionMessage(string substring)`**: `[Obsolete]` from v0.4.0, removed in this release. Use the explicit-comparison overload `WithExceptionMessage(string substring, StringComparison comparison)` instead, aligning the surface with the family-wide `StringComparison` rule.
-
-### Shipped in v0.5.0
-
-Items that landed in this release. Documented here for historical context; the surfaces themselves live in the relevant sections above.
-
-- **`LogAssertions.Render.LogSnapshotRenderer` + `LogSnapshotOptions`**: renders a `FakeLogCollector` to deterministic, snapshot-friendly text (LF line endings, capture order preserved, no baked-in scrubbing). Pairs with `MatchesSnapshot()` from `SnapshotAssertions.TUnit` to pin a full log sequence, catching reorder / drop / insert regressions that per-record predicates miss. `LogSnapshotOptions` controls level, category, scope, and exception rendering. See [Pin the full log sequence as a snapshot](#pin-the-full-log-sequence-as-a-snapshot).
-
-### Shipped in v0.4.0
-
-Items that landed in this release. Documented here for historical context; the surfaces themselves live in the relevant sections above.
-
-- **`WithInnerException<TInner>()` + `WithInnerExceptionMessage(string substring, StringComparison comparison)` filters**: match against `Exception.InnerException` (one level). Designed for the gRPC / RPC pattern where a transport exception wraps the underlying domain exception once. See [Exception filters](#exception-filters).
-- **`WithExceptionMessage(string substring, StringComparison comparison)` overload**: explicit-comparison variant of the legacy single-arg `WithExceptionMessage(string)` (which was `[Obsolete]` from v0.4.0 and was removed in v0.6.0). Aligns the public surface with the family-wide `StringComparison` rule.
-- **`WithScopeProperties(IDictionary<string, object?>)` filter**: subset match across all active scopes for a record; each key/value pair must match in some scope, but different pairs may match in different scopes. See [Subset match across multiple scopes](#subset-match-across-multiple-scopes--withscopeproperties-v040).
-- **`HasLoggedSequence.ThenAnyOrder(...)`**: concurrent step group: all sub-steps must match in the remaining records but the relative order is unconstrained. Backtracking match (no order-dependence on overlapping filters); records that match no sub-step are skipped. See [Concurrent steps: `ThenAnyOrder`](#concurrent-steps--thenanyorder-v040).
-- **`DumpVerbosity` enum + `DumpTo(TextWriter, DumpVerbosity)` / `DumpToTestOutput(DumpVerbosity)` overloads**: three levels: `Compact` (headlines only), `Default` (existing one-liner detail), `Verbose` (Default plus full exception `ToString()` including stack trace). See [Dump verbosity](#dump-verbosity-v040).
-
-### Shipped in v0.3.0
-
-- **`GetMatch()` / `GetMatches()`**: value-returning terminators on `HasLogged()`. See [Value-returning terminators](#value-returning-terminators-getmatch--getmatches).
-- **`DumpToTestOutput()`**: TUnit-aware variant of `DumpTo(TextWriter)`. See [Non-asserting inspection](#non-asserting-inspection).
-- **External-consumer smoke-test project in CI**: `tests/LogAssertions.TUnit.SmokeTest/` consumes the just-packed nupkg via `PackageReference` from a deliberately-different namespace (`Smoke.Consumer.*`). Pins the v0.2.0/v0.2.1 namespace-resolution regression closed at build time.
-- **Documentation interop pins:** `Because`, `Assert.Multiple`, `[NotInParallel]` guidance, Troubleshooting FAQ. See [TUnit-native conveniences](#tunit-native-conveniences-because-parallelism-should) and [Troubleshooting](#troubleshooting).
-
-### Plausible (queued; no commitment)
-
-These items are concrete and tracked but require either consumer demand or upstream movement before they ship.
-
-- **`Should()` syntax verification + documentation**: currently deferred. Upstream `TUnit.Assertions.Should` is beta-only and our dependency policy forbids beta packages, so we cannot yet verify `collector.Should().HaveLogged()` hands-on. Will revisit when the upstream package goes stable.
-- **`DescribedAs(string label)` on filters**: let `Where(predicate)` and composed `MatchingAny`/`MatchingAll` filters carry a human-readable label that shows in failure diagnostics instead of the generic rendering.
-- **Time-based filters:** `WithElapsedTime(min, max)`, `WithTimestamp(at, tolerance)`, `ThenGap(TimeSpan)` in sequence, `Throttled(maxPerWindow)` for rate-limit verification. Coherent set; needs a unified design pass.
-- **`WithinTimeout(TimeSpan)` polling terminator**: for tests against background services / event handlers, replacing the brittle `await Task.Delay(...)` pattern. Real design questions about snapshot-vs-time mental model and composition with existing terminators (`Once().WithinTimeout` semantics): needs a focused design spike before implementation.
-- **`Member()` / `AndTheMatch()` bridge**: let a `HasLogged()` chain hand its match(es) to TUnit's `.Member()` assertion shape in one expression. Largely subsumed by `GetMatch()`/`GetMatches()` shipped in 0.3.0; this stays parked unless a second consumer reports the chained form is materially better than the variable-capture form.
-- **Sequence variants:** `ThenImmediately()` (strict adjacency), `NotInterleaved()` (no other records from same category between matches), `InOrder()` terminator on `HasLogged` (multiple matches in chronological order, not necessarily adjacent).
-- **Cursor / direction:** `FromNewest()` / `FromOldest()` direction control, `SinceLastAssert()` watermark, `Pin()` snapshot pinning, `HasLoggedDistinct(int)` (dedupe + count).
-- **`HasNotLoggedSequence()`**: mirror of `HasLoggedSequence`, asserts a specific sequence did NOT occur.
-
-### Possible v0.7.0+ (longer horizon, no commitment)
-
-Larger pieces of work that need either real demand or a separate package. None of these is on a timeline.
-
-- **Source generator** for `[LoggerMessage]`-derived typed assertion helpers: e.g. `HasLogged().RetryExhausted(maxRetries: 3)` generated from the `[LoggerMessage]` declaration. Would be a flagship differentiator; significant undertaking.
-- **Verify integration**: `collector.ToVerifyString()` for golden-file approval of full log sequences. Likely a separate `LogAssertions.Verify` package.
-- **Framework adapter packages:** `LogAssertions.NUnit`, `LogAssertions.xUnit`, `LogAssertions.MSTest`. The `LogAssertions` core package already supports them architecturally; only built when someone asks.
-
-### Could-go-either-way (no current plan, depends on demand)
-
-- Multi-collector aggregate: `Assert.That(c1, c2, c3).HasLogged(...)` for pipeline tests with several loggers.
-- Diagnostic upgrades: per-record match-tagging in failure dump, grouping by category/level.
-- Scope-aware sequence: `HasLoggedSequence().WithScopeProperty("RequestId", "abc")...`.
-- Parallel-safe collector partitioning (depends on TUnit's parallel-test story).
-- Benchmarks + perf documentation (will probably do once before v1.0 to honestly characterise).
-
-### Declined (will not ship)
-
-- **Roslyn analyzer package** for "common mistakes" (forgotten terminator → silent `AtLeast(1)`, etc.). Considered and declined: a rule that says "the implicit `AtLeast(1)` default may mask count bugs" is a band-aid for an API design choice. If the implicit default is wrong, the right fix is to change the default; shipping an analyzer that polices our own API surface is not the right shape. Would reconsider only if a different *class* of mistake surfaces from real adoption that isn't a patch on the API.
-- **Package-shipped `<Using Include="LogAssertions" />` via `build/LogAssertions.props`**: silently adding globals via a package's `.props` file is a NuGet-ecosystem pattern consumers have learned to distrust. The documented `GlobalUsings.cs` recommendation stays the lower-surprise default.
-
-### Probably not (wrong fit or no clear demand)
-
-- `WithCallerInfo(...)`: MEL doesn't auto-propagate `[CallerMemberName]` etc. into log records.
-- `WithContext<T>` AsyncLocal context filter: niche, conflates with `WithScope`.
-- `WithStructuredState<T>` typed state: `FakeLogger` empirically does not preserve the typed state object (we proved this by testing).
-- JSON property matching (`HasLoggedJson`): depends on JSON serializer, AOT-incompatible without source-gen, ecosystem-fragmenting.
-- Anonymous-object scope inspection: would require reflection; intentionally out of scope for AOT-compatibility.
-- Localization-aware level names: `LevelAbbreviation` is intentionally English-centric to match MEL's console formatter.
-
-### Out of scope per project policy
-
-- Multi-target `net8;net9;net10`: see "Single TFM, forward-only" in [Design notes](#design-notes).
-
-If you'd find any of the candidate items useful, [open a feature request](https://github.com/JohnVerheij/LogAssertions.TUnit/issues/new?template=feature_request.yml).
-
----
+[Open a feature request](https://github.com/JohnVerheij/LogAssertions.TUnit/issues/new?template=feature_request.yml) if you would use any of these.
 
 ## Family compatibility
 
-The seven assertion-family packages: `LogAssertions.TUnit`, `TimeAssertions.TUnit`, `SnapshotAssertions.TUnit`, `MathAssertions.TUnit`, `JsonAssertions.TUnit`, `SseAssertions.TUnit`, and `GrpcAssertions.TUnit`: release independently and target the same .NET TFM at any moment (LTS-anchored, multi-target during STS support windows; see the [TFM policy in CONVENTIONS.md](CONVENTIONS.md#tfm-policy) for the rotation schedule). **Mix versions freely.** Each package ships under SemVer with `EnablePackageValidation` strict-mode ApiCompat against its previous baseline, so binary breaks within a version line are caught at pack time.
+The eight assertion-family packages: `LogAssertions.TUnit`, `TimeAssertions.TUnit`, `SnapshotAssertions.TUnit`, `MathAssertions.TUnit`, `JsonAssertions.TUnit`, `SseAssertions.TUnit`, `GrpcAssertions.TUnit`, and `TracingAssertions.TUnit`: release independently and target the same .NET TFM at any moment (LTS-anchored, multi-target during STS support windows; see the [TFM policy in CONVENTIONS.md](CONVENTIONS.md#tfm-policy) for the rotation schedule). **Mix versions freely.** Each package ships under SemVer with `EnablePackageValidation` strict-mode ApiCompat against its previous baseline, so binary breaks within a version line are caught at pack time.
 
 For per-package release notes:
 - [LogAssertions.TUnit CHANGELOG](https://github.com/JohnVerheij/LogAssertions.TUnit/blob/main/CHANGELOG.md)
@@ -1031,6 +948,7 @@ For per-package release notes:
 - [JsonAssertions.TUnit CHANGELOG](https://github.com/JohnVerheij/JsonAssertions.TUnit/blob/main/CHANGELOG.md)
 - [SseAssertions.TUnit CHANGELOG](https://github.com/JohnVerheij/SseAssertions.TUnit/blob/main/CHANGELOG.md)
 - [GrpcAssertions.TUnit CHANGELOG](https://github.com/JohnVerheij/GrpcAssertions.TUnit/blob/main/CHANGELOG.md)
+- [TracingAssertions.TUnit CHANGELOG](https://github.com/JohnVerheij/TracingAssertions.TUnit/blob/main/CHANGELOG.md)
 
 ## Pair with
 
@@ -1040,6 +958,7 @@ For per-package release notes:
 - **[`JsonAssertions.TUnit`](https://www.nuget.org/packages/JsonAssertions.TUnit/)**: fluent JSON assertions over `System.Text.Json`, HTTP response bodies (including RFC 7807 ProblemDetails), and source-generated `JsonSerializerContext` registration.
 - **[`SseAssertions.TUnit`](https://www.nuget.org/packages/SseAssertions.TUnit/)**: Server-Sent Events (SSE) wire-format assertions: event-count, field shape (`event:`, `data:`, `id:`, `retry:`), and stream content validation.
 - **[`GrpcAssertions.TUnit`](https://www.nuget.org/packages/GrpcAssertions.TUnit/)**: fluent gRPC outcome assertions (`ThrowsGrpcException` with `StatusCode` shorthands and detail refinements) plus the `GrpcCallBuilder` test-double helper.
+- **[`TracingAssertions.TUnit`](https://www.nuget.org/packages/TracingAssertions.TUnit/)**: fluent OpenTelemetry distributed-tracing (`Activity` / span) assertions: operation name, tags, status, and parent/child and same-trace relationships, captured via a raw `ActivityListener` with no OpenTelemetry SDK dependency.
 
 ---
 
