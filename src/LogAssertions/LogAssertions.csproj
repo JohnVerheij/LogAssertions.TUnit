@@ -11,7 +11,7 @@
     <IsPackable>true</IsPackable>
     <PackageId>LogAssertions</PackageId>
     <ProductName>LogAssertions</ProductName>
-    <Version>0.6.2</Version>
+    <Version>0.6.3</Version>
     <PackageValidationBaselineVersion>0.6.1</PackageValidationBaselineVersion>
     <Authors>John Verheij</Authors>
     <Copyright>Copyright (c) 2026 John Verheij</Copyright>

@@ -14,6 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-06-06: release notes sourced from the CHANGELOG
+
+Tooling release. No library API or behaviour change.
+
+### Changed
+
+- The release workflow now publishes the matching `CHANGELOG.md` section as the GitHub release body (`body_path`), so release notes carry the full hand-written detail instead of GitHub's auto-generated commit summary.
+
 ## [0.6.2] - 2026-06-05: documentation refresh
 
 Documentation-only release. No API or behaviour change.
