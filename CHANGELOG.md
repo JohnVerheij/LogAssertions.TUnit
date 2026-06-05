@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > *History note:* Sections at and below `[0.5.0]` were reformatted on 2026-05-17 for one-time
 > [CONVENTIONS v0.5 §CHANGELOG](CONVENTIONS.md) conformance: forbidden sub-headers folded into
 > the six Keep a Changelog headers, non-user-facing content removed (build hygiene, internal
-> refactors, test counts, governance churn), bullets normalised to past-tense active voice
+> refactors, test counts, governance churn), bullets normalized to past-tense active voice
 > with code-formatted API leads. The nuget.org Release Notes tab and GitHub Releases for each
 > shipped version remain unchanged. Sections from `[0.6.0]` onward are frozen per Rule 7.
 
@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.6.3] - 2026-06-06: release notes sourced from the CHANGELOG
 
-Tooling release. No library API or behaviour change.
+Tooling release. No library API or behavior change.
 
 ### Changed
 
@@ -24,7 +24,7 @@ Tooling release. No library API or behaviour change.
 
 ## [0.6.2] - 2026-06-05: documentation refresh
 
-Documentation-only release. No API or behaviour change.
+Documentation-only release. No API or behavior change.
 
 ### Changed
 
@@ -84,7 +84,7 @@ Documentation-only release. No API or behaviour change.
   - `Microsoft.CodeAnalysis.BannedApiAnalyzers` 3.3.4 → 4.14.0
   - `Meziantou.Analyzer` 3.0.72 → 3.0.78
   - `SnapshotAssertions.TUnit` 0.2.0 → 0.3.0
-- **Production-code source style ratcheted** via `MeziantouAnalysisMode=all-warnings` for `src/` projects (path-conditional via the normalised `Replace('\\','/').Contains('/tests/')` predicate). Test projects retain Meziantou defaults. Findings surfaced and fixed at source: CRTP self-cast pattern centralised via an `Unsafe.As<TSelf>(this)` helper property; discrete-value equality comparisons modernised to pattern-matching form (`is 0`, `is SequenceStepKind.Simple`); trailing-`null` constructor arguments given explicit `AnyOrderSubSteps:` named-argument form; culture-sensitive string concatenations switched to `string.Create(CultureInfo.InvariantCulture, ...)`.
+- **Production-code source style ratcheted** via `MeziantouAnalysisMode=all-warnings` for `src/` projects (path-conditional via the normalized `Replace('\\','/').Contains('/tests/')` predicate). Test projects retain Meziantou defaults. Findings surfaced and fixed at source: CRTP self-cast pattern centralized via an `Unsafe.As<TSelf>(this)` helper property; discrete-value equality comparisons modernized to pattern-matching form (`is 0`, `is SequenceStepKind.Simple`); trailing-`null` constructor arguments given explicit `AnyOrderSubSteps:` named-argument form; culture-sensitive string concatenations switched to `string.Create(CultureInfo.InvariantCulture, ...)`.
 - **`BannedSymbols.txt`**: collapsed bare `#` comment lines into adjacent text-bearing lines so the file parses cleanly under the stricter `BannedApiAnalyzers` 4.x grammar.
 
 ## [0.4.0] - 2026-05-07
@@ -120,7 +120,7 @@ Documentation-only release. No API or behaviour change.
 
 ### Deprecated
 
-- **`LogFilter.WithExceptionMessage(string substring)`** and the corresponding chain method on `HasLoggedAssertion`: single-arg overloads now carry `[Obsolete(error: false)]`. They default to `StringComparison.Ordinal` and delegate to the new explicit-comparison overload. Will be removed in v0.6.0 (two-minor cycle). Migrate by appending `, StringComparison.Ordinal` to existing call sites, or pick a different comparison if you want case-insensitive / culture-aware behaviour.
+- **`LogFilter.WithExceptionMessage(string substring)`** and the corresponding chain method on `HasLoggedAssertion`: single-arg overloads now carry `[Obsolete(error: false)]`. They default to `StringComparison.Ordinal` and delegate to the new explicit-comparison overload. Will be removed in v0.6.0 (two-minor cycle). Migrate by appending `, StringComparison.Ordinal` to existing call sites, or pick a different comparison if you want case-insensitive / culture-aware behavior.
 
 ## [0.3.0] - 2026-05-02
 
@@ -208,7 +208,7 @@ Documentation-only release. No API or behaviour change.
 - **`Containing(string, StringComparison)`** (comparison explicit by design), **`WithMessage(Func<string, bool>)`**, **`WithMessageTemplate(string)`** (matches the pre-substitution template via `Microsoft.Extensions.Logging`'s `{OriginalFormat}` entry): message filters.
 - **`WithException<TException>()`, `WithExceptionMessage(string)`**: exception filters. (`WithExceptionMessage(string, StringComparison)` overload added in v0.4.0; legacy single-arg overload `[Obsolete]` until v0.6.0.)
 - **`WithProperty(string key, string? value)`** (ordinal), **`WithProperty(string key, Func<string?, bool> predicate)`** (predicate over formatted value): structured-state filters.
-- **`WithScope<TScope>()`** (by scope type), **`WithScopeProperty(string key, object? value)`** (`object.Equals` on scope-property value), **`WithScopeProperty(string key, Func<object?, bool> predicate)`**: scope filters. Recognises dictionary scopes and `LoggerMessage.DefineScope` scopes; anonymous-object scopes intentionally not supported (would require reflection, breaking AOT).
+- **`WithScope<TScope>()`** (by scope type), **`WithScopeProperty(string key, object? value)`** (`object.Equals` on scope-property value), **`WithScopeProperty(string key, Func<object?, bool> predicate)`**: scope filters. Recognizes dictionary scopes and `LoggerMessage.DefineScope` scopes; anonymous-object scopes intentionally not supported (would require reflection, breaking AOT).
 - **`WithCategory(string)`, `WithEventId(int)`, `WithEventName(string)`**: identity filters.
 - **`Where(Func<FakeLogRecord, bool>)`**: escape-hatch filter.
 - **`Once()`, `Exactly(int)`, `AtLeast(int)`, `AtMost(int)`, `Between(int, int)`, `Never()`**: six terminators on `HasLogged()`.

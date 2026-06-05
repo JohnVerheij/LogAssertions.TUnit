@@ -4,7 +4,7 @@ Thanks for considering a contribution. This document covers the small set of con
 
 ## Reporting bugs
 
-Use the [bug report template](https://github.com/JohnVerheij/LogAssertions.TUnit/issues/new?template=bug_report.yml). The template asks for the LogAssertions.TUnit version, TUnit version, .NET SDK version, expected vs actual behaviour, and a minimal reproduction. The smaller and more self-contained the repro, the faster the fix.
+Use the [bug report template](https://github.com/JohnVerheij/LogAssertions.TUnit/issues/new?template=bug_report.yml). The template asks for the LogAssertions.TUnit version, TUnit version, .NET SDK version, expected vs actual behavior, and a minimal reproduction. The smaller and more self-contained the repro, the faster the fix.
 
 ## Proposing features
 
