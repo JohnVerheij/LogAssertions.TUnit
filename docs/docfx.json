@@ -27,7 +27,7 @@
     ],
     "resource": [
       {
-        "files": ["CNAME", "public/**"]
+        "files": ["CNAME", "robots.txt", "public/**"]
       }
     ],
     "output": "_site",
@@ -41,6 +41,11 @@
       "_disableContribution": true,
       "_disableBreadcrumb": true
     },
-    "markdownEngineName": "markdig"
+    "markdownEngineName": "markdig",
+    "sitemap": {
+      "baseUrl": "https://logassertions.dev",
+      "priority": 0.5,
+      "changefreq": "monthly"
+    }
   }
 }

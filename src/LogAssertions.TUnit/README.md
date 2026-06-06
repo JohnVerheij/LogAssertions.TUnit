@@ -4,12 +4,13 @@
 [![Downloads](https://img.shields.io/nuget/dt/LogAssertions.TUnit.svg)](https://www.nuget.org/packages/LogAssertions.TUnit/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
+[![Docs](https://img.shields.io/badge/docs-logassertions.dev-512BD4.svg)](https://logassertions.dev)
 
 > **Scope:** Test projects only. Not intended for production code.
 
 TUnit-native fluent log-assertion DSL on top of `Microsoft.Extensions.Logging.Testing.FakeLogCollector`. AOT-compatible, trimmable, no reflection.
 
-> **Full documentation, full filter reference, design notes, and roadmap:** [github.com/JohnVerheij/LogAssertions.TUnit](https://github.com/JohnVerheij/LogAssertions.TUnit)
+> **Full documentation, full filter reference, design notes, and roadmap:** [logassertions.dev](https://logassertions.dev)
 
 ## Install
 
