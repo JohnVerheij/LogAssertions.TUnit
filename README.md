@@ -458,7 +458,7 @@ await Assert.That(collector).HasLogged().AtLevel(LogLevel.Warning).Between(1, 5)
 await Assert.That(collector).HasLogged().WithEventId(42).Never();
 ```
 
-**`Never()` vs `HasNotLogged()`: when to use which.** They produce identical assertions; the only difference is reading order. **Prefer `HasNotLogged()`** when "this should not happen" is the primary intent of the test (the negative is the headline). **Use `.Never()`** when you've already started building a positive filter chain and only at the end realize you expect zero matches: saves rewriting the prefix. Don't agonise over the choice; either reads clearly to a future maintainer.
+**`Never()` vs `HasNotLogged()`: when to use which.** They produce identical assertions; the only difference is reading order. **Prefer `HasNotLogged()`** when "this should not happen" is the primary intent of the test (the negative is the headline). **Use `.Never()`** when you've already started building a positive filter chain and only at the end realize you expect zero matches: saves rewriting the prefix. Don't agonize over the choice; either reads clearly to a future maintainer.
 
 ### Value-returning terminators (`GetMatch` / `GetMatches`)
 

@@ -1,5 +1,5 @@
 name: Bug report
-description: Report unexpected behaviour in LogAssertions.TUnit
+description: Report unexpected behavior in LogAssertions.TUnit
 title: "[Bug]: "
 labels: [bug]
 
@@ -37,7 +37,7 @@ body:
   - type: textarea
     id: expected
     attributes:
-      label: Expected behaviour
+      label: Expected behavior
       description: What did you expect the assertion to do?
     validations:
       required: true
@@ -45,7 +45,7 @@ body:
   - type: textarea
     id: actual
     attributes:
-      label: Actual behaviour
+      label: Actual behavior
       description: What actually happened? Include the assertion failure message if applicable.
     validations:
       required: true
