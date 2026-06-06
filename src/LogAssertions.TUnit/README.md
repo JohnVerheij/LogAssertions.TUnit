@@ -18,7 +18,7 @@ TUnit-native fluent log-assertion DSL on top of `Microsoft.Extensions.Logging.Te
 dotnet add package LogAssertions.TUnit
 ```
 
-`LogAssertions` (the framework-agnostic core) comes transitively. **Requirements:** TUnit 1.50.0 or later, .NET 10.
+`LogAssertions` (the framework-agnostic core) comes transitively. **Requirements:** TUnit 1.48.6 or later, .NET 10.
 
 ## Quick start
 
