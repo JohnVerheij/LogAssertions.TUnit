@@ -43,7 +43,7 @@
     },
     "markdownEngineName": "markdig",
     "sitemap": {
-      "baseUrl": "https://logassertions.dev",
+      "baseUrl": "https://logassertions.dev/",
       "priority": 0.5,
       "changefreq": "monthly"
     }
