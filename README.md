@@ -8,6 +8,7 @@
 [![Downloads](https://img.shields.io/nuget/dt/LogAssertions.TUnit.svg)](https://www.nuget.org/packages/LogAssertions.TUnit/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
+[![Docs](https://img.shields.io/badge/docs-logassertions.dev-512BD4.svg)](https://logassertions.dev)
 
 A TUnit-native fluent log-assertion DSL on top of `Microsoft.Extensions.Logging.Testing.FakeLogCollector`. Built using TUnit's `[AssertionExtension]` source generator, so the assertion entry points integrate directly into TUnit's `Assert.That(...)` pipeline with rich failure diagnostics.
 
@@ -219,7 +220,7 @@ Filters chain freely. Within a single assertion (or within a single sequence ste
 
 ### Level filters
 
-| Filter | Behaviour |
+| Filter | Behavior |
 |---|---|
 | `AtLevel(LogLevel)` | Exact level match |
 | `AtLevelOrAbove(LogLevel)` | `record.Level >= threshold` (e.g. *"any warning or worse"*) |
@@ -236,7 +237,7 @@ await Assert.That(collector).HasLogged().AtAnyLevel(LogLevel.Warning, LogLevel.E
 
 ### Message filters
 
-| Filter | Behaviour |
+| Filter | Behavior |
 |---|---|
 | `Containing(string substring, StringComparison comparison)` | Formatted message contains substring (comparison **explicit by design**: no implicit culture) |
 | `ContainingAll(StringComparison, params string[])` | Formatted message contains every one of the substrings |
@@ -256,7 +257,7 @@ await Assert.That(collector).HasLogged()
 
 ### Exception filters
 
-| Filter | Behaviour |
+| Filter | Behavior |
 |---|---|
 | `WithException<TException>()` | `record.Exception is TException` (assignable) |
 | `WithException()` | Any record with a non-null `Exception`, regardless of type |
@@ -287,7 +288,7 @@ The `WithInnerException` filters walk only `Exception.InnerException` (one level
 
 `Microsoft.Extensions.Logging` exposes structured properties on each record (the parameters captured by `LoggerMessage` source generators or by message-template logging calls).
 
-| Filter | Behaviour |
+| Filter | Behavior |
 |---|---|
 | `WithProperty(string key, string? value)` | Property's formatted string value equals `value` (ordinal) |
 | `WithProperty(string key, Func<string?, bool> predicate)` | Predicate over the formatted string value (use for ranges, regex, or null-checks) |
@@ -313,7 +314,7 @@ await Assert.That(collector).HasLogged()
 
 Scopes are values pushed via `logger.BeginScope(...)`. They surround any log records emitted while the scope is active.
 
-| Filter | Behaviour |
+| Filter | Behavior |
 |---|---|
 | `WithScope<TScope>()` | A scope of type `TScope` was active when the record was emitted |
 | `WithScopeProperty(string key, object? value)` | A scope contains a property `key` matching `value` (`object.Equals` semantics) |
@@ -330,7 +331,7 @@ await Assert.That(collector).HasLogged().WithScopeProperty("MessageId", messageI
 await Assert.That(collector).HasLogged().WithScopeProperty<int>("CallerLine", line => line > 0).Once();
 ```
 
-Scope-property filters recognise the two AOT-friendly idioms:
+Scope-property filters recognize the two AOT-friendly idioms:
 
 ```csharp
 // dictionary scope: the canonical structured pattern
@@ -350,7 +351,7 @@ using (OrderScope(logger, 42)) DoWork();
 await Assert.That(collector).HasLogged().WithScopeProperty("OrderId", 42).AtLeast(1);
 ```
 
-> **Anonymous-object scopes** (`logger.BeginScope(new { OrderId = 42 })`) are **not** recognised by `WithScopeProperty`: reading their fields requires reflection, which would compromise AOT-compatibility. Prefer dictionary or `LoggerMessage.DefineScope` form.
+> **Anonymous-object scopes** (`logger.BeginScope(new { OrderId = 42 })`) are **not** recognized by `WithScopeProperty`: reading their fields requires reflection, which would compromise AOT-compatibility. Prefer dictionary or `LoggerMessage.DefineScope` form.
 
 #### Subset match across multiple scopes: `WithScopeProperties` (v0.4.0+)
 
@@ -375,7 +376,7 @@ The dictionary is snapshotted on construction; mutating the input dictionary aft
 
 ### Identity filters (category, event)
 
-| Filter | Behaviour |
+| Filter | Behavior |
 |---|---|
 | `WithCategory(string)` | Logger category equals string (ordinal) |
 | `WithLoggerName(string)` | Alias for `WithCategory` |
@@ -393,7 +394,7 @@ await Assert.That(collector).HasLogged()
 
 ### Escape hatch
 
-| Filter | Behaviour |
+| Filter | Behavior |
 |---|---|
 | `Where(Func<FakeLogRecord, bool> predicate)` | Arbitrary predicate over the full `FakeLogRecord` |
 
@@ -403,7 +404,7 @@ Use only when no other filter expresses the constraint cleanly: composing built-
 
 The fluent chain is implicitly AND-combined. These four chain methods let you compose richer expressions inside the chain without dropping to `Where`:
 
-| Method | Behaviour |
+| Method | Behavior |
 |---|---|
 | `MatchingAny(params ILogRecordFilter[])` | OR of the supplied filters as one composite filter on the chain. Empty array matches no record. |
 | `MatchingAll(params ILogRecordFilter[])` | Explicit AND of the supplied filters. Empty array matches every record. |
@@ -458,7 +459,7 @@ await Assert.That(collector).HasLogged().AtLevel(LogLevel.Warning).Between(1, 5)
 await Assert.That(collector).HasLogged().WithEventId(42).Never();
 ```
 
-**`Never()` vs `HasNotLogged()`: when to use which.** They produce identical assertions; the only difference is reading order. **Prefer `HasNotLogged()`** when "this should not happen" is the primary intent of the test (the negative is the headline). **Use `.Never()`** when you've already started building a positive filter chain and only at the end realise you expect zero matches: saves rewriting the prefix. Don't agonise over the choice; either reads clearly to a future maintainer.
+**`Never()` vs `HasNotLogged()`: when to use which.** They produce identical assertions; the only difference is reading order. **Prefer `HasNotLogged()`** when "this should not happen" is the primary intent of the test (the negative is the headline). **Use `.Never()`** when you've already started building a positive filter chain and only at the end realize you expect zero matches: saves rewriting the prefix. Don't agonize over the choice; either reads clearly to a future maintainer.
 
 ### Value-returning terminators (`GetMatch` / `GetMatches`)
 

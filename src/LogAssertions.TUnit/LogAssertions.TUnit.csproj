@@ -11,13 +11,13 @@
     <IsPackable>true</IsPackable>
     <PackageId>LogAssertions.TUnit</PackageId>
     <ProductName>LogAssertions.TUnit</ProductName>
-    <Version>0.6.2</Version>
+    <Version>0.6.3</Version>
     <PackageValidationBaselineVersion>0.6.1</PackageValidationBaselineVersion>
     <Authors>John Verheij</Authors>
     <Copyright>Copyright (c) 2026 John Verheij</Copyright>
     <Description>TUnit-native fluent log-assertion DSL using [AssertionExtension] over Microsoft.Extensions.Logging.Testing.FakeLogCollector. Provides Assert.That(collector).HasLogged()/HasNotLogged() with filter and terminator chaining; emits captured-records snapshot in failure messages.</Description>
     <PackageTags>tunit;logging;assertions;testing;fakelogcollector</PackageTags>
-    <PackageProjectUrl>https://github.com/JohnVerheij/LogAssertions.TUnit</PackageProjectUrl>
+    <PackageProjectUrl>https://logassertions.dev</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <!-- Fallback: nuget.org renders this as a clickable link to the matching GitHub release.
@@ -85,7 +85,7 @@
     <!-- Use the per-package short README for the nuget.org page. The root README.md is
          the comprehensive reference rendered by GitHub on the repo home; nuget.org
          needs a focused 'can I use this in 60 seconds' view, so the package ships a
-         shorter README that links out to the full reference on GitHub. -->
+         shorter README that links out to the full reference on the docs site (logassertions.dev). -->
     <None Include="README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 

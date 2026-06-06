@@ -11,13 +11,13 @@
     <IsPackable>true</IsPackable>
     <PackageId>LogAssertions</PackageId>
     <ProductName>LogAssertions</ProductName>
-    <Version>0.6.2</Version>
+    <Version>0.6.3</Version>
     <PackageValidationBaselineVersion>0.6.1</PackageValidationBaselineVersion>
     <Authors>John Verheij</Authors>
     <Copyright>Copyright (c) 2026 John Verheij</Copyright>
     <Description>Framework-agnostic core for fluent log assertions over Microsoft.Extensions.Logging.Testing.FakeLogCollector. Provides ILogRecordFilter + LogFilter composable filter primitives, the failure-message rendering, the FakeLogCollector inspection extensions (Filter, CountMatching, DumpTo), and the LogCollectorBuilder factory. Test-framework-specific entry points live in adapter packages (LogAssertions.TUnit ships today; xUnit, NUnit, MSTest adapters are possible if there is demand).</Description>
     <PackageTags>logging;assertions;testing;fakelogcollector;microsoft-extensions-logging</PackageTags>
-    <PackageProjectUrl>https://github.com/JohnVerheij/LogAssertions.TUnit</PackageProjectUrl>
+    <PackageProjectUrl>https://logassertions.dev</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <!-- Fallback: nuget.org renders this as a clickable link to the matching GitHub release.
