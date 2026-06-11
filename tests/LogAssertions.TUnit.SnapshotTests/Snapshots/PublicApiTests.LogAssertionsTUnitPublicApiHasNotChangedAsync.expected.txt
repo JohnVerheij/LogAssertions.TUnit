@@ -97,6 +97,7 @@ namespace LogAssertions.TUnit
             where T : System.IParsable<T> { }
         public TSelf WithScope<TScope>() { }
         public TSelf WithScopeProperties(System.Collections.Generic.IReadOnlyDictionary<string, object?> required) { }
+        public TSelf WithScopeProperty(string key) { }
         public TSelf WithScopeProperty(string key, System.Func<object?, bool> predicate) { }
         public TSelf WithScopeProperty(string key, object? value) { }
         public TSelf WithScopeProperty<T>(string key, System.Func<T, bool> predicate) { }

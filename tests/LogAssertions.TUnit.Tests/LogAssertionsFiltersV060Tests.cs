@@ -126,6 +126,25 @@ internal sealed class LogAssertionsFiltersV060Tests
         await Assert.That(collector).HasLogged().WithScopeProperty<int>("CallerLine", line => line > 100).Never();
     }
 
+    /// <summary>Key-existence overload: <c>WithScopeProperty(key)</c> matches a record carrying the
+    /// scope key regardless of its value, and <c>HasNotLogged().WithScopeProperty(key)</c> holds when
+    /// no record carried the key. Covers scope keys whose value is set internally (caller-info).</summary>
+    [Test]
+    public async Task WithScopePropertyKeyExistence_MatchesAndNegates(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var (factory, collector) = LogCollectorBuilder.Create();
+        var logger = factory.CreateLogger("Test");
+        using (logger.BeginScope(new[] { new KeyValuePair<string, object?>("CallerMember", "Process") }))
+        {
+            TestLogMessages.StartedProcessing(logger);
+        }
+
+        // The value is set internally; only the key's presence is asserted.
+        await Assert.That(collector).HasLogged().WithScopeProperty("CallerMember").Once();
+        await Assert.That(collector).HasNotLogged().WithScopeProperty("CallerFile");
+    }
+
     /// <summary>Runtime-type guard: a scope value whose runtime type is not <typeparamref name="T"/>
     /// never matches the typed overload (an <see cref="int"/> scope value is not matched by a
     /// <c>WithScopeProperty&lt;long&gt;</c> filter).</summary>

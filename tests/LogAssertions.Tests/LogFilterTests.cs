@@ -169,6 +169,7 @@ internal sealed class LogFilterTests
         await Assert.That(() => LogFilter.WithScopeProperty(null!, value: null)).Throws<ArgumentNullException>();
         await Assert.That(() => LogFilter.WithScopeProperty("k", predicate: null!)).Throws<ArgumentNullException>();
         await Assert.That(() => LogFilter.WithScopeProperty(key: null!, predicate: _ => true)).Throws<ArgumentNullException>();
+        await Assert.That(() => LogFilter.WithScopeProperty(null!)).Throws<ArgumentNullException>();
         await Assert.That(() => LogFilter.WithScopeProperties(null!)).Throws<ArgumentNullException>();
         await Assert.That(() => LogFilter.Where(null!)).Throws<ArgumentNullException>();
         await Assert.That(() => LogFilter.All(null!)).Throws<ArgumentNullException>();
@@ -266,6 +267,38 @@ internal sealed class LogFilterTests
         await Assert.That(collector.CountMatching(LogFilter.WithScopeProperty<int>("CallerLine", n => n > 0))).IsEqualTo(1);
         await Assert.That(collector.CountMatching(LogFilter.WithScopeProperty<long>("CallerLine", 17L))).IsEqualTo(0);
         await Assert.That(LogFilter.WithScopeProperty("CallerLine", 17).Description).IsEqualTo("Scope CallerLine = 17");
+    }
+
+    /// <summary>Verifies the key-existence <see cref="LogFilter.WithScopeProperty(string)"/> overload
+    /// matches a record carrying a scope property at the key regardless of its value (including a
+    /// <see langword="null"/> value), and does not match an absent key. Covers the case where the
+    /// value is produced internally and is not known to the test (for example a caller-info scope).</summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task WithScopePropertyKeyExistenceMatchesAnyValueAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var (factory, collector) = LogCollectorBuilder.Create();
+        var logger = factory.CreateLogger("Test");
+        using (logger.BeginScope(new[]
+        {
+            new KeyValuePair<string, object?>("CallerFile", "/internal/Production.cs"),
+            new KeyValuePair<string, object?>("CorrelationId", null),
+        }))
+        {
+#pragma warning disable CA1848
+            logger.LogInformation("scoped");
+#pragma warning restore CA1848
+        }
+        factory.Dispose();
+
+        // The value is set internally and unknown to the test: only the key's presence is asserted.
+        await Assert.That(collector.CountMatching(LogFilter.WithScopeProperty("CallerFile"))).IsEqualTo(1);
+        // A scope property whose value is null still counts as present.
+        await Assert.That(collector.CountMatching(LogFilter.WithScopeProperty("CorrelationId"))).IsEqualTo(1);
+        // An absent key does not match.
+        await Assert.That(collector.CountMatching(LogFilter.WithScopeProperty("Absent"))).IsEqualTo(0);
+        await Assert.That(LogFilter.WithScopeProperty("CallerFile").Description).IsEqualTo("Scope CallerFile present");
     }
 
     /// <summary>The object-typed <see cref="LogFilter.WithScopeProperty(string, object?)"/>
