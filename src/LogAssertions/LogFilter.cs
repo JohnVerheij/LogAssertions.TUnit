@@ -346,6 +346,23 @@ public static class LogFilter
             "Scope " + key + " = " + (value ?? "null"));
     }
 
+    /// <summary>Records whose active scopes contain a property with the specified key, regardless of its value.</summary>
+    /// <param name="key">The scope-property key. Must be non-null.</param>
+    /// <returns>A filter accepting records that carry a scope property at <paramref name="key"/>, whatever its value.</returns>
+    /// <remarks>Use this when the value is produced internally and is not known to the test (for
+    /// example a caller-info scope whose <c>CallerFile</c> / <c>CallerLine</c> / <c>CallerMember</c>
+    /// are captured at the production log site). The value-bearing overloads assert a value; this one
+    /// asserts only that the key is present. A scope property whose value is <see langword="null"/>
+    /// still counts as present.</remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
+    public static ILogRecordFilter WithScopeProperty(string key)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        return new PredicateFilter(
+            r => ScopePropertyMatches(r, key, _ => true),
+            "Scope " + key + " present");
+    }
+
     /// <summary>Records whose active scopes contain a property whose value satisfies <paramref name="predicate"/>.</summary>
     /// <param name="key">The scope-property key. Must be non-null.</param>
     /// <param name="predicate">A predicate over the scope-property value.</param>

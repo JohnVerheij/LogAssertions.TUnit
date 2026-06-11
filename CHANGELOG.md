@@ -14,6 +14,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-06-11: key-existence scope-property assertion
+
+Minor release. Adds a key-only `WithScopeProperty(string key)` overload for asserting a scope property is present without asserting its value. Purely additive.
+
+### Added
+
+- **`WithScopeProperty(string key)`** on `LogFilter` and on the `HasLogged()` / `HasNotLogged()` chain asserts that a record carried a scope property at `key`, regardless of its value (a `null` value still counts as present). The existing two-argument overloads assert a value; this one asserts only presence. It covers the common case of a scope whose value is set at the production log site and is not visible to the test, such as a caller-info scope (`CallerFile` / `CallerLine` / `CallerMember` from `[CallerFilePath]` / `[CallerLineNumber]` / `[CallerMemberName]`). Pairs with `HasNotLogged().WithScopeProperty(key)` to assert a scope key was never attached.
+
+### Changed
+
+- Bumped `PackageValidationBaselineVersion` from `0.6.1` to `0.6.3` on both packages so ApiCompat strict-mode validates `0.7.0` against the most recently published baseline. The new overload is recorded as an additive difference in `CompatibilitySuppressions.xml`.
+
 ## [0.6.3] - 2026-06-06: release notes sourced from the CHANGELOG
 
 Tooling release. No library API or behavior change.

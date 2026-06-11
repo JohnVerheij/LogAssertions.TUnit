@@ -319,6 +319,7 @@ Scopes are values pushed via `logger.BeginScope(...)`. They surround any log rec
 | `WithScope<TScope>()` | A scope of type `TScope` was active when the record was emitted |
 | `WithScopeProperty(string key, object? value)` | A scope contains a property `key` matching `value` (`object.Equals` semantics) |
 | `WithScopeProperty(string key, Func<object?, bool> predicate)` | A scope contains a property `key` whose value satisfies the predicate |
+| `WithScopeProperty(string key)` *(v0.7.0+)* | A scope contains a property `key`, regardless of its value (a `null` value still counts as present). For scope values set internally and unknown to the test, such as caller-info scopes. Pairs with `HasNotLogged().WithScopeProperty(key)`. |
 | `WithScopeProperty<T>(string key, T value)` *(v0.6.0+)* | Typed match: the scope value is a `T` equal to `value` (compared via `EqualityComparer<T>.Default`). A scope value of a different runtime type never matches. |
 | `WithScopeProperty<T>(string key, Func<T, bool> predicate)` *(v0.6.0+)* | Typed predicate: the scope value is a `T` satisfying the predicate. |
 | `WithScopeProperties(IDictionary<string, object?> required)` *(v0.4.0+)* | Subset match across all active scopes: every key/value pair in `required` must match in some scope, but different pairs may match in different scopes. Empty dictionary matches every record (vacuous truth). |

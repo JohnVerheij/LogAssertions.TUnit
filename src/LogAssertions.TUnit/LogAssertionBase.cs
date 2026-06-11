@@ -372,6 +372,24 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     }
 
     /// <summary>
+    /// Filters to records emitted while a scope on the calling logger contained a property with the
+    /// specified <paramref name="key"/>, regardless of its value.
+    /// </summary>
+    /// <param name="key">The scope-property key. Must be non-null.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <remarks>Asserts only that the scope key is present, not its value. Use when the value is set
+    /// internally and is not known to the test (for example a caller-info scope). Pairs with
+    /// <c>HasNotLogged()</c> to assert a scope key was never attached. A scope property whose value is
+    /// <see langword="null"/> still counts as present.</remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
+    public TSelf WithScopeProperty(string key)
+    {
+        AddFilter(LogFilter.WithScopeProperty(key));
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithScopeProperty(\"{key}\")");
+        return Self;
+    }
+
+    /// <summary>
     /// Filters to records emitted while a scope on the calling logger contained a property
     /// with the specified <paramref name="key"/> whose value satisfies <paramref name="predicate"/>.
     /// </summary>
