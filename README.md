@@ -177,6 +177,21 @@ Two practical wins on top of the readability:
 
 See the [Cookbook](#cookbook--common-patterns) for the patterns this replaces in practice.
 
+### Prefer structured matchers over substring matching
+
+`.Containing("...")` couples a test to the *rendered* message text, so it silently rots when a `[LoggerMessage]` template is reworded. When the assertion is really about a structured field, an attached exception, or a scope value, the dedicated matcher is both more robust and more precise; reach for the substring form only when the rendered text itself is what the test is about.
+
+| Instead of (substring) | Prefer (structured) |
+|---|---|
+| `.Containing("OrderId=42")` | `.WithProperty("OrderId", 42)` |
+| `.Containing("failed")` on an `Error` line | `.WithException<TException>()` (or `.WithExceptionMessage(...)`) |
+| `.Containing(requestId.ToString())` | `.WithScopeProperty("RequestId", requestId)` |
+| `.Containing("retries=")` just to prove a key is present | `.WithScopeProperty("retries")` *(v0.7.0+)* |
+| `.Containing("user created")` matching the template text | `.WithMessageTemplate("user created")` (value-independent) |
+| multi-step "warn then debug then reconnected" via several asserts | `.HasLoggedSequence().Then(...).Then(...)` |
+
+`.WithMessageTemplate` matches the original `[LoggerMessage]` template rather than the rendered values, so it survives a value change while still pinning intent. The structured matchers also keep the failure diagnostics: a `.WithProperty` miss lists the structured state actually captured, not just "substring not found".
+
 ---
 
 ## Entry points

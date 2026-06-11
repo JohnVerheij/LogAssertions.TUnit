@@ -24,6 +24,7 @@ Minor release. Adds a key-only `WithScopeProperty(string key)` overload for asse
 
 ### Changed
 
+- README adds a **"Prefer structured matchers over substring matching"** guide under the migration section: a table mapping common `.Containing("...")` shapes to the structured matcher that is more robust (`.WithProperty`, `.WithException<T>`, `.WithScopeProperty`, `.WithMessageTemplate`, `HasLoggedSequence`), with the rationale that substring matching couples a test to rendered message text that rots when a template is reworded.
 - Bumped `PackageValidationBaselineVersion` from `0.6.1` to `0.6.3` on both packages so ApiCompat strict-mode validates `0.7.0` against the most recently published baseline. The new overload is recorded as an additive difference in `CompatibilitySuppressions.xml`.
 
 ## [0.6.3] - 2026-06-06: release notes sourced from the CHANGELOG
