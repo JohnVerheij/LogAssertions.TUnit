@@ -35,7 +35,15 @@ public sealed class HasNotLoggedAssertion : LogAssertionBase<HasNotLoggedAsserti
         var matchCount = CountMatches(snapshot);
 
         if (matchCount is 0)
-            return Task.FromResult(AssertionResult.Passed);
+        {
+            // Guard against a false green: when the chain's level filters restrict it to records
+            // below the collector's capture floor, nothing at that level was ever captured, so a
+            // zero match count is vacuous rather than a genuine absence.
+            return Task.FromResult(
+                TryDescribeVacuousFloor(collector, out var vacuousMessage)
+                    ? AssertionResult.Failed(vacuousMessage)
+                    : AssertionResult.Passed);
+        }
 
         return Task.FromResult(AssertionResult.Failed(BuildFailureMessage(matchCount, snapshot)));
     }

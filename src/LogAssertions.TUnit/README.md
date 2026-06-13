@@ -65,6 +65,12 @@ Filters chain with AND semantics: `AtLevel`, `AtLevelOrAbove`, `Containing`, `Wi
 await Assert.That(collector).HasNotLogged().AtLevelOrAbove(LogLevel.Error);
 ```
 
+**Mirror logs into the test report (v0.8.0+):** `TestOutputLogCollectorBuilder.CreateTeed()` captures for assertions and also writes each record to `TestContext.Current.Output`, so logs appear inline in the TUnit report:
+```csharp
+var (factory, collector) = TestOutputLogCollectorBuilder.CreateTeed();
+```
+`Create(minimumLevel)` records a capture floor; a `HasNotLogged()` restricted to levels below it fails as vacuous rather than passing for the wrong reason (v0.8.0+).
+
 **Assert a specific call site was hit (anchored on the message template, not the substituted value):**
 ```csharp
 await Assert.That(collector).HasLogged()

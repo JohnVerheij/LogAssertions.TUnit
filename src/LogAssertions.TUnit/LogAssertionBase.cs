@@ -40,9 +40,55 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
 {
     private readonly List<ILogRecordFilter> _filters = [];
 
+    /// <summary>
+    /// The highest log level a record could carry and still satisfy the chain's level filters.
+    /// Starts at <see cref="LogLevel.Critical"/> (unrestricted) and is lowered by the exact / at-or-below
+    /// / any-of level filters. Used to detect a vacuous below-capture-floor assertion (G5).
+    /// </summary>
+    private LogLevel _maxMatchableLevel = LogLevel.Critical;
+
     /// <summary>Initialises the base assertion with the supplied TUnit context.</summary>
     /// <param name="context">The assertion context supplied by TUnit.</param>
     protected LogAssertionBase(AssertionContext<FakeLogCollector> context) : base(context) { }
+
+    /// <summary>
+    /// Lowers <see cref="_maxMatchableLevel"/> to <paramref name="level"/> when it further restricts the
+    /// chain (the chain's matchable set is the intersection of its level filters). Only the
+    /// upper bound matters for the vacuity check, so at-or-above and exclusion filters do not call this.
+    /// </summary>
+    /// <param name="level">The new upper bound implied by a level filter.</param>
+    private void RestrictMaxMatchableLevel(LogLevel level)
+    {
+        if (level < _maxMatchableLevel)
+            _maxMatchableLevel = level;
+    }
+
+    /// <summary>
+    /// Detects a vacuous assertion: one whose level filters restrict it to records at or below a level
+    /// the collector's capture floor filtered out, so no such record was ever captured and a
+    /// "not logged" check would pass for the wrong reason. Returns the explanatory message when so.
+    /// </summary>
+    /// <param name="collector">The collector under assertion.</param>
+    /// <param name="message">The failure message when this returns <see langword="true"/>.</param>
+    /// <returns><see langword="true"/> when the assertion is vacuous against the registered floor.</returns>
+    private protected bool TryDescribeVacuousFloor(
+        FakeLogCollector collector, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? message)
+    {
+        if (LogCaptureFloorRegistry.TryGetFloor(collector, out var floor) && _maxMatchableLevel < floor)
+        {
+            message = string.Format(
+                CultureInfo.InvariantCulture,
+                "this assertion only matches records at level {0} or below, but the collector's capture floor is {1}, "
+                + "so records below {1} were never captured and the check is vacuously true. "
+                + "Lower the floor (LogCollectorBuilder.Create with a lower minimumLevel) or assert at a captured level.",
+                _maxMatchableLevel,
+                floor);
+            return true;
+        }
+
+        message = null;
+        return false;
+    }
 
     /// <summary>
     /// Returns <see langword="this"/> typed as <typeparamref name="TSelf"/> for fluent
@@ -75,6 +121,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf AtLevel(LogLevel level)
     {
         AddFilter(LogFilter.AtLevel(level));
+        RestrictMaxMatchableLevel(level);
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".AtLevel({level})");
         return Self;
     }
@@ -95,6 +142,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf AtLevelOrBelow(LogLevel level)
     {
         AddFilter(LogFilter.AtLevelOrBelow(level));
+        RestrictMaxMatchableLevel(level);
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".AtLevelOrBelow({level})");
         return Self;
     }
@@ -106,6 +154,8 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf AtAnyLevel(params LogLevel[] levels)
     {
         AddFilter(LogFilter.AtLevel(levels));
+        if (levels is { Length: > 0 })
+            RestrictMaxMatchableLevel(levels.Max());
         Context.ExpressionBuilder.Append(".AtAnyLevel(...)");
         return Self;
     }
