@@ -1851,7 +1851,11 @@ internal sealed class LogAssertionsTests
             TestLogMessages.StartedProcessing(logger);    // Information: captured
 
             await Assert.That(collector).HasLogged().AtLevel(LogLevel.Information).Once();
-            await Assert.That(collector).HasNotLogged().AtLevel(LogLevel.Trace);
+
+            // The floor dropped the Trace record, so only the Information record was captured.
+            // (HasNotLogged().AtLevel(Trace) would be a vacuous below-floor assertion and is now
+            // rejected by the G5 guard; assert the captured count instead.)
+            await Assert.That(collector.GetSnapshot().Count).IsEqualTo(1);
         }
     }
 

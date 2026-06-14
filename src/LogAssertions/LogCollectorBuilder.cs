@@ -36,6 +36,10 @@ public static class LogCollectorBuilder
             b.SetMinimumLevel(minimumLevel);
             b.AddProvider(new FakeLoggerProvider(collector));
         });
+
+        // Record the capture floor so an assertion can detect a vacuous check at a level this
+        // collector never captured (for example HasNotLogged().AtLevel(Trace) under a higher floor).
+        LogCaptureFloorRegistry.Register(collector, minimumLevel);
         return (factory, collector);
     }
 }

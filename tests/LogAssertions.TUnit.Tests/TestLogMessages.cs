@@ -61,6 +61,15 @@ internal static partial class TestLogMessages
     [LoggerMessage(EventId = 80, Level = LogLevel.Critical, Message = "Critical sample")]
     public static partial void CriticalSample(ILogger logger);
 
+    [LoggerMessage(EventId = 90, Level = LogLevel.Information, Message = "teed message")]
+    public static partial void TeedMessage(ILogger logger);
+
+    [LoggerMessage(EventId = 91, Level = LogLevel.Error, Message = "with exception")]
+    public static partial void TeedException(ILogger logger, Exception exception);
+
+    [LoggerMessage(EventId = 92, Level = LogLevel.Information, Message = "from background")]
+    public static partial void FromBackground(ILogger logger);
+
     /// <summary>
     /// Allocation-free factory for a formatted-template scope of shape <c>"Order {OrderId}"</c>.
     /// Used by tests that need to exercise the message-template scope idiom without tripping

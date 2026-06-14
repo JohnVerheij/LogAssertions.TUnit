@@ -339,6 +339,8 @@ Scopes are values pushed via `logger.BeginScope(...)`. They surround any log rec
 | `WithScopeProperty<T>(string key, Func<T, bool> predicate)` *(v0.6.0+)* | Typed predicate: the scope value is a `T` satisfying the predicate. |
 | `WithScopeProperties(IDictionary<string, object?> required)` *(v0.4.0+)* | Subset match across all active scopes: every key/value pair in `required` must match in some scope, but different pairs may match in different scopes. Empty dictionary matches every record (vacuous truth). |
 
+Chaining `WithScopeProperty` calls matches each key independently across all active scopes: `.WithScopeProperty("a", 1).WithScopeProperty("b", 2)` accepts a record where `a=1` is in some scope **and** `b=2` is in some scope, not necessarily the same one. To require both on a single scope, push them in one `BeginScope(dictionary)`; to require a set of pairs as a subset across scopes, use `WithScopeProperties(dictionary)`.
+
 Scope values keep their runtime type (unlike structured-state values, which are stored as strings), so the typed `WithScopeProperty<T>` overloads (added in v0.6.0) compare typed-to-typed without boxing boilerplate. They read cleanly when the scope value is a known type:
 
 ```csharp
@@ -802,6 +804,49 @@ using (factory)
     await Assert.That(collector).HasLoggedOnce().Containing("done", StringComparison.Ordinal);
 }
 ```
+
+`Create(minimumLevel)` sets a capture floor. A `HasNotLogged()` whose level filters target only levels below that floor is rejected as vacuous (it would otherwise pass for the wrong reason, since nothing at that level was ever captured): the failure says so and names the floor. Assert at a captured level, or lower the floor.
+
+### Mirror logs into the test report (`CreateTeed`)
+
+`LogCollectorBuilder.Create()` captures into the collector but writes nothing to the test's output, so a passing unit test shows an empty log panel in the TUnit HTML report. `TestOutputLogCollectorBuilder.CreateTeed()` (in `LogAssertions.TUnit`) adds a provider that mirrors each record to `TestContext.Current.Output` as it is logged, while still capturing for assertions:
+
+```csharp
+var (factory, collector) = TestOutputLogCollectorBuilder.CreateTeed();
+using (factory)
+{
+    var logger = factory.CreateLogger("MyService");
+    new MyService(logger).DoWork();
+    await Assert.That(collector).HasLoggedOnce().Containing("done", StringComparison.Ordinal);
+    // The "done" line also appears inline in this test's report output.
+}
+```
+
+Records logged on a background thread (where `TestContext.Current` does not flow) are still captured but are not teed. Keep the plain `Create()` for log-heavy soak tests where buffering every record in the per-test output is undesirable.
+
+### Don't use `NullLogger` for code under coverage
+
+A service guarded by `if (logger.IsEnabled(LogLevel.Debug)) { ... }` needs an **enabled** logger under test, or the guard only ever takes its false branch and that branch's coverage silently drops. `NullLogger` and a provider-less factory both report `IsEnabled == false`. Use a real (enabled) logger. If a particular test does not assert on logs and you only need the guard to evaluate true, an enabled non-capturing provider avoids the unbounded growth of a long-lived `FakeLogCollector`:
+
+```csharp
+// An enabled, discarding provider: IsEnabled-guarded log statements run, nothing is retained.
+internal sealed class DiscardingLoggerProvider : ILoggerProvider
+{
+    public ILogger CreateLogger(string categoryName) => DiscardingLogger.Instance;
+    public void Dispose() { }
+
+    private sealed class DiscardingLogger : ILogger
+    {
+        public static readonly DiscardingLogger Instance = new();
+        public IDisposable BeginScope<TState>(TState state) where TState : notnull => NullScope.Instance;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel l, EventId e, TState s, Exception? x, Func<TState, Exception?, string> f) { }
+        private sealed class NullScope : IDisposable { public static readonly NullScope Instance = new(); public void Dispose() { } }
+    }
+}
+```
+
+The `FakeLogCollector` itself grows without bound as records accumulate. Scope it per test (the `Create()` / `CreateTeed()` helpers return a fresh one each call); never hold one in a `static readonly` field shared across a reused host.
 
 ### Reuse a filter across many tests
 

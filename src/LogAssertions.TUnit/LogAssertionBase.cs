@@ -40,9 +40,62 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
 {
     private readonly List<ILogRecordFilter> _filters = [];
 
+    /// <summary>
+    /// The exact set of log levels a record could carry and still satisfy the chain's level filters.
+    /// Starts at every capturable level (<see cref="LogLevel.None"/> is not a loggable level, so it is
+    /// excluded) and is narrowed by each level filter: intersection for the inclusive filters (exact /
+    /// at-or-above / at-or-below / any-of) and removal for the exclusion filters (not-at-level). Used to
+    /// detect a vacuous below-capture-floor assertion (G5): when this set is non-empty but every level
+    /// in it sits below the capture floor, no matching record could have been captured. An empty set
+    /// means the level filters are contradictory (empty for their own reason), so the floor guard stays
+    /// silent.
+    /// </summary>
+    private readonly HashSet<LogLevel> _matchableLevels =
+        [LogLevel.Trace, LogLevel.Debug, LogLevel.Information, LogLevel.Warning, LogLevel.Error, LogLevel.Critical];
+
     /// <summary>Initialises the base assertion with the supplied TUnit context.</summary>
     /// <param name="context">The assertion context supplied by TUnit.</param>
     protected LogAssertionBase(AssertionContext<FakeLogCollector> context) : base(context) { }
+
+    /// <summary>Intersects <see cref="_matchableLevels"/> with the levels an inclusive level filter
+    /// admits (the chain's matchable set is the intersection of its level filters).</summary>
+    /// <param name="admits">Returns <see langword="true"/> for a level the filter keeps.</param>
+    private void RestrictMatchableLevels(Func<LogLevel, bool> admits)
+        => _matchableLevels.RemoveWhere(level => !admits(level));
+
+    /// <summary>
+    /// Detects a vacuous assertion: one whose level filters restrict it to records at or below a level
+    /// the collector's capture floor filtered out, so no such record was ever captured and a
+    /// "not logged" check would pass for the wrong reason. Returns the explanatory message when so.
+    /// </summary>
+    /// <param name="collector">The collector under assertion.</param>
+    /// <param name="message">The failure message when this returns <see langword="true"/>.</param>
+    /// <returns><see langword="true"/> when the assertion is vacuous against the registered floor.</returns>
+    private protected bool TryDescribeVacuousFloor(
+        FakeLogCollector collector, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? message)
+    {
+        // Only blame the floor when the matchable set is non-empty (the level filters are not
+        // contradictory) and its highest level still sits below the floor, so every level the chain
+        // could match was filtered out by the floor. An empty set is empty for its own reason
+        // (contradictory or exclusionary filters), so reporting a below-floor vacuity there would be
+        // the wrong explanation.
+        if (LogCaptureFloorRegistry.TryGetFloor(collector, out var floor)
+            && _matchableLevels.Count > 0
+            && _matchableLevels.Max() < floor)
+        {
+            message = string.Format(
+                CultureInfo.InvariantCulture,
+                "this assertion only matches records at level {0} or below, but the collector's capture floor is {1}, "
+                + "so records below {1} were never captured and the check is vacuously true. "
+                + "Lower the floor (LogCollectorBuilder.Create with a lower minimumLevel) or assert at a captured level.",
+                _matchableLevels.Max(),
+                floor);
+            return true;
+        }
+
+        message = null;
+        return false;
+    }
 
     /// <summary>
     /// Returns <see langword="this"/> typed as <typeparamref name="TSelf"/> for fluent
@@ -75,6 +128,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf AtLevel(LogLevel level)
     {
         AddFilter(LogFilter.AtLevel(level));
+        RestrictMatchableLevels(matchable => matchable == level);
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".AtLevel({level})");
         return Self;
     }
@@ -85,6 +139,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf AtLevelOrAbove(LogLevel level)
     {
         AddFilter(LogFilter.AtLevelOrAbove(level));
+        RestrictMatchableLevels(matchable => matchable >= level);
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".AtLevelOrAbove({level})");
         return Self;
     }
@@ -95,6 +150,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf AtLevelOrBelow(LogLevel level)
     {
         AddFilter(LogFilter.AtLevelOrBelow(level));
+        RestrictMatchableLevels(matchable => matchable <= level);
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".AtLevelOrBelow({level})");
         return Self;
     }
@@ -106,6 +162,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf AtAnyLevel(params LogLevel[] levels)
     {
         AddFilter(LogFilter.AtLevel(levels));
+        RestrictMatchableLevels(level => levels.Contains(level));
         Context.ExpressionBuilder.Append(".AtAnyLevel(...)");
         return Self;
     }
@@ -626,6 +683,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf NotAtLevel(LogLevel level)
     {
         AddFilter(LogFilter.Not(LogFilter.AtLevel(level)));
+        _matchableLevels.Remove(level);
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".NotAtLevel({level})");
         return Self;
     }

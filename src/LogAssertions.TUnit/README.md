@@ -61,17 +61,28 @@ Filters chain with AND semantics: `AtLevel`, `AtLevelOrAbove`, `Containing`, `Wi
 ## Cookbook
 
 **Assert no errors were logged:**
+
 ```csharp
 await Assert.That(collector).HasNotLogged().AtLevelOrAbove(LogLevel.Error);
 ```
 
+**Mirror logs into the test report (v0.8.0+):** `TestOutputLogCollectorBuilder.CreateTeed()` captures for assertions and also writes each record to `TestContext.Current.Output`, so logs appear inline in the TUnit report:
+
+```csharp
+var (factory, collector) = TestOutputLogCollectorBuilder.CreateTeed();
+```
+
+`Create(minimumLevel)` records a capture floor; a `HasNotLogged()` restricted to levels below it fails as vacuous rather than passing for the wrong reason (v0.8.0+).
+
 **Assert a specific call site was hit (anchored on the message template, not the substituted value):**
+
 ```csharp
 await Assert.That(collector).HasLogged()
     .WithMessageTemplate("Order {OrderId} processed").AtLeast(1);
 ```
 
 **Assert a specific exception flowed through a logger:**
+
 ```csharp
 await Assert.That(collector).HasLogged()
     .AtLevel(LogLevel.Error)
@@ -80,6 +91,7 @@ await Assert.That(collector).HasLogged()
 ```
 
 **Assert a wrapped exception (gRPC / RPC pattern, v0.4.0+):**
+
 ```csharp
 await Assert.That(collector).HasLogged()
     .WithException<RpcException>()
@@ -88,6 +100,7 @@ await Assert.That(collector).HasLogged()
 ```
 
 **Assert a startup -> work -> shutdown sequence:**
+
 ```csharp
 await Assert.That(collector).HasLoggedSequence()
     .WithEventName("Startup")
@@ -96,6 +109,7 @@ await Assert.That(collector).HasLoggedSequence()
 ```
 
 **Assert a fan-out completion in any order (v0.4.0+):**
+
 ```csharp
 await Assert.That(collector).HasLoggedSequence()
     .Containing("Request received", StringComparison.Ordinal)
@@ -106,6 +120,7 @@ await Assert.That(collector).HasLoggedSequence()
 ```
 
 **Assert several invariants and report all failures together:**
+
 ```csharp
 await Assert.That(collector).AssertAllAsync(
     c => c.HasLogged().AtLevel(LogLevel.Information).AtLeast(1),

@@ -11,8 +11,8 @@
     <IsPackable>true</IsPackable>
     <PackageId>LogAssertions.TUnit</PackageId>
     <ProductName>LogAssertions.TUnit</ProductName>
-    <Version>0.7.0</Version>
-    <PackageValidationBaselineVersion>0.6.3</PackageValidationBaselineVersion>
+    <Version>0.8.0</Version>
+    <PackageValidationBaselineVersion>0.7.0</PackageValidationBaselineVersion>
     <Authors>John Verheij</Authors>
     <Copyright>Copyright (c) 2026 John Verheij</Copyright>
     <Description>TUnit-native fluent log-assertion DSL using [AssertionExtension] over Microsoft.Extensions.Logging.Testing.FakeLogCollector. Provides Assert.That(collector).HasLogged()/HasNotLogged() with filter and terminator chaining; emits captured-records snapshot in failure messages.</Description>
@@ -87,6 +87,12 @@
          needs a focused 'can I use this in 60 seconds' view, so the package ships a
          shorter README that links out to the full reference on the docs site (logassertions.dev). -->
     <None Include="README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The test project unit-tests the internal TestOutputLoggerProvider directly (its interface
+         members are not all reachable through the LoggerFactory dispatch path). -->
+    <InternalsVisibleTo Include="LogAssertions.TUnit.Tests" />
   </ItemGroup>
 
 </Project>

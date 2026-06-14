@@ -1,6 +1,7 @@
 [assembly: System.Reflection.AssemblyMetadata("IsAotCompatible", "True")]
 [assembly: System.Reflection.AssemblyMetadata("IsTrimmable", "True")]
 [assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/JohnVerheij/LogAssertions.TUnit")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("LogAssertions.TUnit.Tests")]
 [assembly: System.Runtime.Versioning.TargetFramework(".NETCoreApp,Version=v10.0", FrameworkDisplayName=".NET 10.0")]
 namespace LogAssertions.TUnit
 {
@@ -105,6 +106,13 @@ namespace LogAssertions.TUnit
         public TSelf WithoutException() { }
         protected static void AppendCapturedRecords(System.Text.StringBuilder sb, System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord> snapshot) { }
         protected static string BuildFailureMessage(int matchCount, System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord> snapshot) { }
+    }
+    public static class TestOutputLogCollectorBuilder
+    {
+        [return: System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Factory",
+                "Collector"})]
+        public static System.ValueTuple<Microsoft.Extensions.Logging.ILoggerFactory, Microsoft.Extensions.Logging.Testing.FakeLogCollector> CreateTeed(Microsoft.Extensions.Logging.LogLevel minimumLevel = 0) { }
     }
 }
 namespace TUnit.Assertions.Extensions

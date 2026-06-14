@@ -14,6 +14,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-06-14: capture-floor guard and live test-output tee
+
+Minor release. Adds a guard against a vacuous below-floor `HasNotLogged()`, a live tee into the TUnit test report, and documentation for logging code under coverage. Additive.
+
+### Added
+
+- **`TestOutputLogCollectorBuilder.CreateTeed(LogLevel)`** (in `LogAssertions.TUnit`) returns the same wired `(factory, collector)` as `LogCollectorBuilder.Create`, plus a provider that mirrors each record to `TestContext.Current.Output` as it is logged, so a test's logs appear inline in the TUnit HTML report instead of an empty panel. Records logged on a background thread (where `TestContext.Current` does not flow) are still captured but not teed. Use the plain `LogCollectorBuilder.Create` for log-heavy soak tests where buffering every record in the per-test output is undesirable.
+
+### Fixed
+
+- **`HasNotLogged()` no longer passes vacuously below the capture floor.** `LogCollectorBuilder.Create(minimumLevel)` sets the floor on the logger factory, but the collector did not know it, so `HasNotLogged().AtLevel(Trace)` (or any level filter restricted to levels below the floor) passed for the wrong reason: nothing at that level was ever captured. The collector's floor is now recorded, and such an assertion fails with a message naming the floor and the level it targeted. Assertions at or above the floor, and collectors not built by `LogCollectorBuilder`, are unaffected.
+
+### Documentation
+
+- Added guidance not to use `NullLogger` (or a provider-less factory) for services whose log statements are guarded by `if (logger.IsEnabled(...))` under coverage: the guard then only ever takes its false branch and that branch's coverage silently drops. Includes a copy-pasteable enabled, non-capturing `DiscardingLoggerProvider`.
+- Documented that chained `WithScopeProperty` filters match each key independently across all active scopes (not necessarily the same scope), with the single-scope and subset alternatives.
+- Noted that `FakeLogCollector` grows without bound; scope it per test and never hold one in a shared `static readonly` field.
+
+### Changed
+
+- Bumped `PackageValidationBaselineVersion` from `0.6.3` to `0.7.0` on both packages so ApiCompat strict-mode validates `0.8.0` against the most recently published baseline.
+
 ## [0.7.0] - 2026-06-11: key-existence scope-property assertion
 
 Minor release. Adds a key-only `WithScopeProperty(string key)` overload for asserting a scope property is present without asserting its value. Purely additive.
@@ -228,7 +250,9 @@ Documentation-only release. No API or behavior change.
 - **Failure-message snapshot rendering** with 4-character level abbreviations matching the `Microsoft.Extensions.Logging` console formatter (`trce`, `dbug`, `info`, `warn`, `fail`, `crit`, `none`), indented `props:` line listing each record's structured properties (excluding the `{OriginalFormat}` entry, already implied by the message line), indented `scope:` line rendering each active scope's content as `key=value` pairs (or `ToString()` for opaque scopes), and indented `exception:` line with type name and message.
 - **`.And` / `.Or`** chaining via TUnit's `Assertion<T>` base class.
 
-[unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.6.3...HEAD
+[unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.6.3...v0.7.0
 [0.6.3]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.6.0...v0.6.1
