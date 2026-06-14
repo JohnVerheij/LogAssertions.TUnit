@@ -43,9 +43,19 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     /// <summary>
     /// The highest log level a record could carry and still satisfy the chain's level filters.
     /// Starts at <see cref="LogLevel.Critical"/> (unrestricted) and is lowered by the exact / at-or-below
-    /// / any-of level filters. Used to detect a vacuous below-capture-floor assertion (G5).
+    /// / any-of level filters. With <see cref="_minMatchableLevel"/> it bounds the matchable level range
+    /// used to detect a vacuous below-capture-floor assertion (G5).
     /// </summary>
     private LogLevel _maxMatchableLevel = LogLevel.Critical;
+
+    /// <summary>
+    /// The lowest log level a record could carry and still satisfy the chain's level filters.
+    /// Starts at <see cref="LogLevel.Trace"/> (unrestricted) and is raised by the exact / at-or-above
+    /// / any-of level filters. When it exceeds <see cref="_maxMatchableLevel"/> the level filters are
+    /// contradictory (an empty match set unrelated to the capture floor), so the floor guard stays
+    /// silent rather than blaming the floor.
+    /// </summary>
+    private LogLevel _minMatchableLevel = LogLevel.Trace;
 
     /// <summary>Initialises the base assertion with the supplied TUnit context.</summary>
     /// <param name="context">The assertion context supplied by TUnit.</param>
@@ -53,14 +63,26 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
 
     /// <summary>
     /// Lowers <see cref="_maxMatchableLevel"/> to <paramref name="level"/> when it further restricts the
-    /// chain (the chain's matchable set is the intersection of its level filters). Only the
-    /// upper bound matters for the vacuity check, so at-or-above and exclusion filters do not call this.
+    /// chain (the chain's matchable set is the intersection of its level filters). Called by the exact /
+    /// at-or-below / any-of filters; exclusion filters do not narrow the bound.
     /// </summary>
     /// <param name="level">The new upper bound implied by a level filter.</param>
     private void RestrictMaxMatchableLevel(LogLevel level)
     {
         if (level < _maxMatchableLevel)
             _maxMatchableLevel = level;
+    }
+
+    /// <summary>
+    /// Raises <see cref="_minMatchableLevel"/> to <paramref name="level"/> when it further restricts the
+    /// chain. Called by the exact / at-or-above / any-of filters; exclusion filters do not narrow the
+    /// bound. A min above the max means the level filters are contradictory.
+    /// </summary>
+    /// <param name="level">The new lower bound implied by a level filter.</param>
+    private void RaiseMinMatchableLevel(LogLevel level)
+    {
+        if (level > _minMatchableLevel)
+            _minMatchableLevel = level;
     }
 
     /// <summary>
@@ -74,7 +96,12 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     private protected bool TryDescribeVacuousFloor(
         FakeLogCollector collector, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? message)
     {
-        if (LogCaptureFloorRegistry.TryGetFloor(collector, out var floor) && _maxMatchableLevel < floor)
+        // Only blame the floor when the level range is non-empty (filters are not contradictory) and
+        // its whole span sits below the floor: an empty range (min above max) is empty for its own
+        // reason, so reporting a below-floor vacuity there would be the wrong explanation.
+        if (LogCaptureFloorRegistry.TryGetFloor(collector, out var floor)
+            && _minMatchableLevel <= _maxMatchableLevel
+            && _maxMatchableLevel < floor)
         {
             message = string.Format(
                 CultureInfo.InvariantCulture,
@@ -122,6 +149,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     {
         AddFilter(LogFilter.AtLevel(level));
         RestrictMaxMatchableLevel(level);
+        RaiseMinMatchableLevel(level);
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".AtLevel({level})");
         return Self;
     }
@@ -132,6 +160,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf AtLevelOrAbove(LogLevel level)
     {
         AddFilter(LogFilter.AtLevelOrAbove(level));
+        RaiseMinMatchableLevel(level);
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".AtLevelOrAbove({level})");
         return Self;
     }
@@ -155,7 +184,11 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     {
         AddFilter(LogFilter.AtLevel(levels));
         if (levels is { Length: > 0 })
+        {
             RestrictMaxMatchableLevel(levels.Max());
+            RaiseMinMatchableLevel(levels.Min());
+        }
+
         Context.ExpressionBuilder.Append(".AtAnyLevel(...)");
         return Self;
     }

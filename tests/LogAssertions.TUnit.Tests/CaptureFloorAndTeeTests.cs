@@ -60,6 +60,23 @@ internal sealed class CaptureFloorAndTeeTests
     }
 
     [Test]
+    public async Task HasNotLogged_ContradictoryLevelFilters_NotReportedAsVacuousFloor(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var (factory, collector) = LogCollectorBuilder.Create(LogLevel.Information);
+        using (factory)
+        {
+            // AtLevelOrBelow(Debug) + AtLevelOrAbove(Error) is an empty match set regardless of the
+            // floor, so the floor guard must stay silent and the genuine absence assertion passes
+            // instead of failing with a misattributed below-floor vacuity message.
+            await Assert.That(collector)
+                .HasNotLogged()
+                .AtLevelOrBelow(LogLevel.Debug)
+                .AtLevelOrAbove(LogLevel.Error);
+        }
+    }
+
+    [Test]
     public async Task HasNotLogged_AtOrAboveFloor_PassesWhenGenuinelyAbsent(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -142,8 +159,17 @@ internal sealed class CaptureFloorAndTeeTests
             // worker thread and the tee silently skips while the collector still captures the record.
             var thread = new Thread(() =>
             {
-                TestLogMessages.FromBackground(logger);
-                done.SetResult();
+                try
+                {
+                    TestLogMessages.FromBackground(logger);
+                    done.SetResult();
+                }
+#pragma warning disable CA1031 // Surface any worker-thread failure into the awaited task instead of stalling until timeout.
+                catch (Exception ex)
+#pragma warning restore CA1031
+                {
+                    done.SetException(ex);
+                }
             })
             { IsBackground = true };
             thread.UnsafeStart();
