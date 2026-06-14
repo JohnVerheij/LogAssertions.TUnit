@@ -41,49 +41,27 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     private readonly List<ILogRecordFilter> _filters = [];
 
     /// <summary>
-    /// The highest log level a record could carry and still satisfy the chain's level filters.
-    /// Starts at <see cref="LogLevel.Critical"/> (unrestricted) and is lowered by the exact / at-or-below
-    /// / any-of level filters. With <see cref="_minMatchableLevel"/> it bounds the matchable level range
-    /// used to detect a vacuous below-capture-floor assertion (G5).
+    /// The exact set of log levels a record could carry and still satisfy the chain's level filters.
+    /// Starts at every capturable level (<see cref="LogLevel.None"/> is not a loggable level, so it is
+    /// excluded) and is narrowed by each level filter: intersection for the inclusive filters (exact /
+    /// at-or-above / at-or-below / any-of) and removal for the exclusion filters (not-at-level). Used to
+    /// detect a vacuous below-capture-floor assertion (G5): when this set is non-empty but every level
+    /// in it sits below the capture floor, no matching record could have been captured. An empty set
+    /// means the level filters are contradictory (empty for their own reason), so the floor guard stays
+    /// silent.
     /// </summary>
-    private LogLevel _maxMatchableLevel = LogLevel.Critical;
-
-    /// <summary>
-    /// The lowest log level a record could carry and still satisfy the chain's level filters.
-    /// Starts at <see cref="LogLevel.Trace"/> (unrestricted) and is raised by the exact / at-or-above
-    /// / any-of level filters. When it exceeds <see cref="_maxMatchableLevel"/> the level filters are
-    /// contradictory (an empty match set unrelated to the capture floor), so the floor guard stays
-    /// silent rather than blaming the floor.
-    /// </summary>
-    private LogLevel _minMatchableLevel = LogLevel.Trace;
+    private readonly HashSet<LogLevel> _matchableLevels =
+        [LogLevel.Trace, LogLevel.Debug, LogLevel.Information, LogLevel.Warning, LogLevel.Error, LogLevel.Critical];
 
     /// <summary>Initialises the base assertion with the supplied TUnit context.</summary>
     /// <param name="context">The assertion context supplied by TUnit.</param>
     protected LogAssertionBase(AssertionContext<FakeLogCollector> context) : base(context) { }
 
-    /// <summary>
-    /// Lowers <see cref="_maxMatchableLevel"/> to <paramref name="level"/> when it further restricts the
-    /// chain (the chain's matchable set is the intersection of its level filters). Called by the exact /
-    /// at-or-below / any-of filters; exclusion filters do not narrow the bound.
-    /// </summary>
-    /// <param name="level">The new upper bound implied by a level filter.</param>
-    private void RestrictMaxMatchableLevel(LogLevel level)
-    {
-        if (level < _maxMatchableLevel)
-            _maxMatchableLevel = level;
-    }
-
-    /// <summary>
-    /// Raises <see cref="_minMatchableLevel"/> to <paramref name="level"/> when it further restricts the
-    /// chain. Called by the exact / at-or-above / any-of filters; exclusion filters do not narrow the
-    /// bound. A min above the max means the level filters are contradictory.
-    /// </summary>
-    /// <param name="level">The new lower bound implied by a level filter.</param>
-    private void RaiseMinMatchableLevel(LogLevel level)
-    {
-        if (level > _minMatchableLevel)
-            _minMatchableLevel = level;
-    }
+    /// <summary>Intersects <see cref="_matchableLevels"/> with the levels an inclusive level filter
+    /// admits (the chain's matchable set is the intersection of its level filters).</summary>
+    /// <param name="admits">Returns <see langword="true"/> for a level the filter keeps.</param>
+    private void RestrictMatchableLevels(Func<LogLevel, bool> admits)
+        => _matchableLevels.RemoveWhere(level => !admits(level));
 
     /// <summary>
     /// Detects a vacuous assertion: one whose level filters restrict it to records at or below a level
@@ -96,19 +74,21 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     private protected bool TryDescribeVacuousFloor(
         FakeLogCollector collector, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? message)
     {
-        // Only blame the floor when the level range is non-empty (filters are not contradictory) and
-        // its whole span sits below the floor: an empty range (min above max) is empty for its own
-        // reason, so reporting a below-floor vacuity there would be the wrong explanation.
+        // Only blame the floor when the matchable set is non-empty (the level filters are not
+        // contradictory) and its highest level still sits below the floor, so every level the chain
+        // could match was filtered out by the floor. An empty set is empty for its own reason
+        // (contradictory or exclusionary filters), so reporting a below-floor vacuity there would be
+        // the wrong explanation.
         if (LogCaptureFloorRegistry.TryGetFloor(collector, out var floor)
-            && _minMatchableLevel <= _maxMatchableLevel
-            && _maxMatchableLevel < floor)
+            && _matchableLevels.Count > 0
+            && _matchableLevels.Max() < floor)
         {
             message = string.Format(
                 CultureInfo.InvariantCulture,
                 "this assertion only matches records at level {0} or below, but the collector's capture floor is {1}, "
                 + "so records below {1} were never captured and the check is vacuously true. "
                 + "Lower the floor (LogCollectorBuilder.Create with a lower minimumLevel) or assert at a captured level.",
-                _maxMatchableLevel,
+                _matchableLevels.Max(),
                 floor);
             return true;
         }
@@ -148,8 +128,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf AtLevel(LogLevel level)
     {
         AddFilter(LogFilter.AtLevel(level));
-        RestrictMaxMatchableLevel(level);
-        RaiseMinMatchableLevel(level);
+        RestrictMatchableLevels(matchable => matchable == level);
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".AtLevel({level})");
         return Self;
     }
@@ -160,7 +139,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf AtLevelOrAbove(LogLevel level)
     {
         AddFilter(LogFilter.AtLevelOrAbove(level));
-        RaiseMinMatchableLevel(level);
+        RestrictMatchableLevels(matchable => matchable >= level);
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".AtLevelOrAbove({level})");
         return Self;
     }
@@ -171,7 +150,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf AtLevelOrBelow(LogLevel level)
     {
         AddFilter(LogFilter.AtLevelOrBelow(level));
-        RestrictMaxMatchableLevel(level);
+        RestrictMatchableLevels(matchable => matchable <= level);
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".AtLevelOrBelow({level})");
         return Self;
     }
@@ -183,12 +162,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf AtAnyLevel(params LogLevel[] levels)
     {
         AddFilter(LogFilter.AtLevel(levels));
-        if (levels is { Length: > 0 })
-        {
-            RestrictMaxMatchableLevel(levels.Max());
-            RaiseMinMatchableLevel(levels.Min());
-        }
-
+        RestrictMatchableLevels(level => levels.Contains(level));
         Context.ExpressionBuilder.Append(".AtAnyLevel(...)");
         return Self;
     }
@@ -709,6 +683,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf NotAtLevel(LogLevel level)
     {
         AddFilter(LogFilter.Not(LogFilter.AtLevel(level)));
+        _matchableLevels.Remove(level);
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".NotAtLevel({level})");
         return Self;
     }

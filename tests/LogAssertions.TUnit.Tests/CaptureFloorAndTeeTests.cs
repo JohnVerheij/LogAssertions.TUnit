@@ -77,6 +77,40 @@ internal sealed class CaptureFloorAndTeeTests
     }
 
     [Test]
+    public async Task HasNotLogged_ExclusionLeavesOnlyBelowFloorLevels_FailsAsVacuous(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var (factory, collector) = LogCollectorBuilder.Create(LogLevel.Information);
+        using (factory)
+        {
+            // AtAnyLevel(Debug, Error) then NotAtLevel(Error) leaves a matchable set of {Debug} only,
+            // which is below the Information floor, so the absence is vacuous. A contiguous min..max
+            // range would see Debug..Error and miss this; the exact level set catches it.
+            var exception = await Assert.That(async () =>
+                await Assert.That(collector).HasNotLogged()
+                    .AtAnyLevel(LogLevel.Debug, LogLevel.Error)
+                    .NotAtLevel(LogLevel.Error))
+                .Throws<AssertionException>();
+            await Assert.That(exception!.Message).Contains("vacuously true");
+        }
+    }
+
+    [Test]
+    public async Task HasNotLogged_ExclusionLeavesAnAboveFloorLevel_PassesWhenAbsent(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var (factory, collector) = LogCollectorBuilder.Create(LogLevel.Information);
+        using (factory)
+        {
+            // {Debug, Warning} minus Debug leaves {Warning}, at/above the floor, so the absence is
+            // genuine and the guard must stay silent.
+            await Assert.That(collector).HasNotLogged()
+                .AtAnyLevel(LogLevel.Debug, LogLevel.Warning)
+                .NotAtLevel(LogLevel.Debug);
+        }
+    }
+
+    [Test]
     public async Task HasNotLogged_AtOrAboveFloor_PassesWhenGenuinelyAbsent(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
