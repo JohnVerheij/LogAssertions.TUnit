@@ -14,6 +14,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-06-15: ILoggingBuilder tee helpers with a pluggable tee provider
+
+Minor release. Adds `ILoggingBuilder` extensions that wire a `FakeLogCollector` into a logging builder you already own, with a seam to plug in your own display or correlation provider. Additive; the existing API is unchanged.
+
+### Added
+
+- **`FakeLoggingBuilderExtensions.AddTeedFakeLogging(this ILoggingBuilder, FakeLogCollector, LogLevel, ILoggerProvider?)`** (in `LogAssertions.TUnit`) registers the capture provider, sets the builder's minimum level, records the capture floor so the vacuous-`HasNotLogged()` guard applies, and adds a tee provider: the supplied `teeProvider` when given, otherwise the built-in `TestOutputLoggerProvider`. Supplying a provider lets a host wire its own background-thread-correlating tee (for example TUnit's `CorrelatedTUnitLoggerProvider`) without this package taking a dependency on it. Use it when the self-contained `CreateTeed` tuple does not fit because the capture must live inside an existing builder, such as an ASP.NET Core test host.
+- **`FakeLoggingBuilderExtensions.AddFakeLogging(this ILoggingBuilder, FakeLogCollector, LogLevel)`** registers the capture provider and capture floor without a tee, for builders that do not mirror to the test report.
+
+### Changed
+
+- **`TestOutputLogCollectorBuilder.CreateTeed`** now delegates to `AddTeedFakeLogging` internally, so the tuple-shaped and builder-shaped helpers share one wiring definition. Behavior is unchanged.
+
 ## [0.8.0] - 2026-06-14: capture-floor guard and live test-output tee
 
 Minor release. Adds a guard against a vacuous below-floor `HasNotLogged()`, a live tee into the TUnit test report, and documentation for logging code under coverage. Additive.

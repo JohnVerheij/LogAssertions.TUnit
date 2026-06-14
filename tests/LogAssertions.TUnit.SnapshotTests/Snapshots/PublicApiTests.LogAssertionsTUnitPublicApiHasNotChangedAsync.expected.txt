@@ -17,6 +17,11 @@ namespace LogAssertions.TUnit
         public static void DumpToTestOutput(this Microsoft.Extensions.Logging.Testing.FakeLogCollector collector) { }
         public static void DumpToTestOutput(this Microsoft.Extensions.Logging.Testing.FakeLogCollector collector, LogAssertions.DumpVerbosity verbosity) { }
     }
+    public static class FakeLoggingBuilderExtensions
+    {
+        public static Microsoft.Extensions.Logging.ILoggingBuilder AddFakeLogging(this Microsoft.Extensions.Logging.ILoggingBuilder builder, Microsoft.Extensions.Logging.Testing.FakeLogCollector collector, Microsoft.Extensions.Logging.LogLevel minimumLevel = 0) { }
+        public static Microsoft.Extensions.Logging.ILoggingBuilder AddTeedFakeLogging(this Microsoft.Extensions.Logging.ILoggingBuilder builder, Microsoft.Extensions.Logging.Testing.FakeLogCollector collector, Microsoft.Extensions.Logging.LogLevel minimumLevel = 0, Microsoft.Extensions.Logging.ILoggerProvider? teeProvider = null) { }
+    }
     [TUnit.Assertions.Attributes.AssertionExtension("HasLogged")]
     public sealed class HasLoggedAssertion : LogAssertions.TUnit.LogAssertionBase<LogAssertions.TUnit.HasLoggedAssertion>
     {
