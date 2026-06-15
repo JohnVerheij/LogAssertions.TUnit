@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 
@@ -21,22 +20,13 @@ public static class TestOutputLogCollectorBuilder
     /// <param name="minimumLevel">The minimum level to capture (and tee). Default is
     /// <see cref="LogLevel.Trace"/> (everything).</param>
     /// <returns>The wired pair: <c>Factory</c> for creating loggers, <c>Collector</c> for assertions.</returns>
-    [SuppressMessage(
-        "Reliability",
-        "CA2000:Dispose objects before losing scope",
-        Justification = "The providers are handed to LoggerFactory.Create, which takes ownership and disposes them when the returned factory is disposed by the caller; disposing them here would tear down the live factory.")]
     public static (ILoggerFactory Factory, FakeLogCollector Collector) CreateTeed(LogLevel minimumLevel = LogLevel.Trace)
     {
         FakeLogCollector collector = new();
-        ILoggerFactory factory = LoggerFactory.Create(b =>
-        {
-            b.SetMinimumLevel(minimumLevel);
-            b.AddProvider(new FakeLoggerProvider(collector));
-            b.AddProvider(new TestOutputLoggerProvider());
-        });
 
-        // Register the capture floor so the vacuous-below-floor guard (G5) also covers teed collectors.
-        LogCaptureFloorRegistry.Register(collector, minimumLevel);
+        // Delegates to AddTeedFakeLogging so the tuple-shaped and builder-shaped helpers share one wiring
+        // definition: capture provider, capture-floor registration, and the built-in test-output tee.
+        ILoggerFactory factory = LoggerFactory.Create(b => b.AddTeedFakeLogging(collector, minimumLevel));
         return (factory, collector);
     }
 }

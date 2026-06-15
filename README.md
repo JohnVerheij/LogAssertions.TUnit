@@ -824,6 +824,26 @@ using (factory)
 
 Records logged on a background thread (where `TestContext.Current` does not flow) are still captured but are not teed. Keep the plain `Create()` for log-heavy soak tests where buffering every record in the per-test output is undesirable.
 
+#### Wiring into a builder you already own
+
+When the capture must live inside a logging builder you already configure (a host's `ConfigureLogging`, or any `LoggerFactory.Create` callback) rather than a self-contained factory, use `AddTeedFakeLogging` / `AddFakeLogging` (in `LogAssertions.TUnit`):
+
+These extensions (like `CreateTeed`) live in the `LogAssertions.TUnit` namespace, which the recommended [`GlobalUsings.cs`](#namespaces-and-a-globalusingscs-recommendation) does not include, so add `using LogAssertions.TUnit;` (or a matching `global using`) in files that call them.
+
+```csharp
+var collector = new FakeLogCollector();
+using var factory = LoggerFactory.Create(b => b.AddTeedFakeLogging(collector, LogLevel.Trace));
+```
+
+`AddTeedFakeLogging` takes an optional tee `ILoggerProvider`. The built-in tee writes to `TestContext.Current.Output` (so background-thread records are captured but not teed, as above); pass your own provider to plug in a tee that correlates background-thread records back to the test, without this package taking a dependency on it:
+
+```csharp
+// CorrelatedTUnitLoggerProvider ships in TUnit.Logging.Microsoft, referenced by your test project.
+b.AddTeedFakeLogging(collector, LogLevel.Trace, new CorrelatedTUnitLoggerProvider(LogLevel.Trace));
+```
+
+`AddFakeLogging` is the capture-only variant (no tee). Both set the builder's minimum level and register the capture floor, so the vacuous-`HasNotLogged()` guard applies the same as with `CreateTeed`.
+
 ### Don't use `NullLogger` for code under coverage
 
 A service guarded by `if (logger.IsEnabled(LogLevel.Debug)) { ... }` needs an **enabled** logger under test, or the guard only ever takes its false branch and that branch's coverage silently drops. `NullLogger` and a provider-less factory both report `IsEnabled == false`. Use a real (enabled) logger. If a particular test does not assert on logs and you only need the guard to evaluate true, an enabled non-capturing provider avoids the unbounded growth of a long-lived `FakeLogCollector`:

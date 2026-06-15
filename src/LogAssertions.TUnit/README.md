@@ -72,6 +72,8 @@ await Assert.That(collector).HasNotLogged().AtLevelOrAbove(LogLevel.Error);
 var (factory, collector) = TestOutputLogCollectorBuilder.CreateTeed();
 ```
 
+**Wire into an existing builder (v0.9.0+):** `AddTeedFakeLogging(this ILoggingBuilder, ...)` composes the same capture and tee into a logging builder you already own (an ASP.NET Core test host, any `LoggerFactory.Create` callback). Pass an optional `ILoggerProvider` tee to correlate background-thread records without this package depending on it; `AddFakeLogging` is the capture-only variant.
+
 `Create(minimumLevel)` records a capture floor; a `HasNotLogged()` restricted to levels below it fails as vacuous rather than passing for the wrong reason (v0.8.0+).
 
 **Assert a specific call site was hit (anchored on the message template, not the substituted value):**
