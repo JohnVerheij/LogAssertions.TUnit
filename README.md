@@ -828,6 +828,8 @@ Records logged on a background thread (where `TestContext.Current` does not flow
 
 When the capture must live inside a logging builder you already configure (a host's `ConfigureLogging`, or any `LoggerFactory.Create` callback) rather than a self-contained factory, use `AddTeedFakeLogging` / `AddFakeLogging` (in `LogAssertions.TUnit`):
 
+These extensions (like `CreateTeed`) live in the `LogAssertions.TUnit` namespace, which the recommended [`GlobalUsings.cs`](#namespaces-and-a-globalusingscs-recommendation) does not include, so add `using LogAssertions.TUnit;` (or a matching `global using`) in files that call them.
+
 ```csharp
 var collector = new FakeLogCollector();
 using var factory = LoggerFactory.Create(b => b.AddTeedFakeLogging(collector, LogLevel.Trace));
