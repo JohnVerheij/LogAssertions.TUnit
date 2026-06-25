@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 using TUnit.Assertions.Exceptions;
+using TUnit.Core;
 
 namespace LogAssertions.TUnit.Tests;
 
@@ -259,11 +260,15 @@ internal sealed class CaptureFloorAndTeeTests
         using var provider = new TestOutputLoggerProvider();
         var logger = provider.CreateLogger("BackgroundCategory");
         var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        TestContext? contextOnWorker = null;
 
         var thread = new Thread(() =>
         {
             try
             {
+                // Capture the worker's context to anchor the off-context premise: UnsafeStart does not
+                // flow ExecutionContext, so this is null and the emit-time write below takes the skip path.
+                contextOnWorker = TestContext.Current;
                 logger.Log(LogLevel.Information, default, "dropped", null, static (s, _) => s);
                 done.SetResult();
             }
@@ -279,6 +284,55 @@ internal sealed class CaptureFloorAndTeeTests
 
         // Completes without throwing: the off-context write is skipped, not an error.
         await done.Task.WaitAsync(cancellationToken);
+        await Assert.That(contextOnWorker).IsNull();
+    }
+
+    /// <summary>The capture-at-construction ctor rejects a null writer.</summary>
+    [Test]
+    public async Task CapturedWriterProvider_NullWriter_Throws(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        await Assert.That(() => new TestOutputLoggerProvider((TextWriter)null!))
+            .Throws<ArgumentNullException>();
+    }
+
+    /// <summary>Configuring the built-in tee where no test is current (a background thread) takes the
+    /// emit-time fallback in the builder rather than capturing a writer; capture still works.</summary>
+    [Test]
+    public async Task AddTeedFakeLogging_OffContext_FallsBackToEmitTime(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        FakeLogCollector? collector = null;
+        ILoggerFactory? factory = null;
+        var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var c = new FakeLogCollector();
+                // Runs the builder on this off-context thread, so the tee's writer capture resolves null
+                // and the emit-time provider is used; the FakeLoggerProvider still captures the record.
+                var f = LoggerFactory.Create(b => b.AddTeedFakeLogging(c));
+                f.CreateLogger("OffContextBuild").Log(
+                    LogLevel.Information, default, "off-context-built", null, static (s, _) => s);
+                collector = c;
+                factory = f;
+                done.SetResult();
+            }
+#pragma warning disable CA1031
+            catch (Exception ex)
+#pragma warning restore CA1031
+            {
+                done.SetException(ex);
+            }
+        })
+        { IsBackground = true };
+        thread.UnsafeStart();
+
+        await done.Task.WaitAsync(cancellationToken);
+        using (factory)
+            await Assert.That(collector!).HasLogged().Containing("off-context-built", StringComparison.Ordinal).Once();
     }
 
     /// <summary>Directly exercises the internal tee provider's interface members, which the
