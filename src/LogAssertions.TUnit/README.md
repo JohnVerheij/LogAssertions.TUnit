@@ -66,13 +66,23 @@ Filters chain with AND semantics: `AtLevel`, `AtLevelOrAbove`, `Containing`, `Wi
 await Assert.That(collector).HasNotLogged().AtLevelOrAbove(LogLevel.Error);
 ```
 
-**Mirror logs into the test report (v0.8.0+):** `TestOutputLogCollectorBuilder.CreateTeed()` captures for assertions and also writes each record to `TestContext.Current.Output`, so logs appear inline in the TUnit report:
+**Wait for a log from background work (poll until it arrives):** background- or pump-driven logs can land after the triggering call returns, so a synchronous `HasLogged()` races the producer. Wrap it in TUnit's `Eventually` to poll the live collector until the record appears or the timeout elapses, instead of hand-rolling a wait loop:
+
+```csharp
+await Assert.That(collector).Eventually(
+    c => c.HasLogged().Containing("dead-lettered", StringComparison.OrdinalIgnoreCase).AtLeast(1),
+    TimeSpan.FromSeconds(5));
+```
+
+`Eventually` (and `WaitsFor`) come from TUnit itself; they re-run the inner assertion against the live collector each interval, so any filter and terminator chain works inside them.
+
+**Mirror logs into the test report (v0.8.0+):** `TestOutputLogCollectorBuilder.CreateTeed()` captures for assertions and also mirrors each record to the test's output, so logs appear inline in the TUnit report. The owning test is captured when you call it (on the test's own thread), so records logged on a background thread are teed too (v0.10.0+):
 
 ```csharp
 var (factory, collector) = TestOutputLogCollectorBuilder.CreateTeed();
 ```
 
-**Wire into an existing builder (v0.9.0+):** `AddTeedFakeLogging(this ILoggingBuilder, ...)` composes the same capture and tee into a logging builder you already own (an ASP.NET Core test host, any `LoggerFactory.Create` callback). Pass an optional `ILoggerProvider` tee to correlate background-thread records without this package depending on it; `AddFakeLogging` is the capture-only variant.
+**Wire into an existing builder (v0.9.0+):** `AddTeedFakeLogging(this ILoggingBuilder, ...)` composes the same capture and tee into a logging builder you already own (an ASP.NET Core test host, any `LoggerFactory.Create` callback). Configured on the test's own thread it binds the built-in tee to that test, so background-thread records are teed (v0.10.0+); for a host shared across many tests, pass your own correlation-aware `ILoggerProvider` tee instead. `AddFakeLogging` is the capture-only variant. If you previously hand-rolled an `AddTeedFakeLogging` extension of your own, remove it to avoid an ambiguous-call (CS0121) collision.
 
 `Create(minimumLevel)` records a capture floor; a `HasNotLogged()` restricted to levels below it fails as vacuous rather than passing for the wrong reason (v0.8.0+).
 

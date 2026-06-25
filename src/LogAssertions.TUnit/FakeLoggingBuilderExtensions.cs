@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
+using TUnit.Core;
 
 namespace LogAssertions.TUnit;
 
@@ -59,9 +60,10 @@ public static class FakeLoggingBuilderExtensions
     /// A supplied <paramref name="teeProvider"/> is registered into the builder and becomes part of the
     /// built logger pipeline. The logging factory does not dispose externally-supplied provider instances,
     /// so dispose it yourself if it holds resources (the usual display/correlation providers do not). The
-    /// built-in tee writes to <c>TestContext.Current.Output</c>, so a record logged on a background thread
-    /// (where the AsyncLocal context does not flow) is captured but not teed - pass a correlation-aware
-    /// provider when that matters.
+    /// built-in tee binds to the active test captured at this call - the per-test case runs on the test's
+    /// own thread - so a record logged on a background thread is teed, not dropped. When no test is current
+    /// here (a host shared across many tests), it falls back to resolving the test at emit time and skips
+    /// records it cannot attribute; pass a correlation-aware <paramref name="teeProvider"/> for that case.
     /// </remarks>
     /// <param name="builder">The logging builder to add the providers to.</param>
     /// <param name="collector">The collector that receives records for assertions.</param>
@@ -78,7 +80,19 @@ public static class FakeLoggingBuilderExtensions
     public static ILoggingBuilder AddTeedFakeLogging(this ILoggingBuilder builder, FakeLogCollector collector, LogLevel minimumLevel = LogLevel.Trace, ILoggerProvider? teeProvider = null)
     {
         AddFakeLogging(builder, collector, minimumLevel);
-        builder.AddProvider(teeProvider ?? new TestOutputLoggerProvider());
+        builder.AddProvider(teeProvider ?? CreateBuiltInTee());
         return builder;
+    }
+
+    /// <summary>
+    /// Builds the default tee, bound to the active test's output writer when one is resolvable here (the
+    /// per-test case runs on the test's own thread) so background-thread records are teed rather than
+    /// dropped. Falls back to emit-time resolution when no test is current at construction.
+    /// </summary>
+    /// <returns>The built-in test-output tee provider.</returns>
+    private static TestOutputLoggerProvider CreateBuiltInTee()
+    {
+        var writer = TestContext.Current?.Output.StandardOutput;
+        return writer is null ? new TestOutputLoggerProvider() : new TestOutputLoggerProvider(writer);
     }
 }
