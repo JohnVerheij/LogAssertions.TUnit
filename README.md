@@ -740,6 +740,18 @@ This eliminates the historical pattern of adding temporary `Console.WriteLine` c
 await Assert.That(collector).HasNotLogged().AtLevelOrAbove(LogLevel.Error);
 ```
 
+### Wait for a log produced by background work
+
+Background- or pump-driven logs (a `BackgroundService`, a timer, a fire-and-forget handler) can land after the call that triggered them returns, so a synchronous `HasLogged()` races the producer and flakes. Wrap the assertion in TUnit's own `Eventually` (or `WaitsFor`) to poll the live collector until the record appears or the timeout elapses, instead of hand-rolling a wait:
+
+```csharp
+await Assert.That(collector).Eventually(
+    c => c.HasLogged().Containing("dead-lettered", StringComparison.OrdinalIgnoreCase).AtLeast(1),
+    TimeSpan.FromSeconds(5));
+```
+
+`Eventually` re-runs the inner assertion against the live collector each interval and re-reads its records, so any filter and terminator chain works inside it - `HasNotLogged()`, sequences, counts, and the structured matchers all compose. The poll interval and a `CancellationToken` are optional parameters on `Eventually`/`WaitsFor`.
+
 ### Assert a specific call site was hit
 
 Anchored on the message template, not the substituted value:
@@ -822,7 +834,7 @@ using (factory)
 }
 ```
 
-Records logged on a background thread (where `TestContext.Current` does not flow) are still captured but are not teed. Keep the plain `Create()` for log-heavy soak tests where buffering every record in the per-test output is undesirable.
+Records logged on a background thread are teed too: the owning test's output writer is captured when `CreateTeed()` runs (on the test's own thread), so off-context records reach the report rather than being dropped (v0.10.0+). Keep the plain `Create()` for log-heavy soak tests where buffering every record in the per-test output is undesirable.
 
 #### Wiring into a builder you already own
 
@@ -835,7 +847,7 @@ var collector = new FakeLogCollector();
 using var factory = LoggerFactory.Create(b => b.AddTeedFakeLogging(collector, LogLevel.Trace));
 ```
 
-`AddTeedFakeLogging` takes an optional tee `ILoggerProvider`. The built-in tee writes to `TestContext.Current.Output` (so background-thread records are captured but not teed, as above); pass your own provider to plug in a tee that correlates background-thread records back to the test, without this package taking a dependency on it:
+`AddTeedFakeLogging` takes an optional tee `ILoggerProvider`. Configured on the test's own thread the built-in tee binds to that test's output writer, so background-thread records are teed (v0.10.0+). For a logging host shared across many tests - where no single owning test can be captured at configuration time - pass your own provider to correlate each record back to its test, without this package taking a dependency on it:
 
 ```csharp
 // CorrelatedTUnitLoggerProvider ships in TUnit.Logging.Microsoft, referenced by your test project.

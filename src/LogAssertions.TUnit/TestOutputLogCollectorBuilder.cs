@@ -13,9 +13,10 @@ namespace LogAssertions.TUnit;
 public static class TestOutputLogCollectorBuilder
 {
     /// <summary>
-    /// Creates a <see cref="FakeLogCollector"/> and an <see cref="ILoggerFactory"/> wired to it, plus
-    /// a provider that writes each record to <c>TestContext.Current.Output</c> as it is logged. The
-    /// caller owns both: dispose the factory when the test completes.
+    /// Creates a <see cref="FakeLogCollector"/> and an <see cref="ILoggerFactory"/> wired to it, plus a
+    /// provider that mirrors each record to the test's output as it is logged. The owning test is captured
+    /// when this runs (on the test's own thread), so a record logged on a background thread is teed rather
+    /// than dropped. The caller owns both: dispose the factory when the test completes.
     /// </summary>
     /// <param name="minimumLevel">The minimum level to capture (and tee). Default is
     /// <see cref="LogLevel.Trace"/> (everything).</param>

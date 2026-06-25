@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -180,7 +181,7 @@ internal sealed class CaptureFloorAndTeeTests
     }
 
     [Test]
-    public async Task CreateTeed_OffContext_SkipsTeeButStillCaptures(CancellationToken cancellationToken)
+    public async Task CreateTeed_BackgroundThread_CapturesRecord(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var (factory, collector) = TestOutputLogCollectorBuilder.CreateTeed();
@@ -190,7 +191,9 @@ internal sealed class CaptureFloorAndTeeTests
             var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
             // Thread.UnsafeStart does not flow ExecutionContext, so TestContext.Current is null on the
-            // worker thread and the tee silently skips while the collector still captures the record.
+            // worker thread. CreateTeed captures the owning test's output writer at construction, so the
+            // record is teed to this test rather than dropped (the drop-free tee is verified directly in
+            // CapturedWriter_TeesFromBackgroundThread); here we assert the collector still captures it.
             var thread = new Thread(() =>
             {
                 try
@@ -211,6 +214,71 @@ internal sealed class CaptureFloorAndTeeTests
             await done.Task.WaitAsync(cancellationToken);
             await Assert.That(collector).HasLogged().Containing("from background", StringComparison.Ordinal).Once();
         }
+    }
+
+    /// <summary>Proves the capture-at-construction mode: a provider bound to a captured writer tees a
+    /// record logged on a thread where <c>TestContext.Current</c> is null, instead of dropping it.</summary>
+    [Test]
+    public async Task CapturedWriter_TeesFromBackgroundThread(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        using var writer = new StringWriter();
+        using var provider = new TestOutputLoggerProvider(writer);
+        var logger = provider.CreateLogger("BackgroundCategory");
+        var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        // UnsafeStart does not flow ExecutionContext, so TestContext.Current is null on the worker; the
+        // captured writer must still receive the record (emit-time resolution would drop it here).
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                logger.Log(LogLevel.Information, default, "from worker thread", null, static (s, _) => s);
+                done.SetResult();
+            }
+#pragma warning disable CA1031 // Surface any worker-thread failure into the awaited task instead of stalling until timeout.
+            catch (Exception ex)
+#pragma warning restore CA1031
+            {
+                done.SetException(ex);
+            }
+        })
+        { IsBackground = true };
+        thread.UnsafeStart();
+
+        await done.Task.WaitAsync(cancellationToken);
+        await Assert.That(writer.ToString()).Contains("from worker thread", StringComparison.Ordinal);
+    }
+
+    /// <summary>The emit-time mode (no captured writer) drops a record logged where no test resolves,
+    /// rather than throwing - the documented shared-host fallback.</summary>
+    [Test]
+    public async Task EmitTimeProvider_OffContext_SkipsWithoutThrowing(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        using var provider = new TestOutputLoggerProvider();
+        var logger = provider.CreateLogger("BackgroundCategory");
+        var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                logger.Log(LogLevel.Information, default, "dropped", null, static (s, _) => s);
+                done.SetResult();
+            }
+#pragma warning disable CA1031
+            catch (Exception ex)
+#pragma warning restore CA1031
+            {
+                done.SetException(ex);
+            }
+        })
+        { IsBackground = true };
+        thread.UnsafeStart();
+
+        // Completes without throwing: the off-context write is skipped, not an error.
+        await done.Task.WaitAsync(cancellationToken);
     }
 
     /// <summary>Directly exercises the internal tee provider's interface members, which the

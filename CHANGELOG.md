@@ -14,6 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-06-25: drop-free per-test test-output tee
+
+Minor release. The built-in test-output tee now mirrors background-thread records to the per-test report instead of dropping them. No public API change; additive and behavior-improving. Built against TUnit 1.56; pin TUnit at or above that version when adopting so an older runtime does not mismatch.
+
+### Changed
+
+- **`TestOutputLogCollectorBuilder.CreateTeed` and `FakeLoggingBuilderExtensions.AddTeedFakeLogging`** built-in tee now binds to the owning test's output writer, captured when it is configured on the test's own thread, so a record logged on a background thread is mirrored to the per-test report rather than dropped. A logging host shared across many tests, where no single owning test can be captured, still passes its own correlation-aware tee provider and keeps emit-time resolution. No API change.
+- Documented polling the collector with TUnit's `Eventually` / `WaitsFor` to assert on logs produced by background or pump-driven work, and that a previously hand-rolled `AddTeedFakeLogging` extension should be removed to avoid an ambiguous-call collision.
+
 ## [0.9.0] - 2026-06-15: ILoggingBuilder tee helpers with a pluggable tee provider
 
 Minor release. Adds `ILoggingBuilder` extensions that wire a `FakeLogCollector` into a logging builder you already own, with a seam to plug in your own display or correlation provider. Additive; the existing API is unchanged.
