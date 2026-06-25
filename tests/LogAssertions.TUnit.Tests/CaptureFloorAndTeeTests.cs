@@ -304,15 +304,17 @@ internal sealed class CaptureFloorAndTeeTests
         cancellationToken.ThrowIfCancellationRequested();
         FakeLogCollector? collector = null;
         ILoggerFactory? factory = null;
+        TestContext? contextOnWorker = null;
         var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         var thread = new Thread(() =>
         {
             try
             {
+                // No current test on this UnsafeStart worker, so the builder's writer capture resolves
+                // null and the emit-time provider is used; the FakeLoggerProvider still captures the record.
+                contextOnWorker = TestContext.Current;
                 var c = new FakeLogCollector();
-                // Runs the builder on this off-context thread, so the tee's writer capture resolves null
-                // and the emit-time provider is used; the FakeLoggerProvider still captures the record.
                 var f = LoggerFactory.Create(b => b.AddTeedFakeLogging(c));
                 f.CreateLogger("OffContextBuild").Log(
                     LogLevel.Information, default, "off-context-built", null, static (s, _) => s);
@@ -331,6 +333,8 @@ internal sealed class CaptureFloorAndTeeTests
         thread.UnsafeStart();
 
         await done.Task.WaitAsync(cancellationToken);
+        // Anchor the premise: the builder genuinely ran off-context, so it took the fallback branch.
+        await Assert.That(contextOnWorker).IsNull();
         using (factory)
             await Assert.That(collector!).HasLogged().Containing("off-context-built", StringComparison.Ordinal).Once();
     }
