@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.10.0] - 2026-06-25: drop-free per-test test-output tee
+## [0.10.0] - 2026-06-26: drop-free per-test test-output tee
 
 Minor release. The built-in test-output tee now mirrors background-thread records to the per-test report instead of dropping them. No public API change; additive and behavior-improving. Built against TUnit 1.56; pin TUnit at or above that version when adopting so an older runtime does not mismatch.
 
