@@ -14,11 +14,14 @@ namespace LogAssertions.TUnit;
 /// </summary>
 /// <remarks>
 /// The provider has two modes. When constructed with a captured output writer (the default for the per-test
-/// builder helpers, which run on the test's own thread and pass the active test's writer), it writes to that
-/// writer from any emitting thread, so a record logged on a background thread is teed rather than dropped.
-/// When constructed without one, it resolves <see cref="TestContext.Current"/> at emit time and skips the
-/// write where neither the AsyncLocal context nor the <c>Activity.Current</c> baggage resolves the owning
-/// test - the right behavior for a provider shared across many tests, which cannot bind to a single one.
+/// builder helpers, which run on the test's own thread and pass the active test's writer), each record is
+/// written to the test that is current at emit time, falling back to the captured writer only when no test is
+/// current (a background thread under a suppressed execution context) so the record is teed rather than
+/// dropped. Preferring the emit-time test keeps routing correct when one provider is reused across many tests;
+/// the captured writer is the per-test fallback, not an override. When constructed without one, it resolves
+/// <see cref="TestContext.Current"/> at emit time and skips the write where neither the AsyncLocal context nor
+/// the <c>Activity.Current</c> baggage resolves the owning test - the right behavior for a provider shared
+/// across many tests, which cannot bind to a single one.
 /// </remarks>
 internal sealed class TestOutputLoggerProvider : ILoggerProvider
 {
@@ -35,8 +38,10 @@ internal sealed class TestOutputLoggerProvider : ILoggerProvider
 
     /// <summary>
     /// Creates a provider bound to <paramref name="capturedWriter"/>, the active test's output writer captured
-    /// once while the provider is built on the test's own thread. Records are written to that writer from any
-    /// emitting thread, so background-thread logging is teed rather than dropped.
+    /// once while the provider is built on the test's own thread. Each record is written to the test current at
+    /// emit time, falling back to this captured writer only when no test is current (a background thread under a
+    /// suppressed execution context), so background-thread logging is teed rather than dropped without
+    /// misrouting records when the provider is reused across tests.
     /// </summary>
     /// <param name="capturedWriter">The owning test's output writer captured at construction.</param>
     /// <exception cref="ArgumentNullException"><paramref name="capturedWriter"/> is null.</exception>
@@ -73,8 +78,10 @@ internal sealed class TestOutputLoggerProvider : ILoggerProvider
         {
             ArgumentNullException.ThrowIfNull(formatter);
 
-            // A captured writer tees from any thread; otherwise resolve the active test at emit time.
-            var writer = _capturedWriter ?? TestContext.Current?.Output.StandardOutput;
+            // Prefer the test current at emit time so a reused provider routes each test's records to its own
+            // output; fall back to the captured writer only when no test is current (a suppressed execution
+            // context on a background thread) so the record is teed rather than dropped.
+            var writer = TestContext.Current?.Output.StandardOutput ?? _capturedWriter;
             if (writer is null)
                 return;
 
