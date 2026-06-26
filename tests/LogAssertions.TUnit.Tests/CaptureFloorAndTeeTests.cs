@@ -251,6 +251,24 @@ internal sealed class CaptureFloorAndTeeTests
         await Assert.That(writer.ToString()).Contains("from worker thread", StringComparison.Ordinal);
     }
 
+    /// <summary>The hybrid order prefers the test current at emit time over the captured writer, so a provider
+    /// reused across tests routes each record to its own test rather than the captured one. On the test thread
+    /// <c>TestContext.Current</c> resolves, so emit time wins and the captured writer receives nothing.</summary>
+    [Test]
+    public async Task CapturedWriter_OnContext_PrefersActiveTest(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        using var captured = new StringWriter();
+        using var provider = new TestOutputLoggerProvider(captured);
+        var logger = provider.CreateLogger("OnContext");
+
+        // Logging on the test's own thread: TestContext.Current resolves, so the record goes to this test's
+        // output rather than the captured writer. (The prior prefer-captured order would have written here.)
+        logger.Log(LogLevel.Information, default, "on-context message", null, static (s, _) => s);
+
+        await Assert.That(captured.ToString()).IsEmpty();
+    }
+
     /// <summary>The emit-time mode (no captured writer) drops a record logged where no test resolves,
     /// rather than throwing - the documented shared-host fallback.</summary>
     [Test]
