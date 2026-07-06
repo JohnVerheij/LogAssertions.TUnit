@@ -1,5 +1,5 @@
 apiRules:
-- include:
-    uidRegex: ^LogAssertions(\.TUnit)?(\..+)?$
 - exclude:
     uidRegex: .*\.Internal\..*
+- include:
+    uidRegex: ^LogAssertions(\.TUnit)?(\..+)?$
