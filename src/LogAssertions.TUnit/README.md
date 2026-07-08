@@ -8,6 +8,8 @@
 
 > **Scope:** Test projects only. Not intended for production code.
 
+> Part of the **[DotNetAssertions](https://dotnetassertions.dev)** family of assertion extensions for TUnit.
+
 TUnit-native fluent log-assertion DSL on top of `Microsoft.Extensions.Logging.Testing.FakeLogCollector`. AOT-compatible, trimmable, no reflection.
 
 > **Full documentation, full filter reference, design notes, and roadmap:** [logassertions.dev](https://logassertions.dev)

@@ -7,6 +7,8 @@
 
 > **Scope:** Test projects only. Not intended for production code.
 
+> Part of the **[DotNetAssertions](https://dotnetassertions.dev)** family. This is the framework-agnostic core; the TUnit assertions live in the matching `.TUnit` package.
+
 Framework-agnostic core for fluent log assertions over `Microsoft.Extensions.Logging.Testing.FakeLogCollector`.
 
 > **Most users want [`LogAssertions.TUnit`](https://www.nuget.org/packages/LogAssertions.TUnit/), not this package directly.** This is the shared engine; framework-specific adapter packages add the assertion entry points your test framework expects.

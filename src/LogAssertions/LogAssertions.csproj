@@ -16,7 +16,7 @@
     <Authors>John Verheij</Authors>
     <Copyright>Copyright (c) 2026 John Verheij</Copyright>
     <Description>Framework-agnostic core for fluent log assertions over Microsoft.Extensions.Logging.Testing.FakeLogCollector. Provides ILogRecordFilter + LogFilter composable filter primitives, the failure-message rendering, the FakeLogCollector inspection extensions (Filter, CountMatching, DumpTo), and the LogCollectorBuilder factory. Test-framework-specific entry points live in adapter packages (LogAssertions.TUnit ships today; xUnit, NUnit, MSTest adapters are possible if there is demand).</Description>
-    <PackageTags>logging;assertions;testing;fakelogcollector;microsoft-extensions-logging</PackageTags>
+    <PackageTags>assertions;testing;logging;fakelogcollector;microsoft-extensions-logging;dotnet;aot</PackageTags>
     <PackageProjectUrl>https://logassertions.dev</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>

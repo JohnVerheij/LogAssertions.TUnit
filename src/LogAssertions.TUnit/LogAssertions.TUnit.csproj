@@ -16,7 +16,7 @@
     <Authors>John Verheij</Authors>
     <Copyright>Copyright (c) 2026 John Verheij</Copyright>
     <Description>TUnit-native fluent log-assertion DSL using [AssertionExtension] over Microsoft.Extensions.Logging.Testing.FakeLogCollector. Provides Assert.That(collector).HasLogged()/HasNotLogged() with filter and terminator chaining; emits captured-records snapshot in failure messages.</Description>
-    <PackageTags>tunit;logging;assertions;testing;fakelogcollector</PackageTags>
+    <PackageTags>tunit;assertions;testing;logging;fakelogcollector;dotnet;aot</PackageTags>
     <PackageProjectUrl>https://logassertions.dev</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>

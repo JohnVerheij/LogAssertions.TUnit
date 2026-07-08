@@ -5,12 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-> *History note:* Sections at and below `[0.5.0]` were reformatted on 2026-05-17 for one-time
-> [CONVENTIONS v0.5 §CHANGELOG](CONVENTIONS.md) conformance: forbidden sub-headers folded into
-> the six Keep a Changelog headers, non-user-facing content removed (build hygiene, internal
-> refactors, test counts, governance churn), bullets normalized to past-tense active voice
-> with code-formatted API leads. The nuget.org Release Notes tab and GitHub Releases for each
-> shipped version remain unchanged. Sections from `[0.6.0]` onward are frozen per Rule 7.
+> *History note:* All version sections were reformatted on 2026-07-05 for one-time
+> [CONVENTIONS &sect;CHANGELOG](CONVENTIONS.md) conformance: forbidden sub-headers folded into
+> the six Keep a Changelog headers, non-user-facing content removed (internal refactors, test
+> counts, coverage numbers, CI and build hygiene, governance churn, roadmap notes), bullets
+> kept in past-tense active voice with code-formatted API leads. The nuget.org Release Notes
+> tab and the GitHub Release for each shipped version are unchanged. A CI `family-lint` gate
+> keeps future sections conforming; each is frozen per Rule 7 once shipped.
 
 ## [Unreleased]
 
@@ -52,19 +53,16 @@ Minor release. Adds a guard against a vacuous below-floor `HasNotLogged()`, a li
 
 - **`TestOutputLogCollectorBuilder.CreateTeed(LogLevel)`** (in `LogAssertions.TUnit`) returns the same wired `(factory, collector)` as `LogCollectorBuilder.Create`, plus a provider that mirrors each record to `TestContext.Current.Output` as it is logged, so a test's logs appear inline in the TUnit HTML report instead of an empty panel. Records logged on a background thread (where `TestContext.Current` does not flow) are still captured but not teed. Use the plain `LogCollectorBuilder.Create` for log-heavy soak tests where buffering every record in the per-test output is undesirable.
 
-### Fixed
-
-- **`HasNotLogged()` no longer passes vacuously below the capture floor.** `LogCollectorBuilder.Create(minimumLevel)` sets the floor on the logger factory, but the collector did not know it, so `HasNotLogged().AtLevel(Trace)` (or any level filter restricted to levels below the floor) passed for the wrong reason: nothing at that level was ever captured. The collector's floor is now recorded, and such an assertion fails with a message naming the floor and the level it targeted. Assertions at or above the floor, and collectors not built by `LogCollectorBuilder`, are unaffected.
-
-### Documentation
+### Changed
 
 - Added guidance not to use `NullLogger` (or a provider-less factory) for services whose log statements are guarded by `if (logger.IsEnabled(...))` under coverage: the guard then only ever takes its false branch and that branch's coverage silently drops. Includes a copy-pasteable enabled, non-capturing `DiscardingLoggerProvider`.
 - Documented that chained `WithScopeProperty` filters match each key independently across all active scopes (not necessarily the same scope), with the single-scope and subset alternatives.
 - Noted that `FakeLogCollector` grows without bound; scope it per test and never hold one in a shared `static readonly` field.
-
-### Changed
-
 - Bumped `PackageValidationBaselineVersion` from `0.6.3` to `0.7.0` on both packages so ApiCompat strict-mode validates `0.8.0` against the most recently published baseline.
+
+### Fixed
+
+- **`HasNotLogged()` no longer passes vacuously below the capture floor.** `LogCollectorBuilder.Create(minimumLevel)` sets the floor on the logger factory, but the collector did not know it, so `HasNotLogged().AtLevel(Trace)` (or any level filter restricted to levels below the floor) passed for the wrong reason: nothing at that level was ever captured. The collector's floor is now recorded, and such an assertion fails with a message naming the floor and the level it targeted. Assertions at or above the floor, and collectors not built by `LogCollectorBuilder`, are unaffected.
 
 ## [0.7.0] - 2026-06-11: key-existence scope-property assertion
 
@@ -76,7 +74,7 @@ Minor release. Adds a key-only `WithScopeProperty(string key)` overload for asse
 
 ### Changed
 
-- README adds a **"Prefer structured matchers over substring matching"** guide under the migration section: a table mapping common `.Containing("...")` shapes to the structured matcher that is more robust (`.WithProperty`, `.WithException<T>`, `.WithScopeProperty`, `.WithMessageTemplate`, `HasLoggedSequence`), with the rationale that substring matching couples a test to rendered message text that rots when a template is reworded.
+- README adds a **"Prefer structured matchers over substring matching"** guide under the migration section: a table mapping common `.Containing("...")` shapes to the structured matcher that is more resilient (`.WithProperty`, `.WithException<T>`, `.WithScopeProperty`, `.WithMessageTemplate`, `HasLoggedSequence`), with the rationale that substring matching couples a test to rendered message text that rots when a template is reworded.
 - Bumped `PackageValidationBaselineVersion` from `0.6.1` to `0.6.3` on both packages so ApiCompat strict-mode validates `0.7.0` against the most recently published baseline. The new overload is recorded as an additive difference in `CompatibilitySuppressions.xml`.
 
 ## [0.6.3] - 2026-06-06: release notes sourced from the CHANGELOG
@@ -95,7 +93,7 @@ Documentation-only release. No API or behavior change.
 
 - Refreshed the README (plain-ASCII punctuation) and rewrote the shared `CONVENTIONS.md`: removed the version-history preamble so it reads as a conventions document, not a changelog.
 
-## [0.6.1] - 2026-06-04
+## [0.6.1] - 2026-06-04: README roadmap and family-roster documentation
 
 ### Changed
 
@@ -103,7 +101,7 @@ Documentation-only release. No API or behavior change.
 - **README "Shipped in v0.6.0" section added**: documents the v0.6.0 surfaces (`WithoutException()`, the typed `WithProperty<T>` overloads, the typed `WithScopeProperty<T>` overloads) and the removal of the obsolete single-arg `WithExceptionMessage(string)`, matching the existing "Shipped in v0.5.0 / v0.4.0 / v0.3.0" entries.
 - **README family roster completed**: the package-family enumerations in the root and adapter READMEs were brought to the full seven-package roster.
 
-## [0.6.0] - 2026-06-02
+## [0.6.0] - 2026-06-02: WithoutException, typed property and scope filters, obsolete-overload removal
 
 ### BREAKING
 
@@ -117,13 +115,13 @@ Documentation-only release. No API or behavior change.
 
 ### Changed
 
-- **`TUnit`** / **`TUnit.Assertions`** / **`TUnit.Core`** dependency bumped `1.44.0` → `1.48.6`. Taken for family lockstep; the sibling adapters are on the same pin.
+- **`TUnit`** / **`TUnit.Assertions`** / **`TUnit.Core`** dependency bumped `1.44.0` -> `1.48.6`. Taken for family lockstep; the sibling adapters are on the same pin.
 
 ### Removed
 
 - **`LogFilter.WithExceptionMessage(string substring)`** and the matching single-arg `WithExceptionMessage(string)` chain method on `HasLoggedAssertion` / `HasNotLoggedAssertion` / `HasLoggedSequenceAssertion`: the implicit-`Ordinal` overloads, `[Obsolete]` since v0.4.0, are gone. The explicit-comparison overload `WithExceptionMessage(string substring, StringComparison comparison)` is unchanged. Migrate by appending `, StringComparison.Ordinal` to existing call sites. Removing a public member is a source-and-binary breaking change; see `### BREAKING` above.
 
-## [0.5.0] - 2026-05-14
+## [0.5.0] - 2026-05-14: log snapshot renderer and rendering options
 
 ### Added
 
@@ -134,25 +132,25 @@ Documentation-only release. No API or behavior change.
 ### Changed
 
 - **Dependency refresh** to bring pins back into lockstep with the rest of the assertion family (`TimeAssertions` v0.4.0 moved the baseline forward on 2026-05-13):
-  - `DotNetProjectFile.Analyzers` 1.13.1 → 1.14.0
-  - `Meziantou.Analyzer` 3.0.78 → 3.0.84
-  - `Microsoft.Extensions.Diagnostics.Testing` 10.5.0 → 10.6.0
-  - `Microsoft.SourceLink.GitHub` 10.0.203 → 10.0.300
+  - `DotNetProjectFile.Analyzers` 1.13.1 -> 1.14.0
+  - `Meziantou.Analyzer` 3.0.78 -> 3.0.84
+  - `Microsoft.Extensions.Diagnostics.Testing` 10.5.0 -> 10.6.0
+  - `Microsoft.SourceLink.GitHub` 10.0.203 -> 10.0.300
 - **`README.md`**: added a "Pin the full log sequence as a snapshot" cookbook section showing the two-line `Assert.That(LogSnapshotRenderer.Render(collector)).MatchesSnapshot()` composition and the `LogSnapshotOptions` surface.
 
-## [0.4.1] - 2026-05-12
+## [0.4.1] - 2026-05-12: dependency refresh and source-style ratchet
 
 ### Changed
 
 - **Dependency refresh** to the family-lockstep versions:
-  - `TUnit` / `TUnit.Assertions` / `TUnit.Core` 1.43.11 → 1.44.0
-  - `Microsoft.CodeAnalysis.BannedApiAnalyzers` 3.3.4 → 4.14.0
-  - `Meziantou.Analyzer` 3.0.72 → 3.0.78
-  - `SnapshotAssertions.TUnit` 0.2.0 → 0.3.0
+  - `TUnit` / `TUnit.Assertions` / `TUnit.Core` 1.43.11 -> 1.44.0
+  - `Microsoft.CodeAnalysis.BannedApiAnalyzers` 3.3.4 -> 4.14.0
+  - `Meziantou.Analyzer` 3.0.72 -> 3.0.78
+  - `SnapshotAssertions.TUnit` 0.2.0 -> 0.3.0
 - **Production-code source style ratcheted** via `MeziantouAnalysisMode=all-warnings` for `src/` projects (path-conditional via the normalized `Replace('\\','/').Contains('/tests/')` predicate). Test projects retain Meziantou defaults. Findings surfaced and fixed at source: CRTP self-cast pattern centralized via an `Unsafe.As<TSelf>(this)` helper property; discrete-value equality comparisons modernized to pattern-matching form (`is 0`, `is SequenceStepKind.Simple`); trailing-`null` constructor arguments given explicit `AnyOrderSubSteps:` named-argument form; culture-sensitive string concatenations switched to `string.Create(CultureInfo.InvariantCulture, ...)`.
 - **`BannedSymbols.txt`**: collapsed bare `#` comment lines into adjacent text-bearing lines so the file parses cleanly under the stricter `BannedApiAnalyzers` 4.x grammar.
 
-## [0.4.0] - 2026-05-07
+## [0.4.0] - 2026-05-07: inner-exception filters, ThenAnyOrder, DumpVerbosity, banned-API enforcement
 
 ### Added
 
@@ -170,16 +168,16 @@ Documentation-only release. No API or behavior change.
 ### Changed
 
 - **Dependency refresh** to latest stable for every direct and analyzer dependency:
-  - `TUnit` / `TUnit.Assertions` / `TUnit.Core` 1.43.2 → 1.43.11
-  - `Microsoft.Extensions.Diagnostics.Testing` 10.0.0 → 10.5.0
-  - `PublicApiGenerator` 11.4.6 → 11.5.4
-  - `Microsoft.Sbom.Targets` 3.0.1 → 4.1.5
-  - `Microsoft.SourceLink.GitHub` 8.0.0 → 10.0.203
-  - `DotNetProjectFile.Analyzers` 1.12.2 → 1.13.1
-  - `Meziantou.Analyzer` 2.0.219 → 3.0.72
-  - `Microsoft.VisualStudio.Threading.Analyzers` 17.13.61 → 17.14.15
-  - `Roslynator.Analyzers` 4.13.1 → 4.15.0
-  - `SonarAnalyzer.CSharp` 10.24.0.138807 → 10.25.0.139117
+  - `TUnit` / `TUnit.Assertions` / `TUnit.Core` 1.43.2 -> 1.43.11
+  - `Microsoft.Extensions.Diagnostics.Testing` 10.0.0 -> 10.5.0
+  - `PublicApiGenerator` 11.4.6 -> 11.5.4
+  - `Microsoft.Sbom.Targets` 3.0.1 -> 4.1.5
+  - `Microsoft.SourceLink.GitHub` 8.0.0 -> 10.0.203
+  - `DotNetProjectFile.Analyzers` 1.12.2 -> 1.13.1
+  - `Meziantou.Analyzer` 2.0.219 -> 3.0.72
+  - `Microsoft.VisualStudio.Threading.Analyzers` 17.13.61 -> 17.14.15
+  - `Roslynator.Analyzers` 4.13.1 -> 4.15.0
+  - `SonarAnalyzer.CSharp` 10.24.0.138807 -> 10.25.0.139117
 - **`CONVENTIONS.md`** upgraded to v0.2: codified family-wide rules (trailing `CancellationToken ct = default` on every new async API, `Task.Delay(TimeSpan, TimeProvider, ct)` for polling loops, the 100/200/400/800/1000ms exponential schedule for time-based polls, the `# <Package> snapshot v<N>` header convention for `ToSnapshotString()`, TFM policy, and the "Verify is not promoted" stance).
 - **`README.md`**: added a "Pair with" section cross-referencing `TimeAssertions.TUnit` and `SnapshotAssertions.TUnit`; added the `> **Scope:** Test projects only. Not intended for production code.` blockquote at the top of the per-package short README.
 
@@ -187,7 +185,7 @@ Documentation-only release. No API or behavior change.
 
 - **`LogFilter.WithExceptionMessage(string substring)`** and the corresponding chain method on `HasLoggedAssertion`: single-arg overloads now carry `[Obsolete(error: false)]`. They default to `StringComparison.Ordinal` and delegate to the new explicit-comparison overload. Will be removed in v0.6.0 (two-minor cycle). Migrate by appending `, StringComparison.Ordinal` to existing call sites, or pick a different comparison if you want case-insensitive / culture-aware behavior.
 
-## [0.3.0] - 2026-05-02
+## [0.3.0] - 2026-05-02: GetMatch/GetMatches terminators and DumpToTestOutput
 
 ### Added
 
@@ -196,11 +194,11 @@ Documentation-only release. No API or behavior change.
 
 ### Changed
 
-- **`TUnit`** dependency bumped `1.41.0` → `1.43.2` (latest stable). Adds `TUnit.Core` as a direct `PackageReference` to `LogAssertions.TUnit` (needed for `TestContext.Current` in `DumpToTestOutput`). The published `LogAssertions.TUnit.nupkg` therefore declares `TUnit.Core 1.43.2` and `TUnit.Assertions 1.43.2` as direct dependencies; consumers who pin a lower TUnit version will see the standard NuGet upgrade prompt on install.
+- **`TUnit`** dependency bumped `1.41.0` -> `1.43.2` (latest stable). Adds `TUnit.Core` as a direct `PackageReference` to `LogAssertions.TUnit` (needed for `TestContext.Current` in `DumpToTestOutput`). The published `LogAssertions.TUnit.nupkg` therefore declares `TUnit.Core 1.43.2` and `TUnit.Assertions 1.43.2` as direct dependencies; consumers who pin a lower TUnit version will see the standard NuGet upgrade prompt on install.
 - **`README.md`**: added a "TUnit-native conveniences" section documenting `Because("reason")` (the correct reason-annotation API; `.WithMessage(...)` is a separate predicate-on-failure-message feature for negative-testing patterns), `Assert.Multiple()` aggregating failures from our chains, `[NotInParallel]` guidance (`FakeLogCollector` is instance-scoped: tests using `LogAssertions.TUnit` do NOT need `[NotInParallel]` for the collector itself), `Should()` interop (deferred pending the upstream `TUnit.Assertions.Should` package reaching stable), and a Troubleshooting section covering shorthand resolution failures on pre-0.2.2 versions, `LogCollectorBuilder` not found (missing `using LogAssertions;`), and `IDE0005` noise on per-file imports under strict-analysis projects.
-- **`README.md`**: corrected v0.2.4 typos in the "Migrating from manual assertions" section: `InScope("RequestId", id)` → `WithScopeProperty("RequestId", id)`, `WithExceptionOfType<TimeoutException>()` → `WithException<TimeoutException>()`.
+- **`README.md`**: corrected v0.2.4 typos in the "Migrating from manual assertions" section: `InScope("RequestId", id)` -> `WithScopeProperty("RequestId", id)`, `WithExceptionOfType<TimeoutException>()` -> `WithException<TimeoutException>()`.
 
-## [0.2.4] - 2026-05-02
+## [0.2.4] - 2026-05-02: README disposal and migration guidance
 
 ### Changed
 
@@ -208,7 +206,7 @@ Documentation-only release. No API or behavior change.
 - **`README.md`**: Quick Start gained a "Lifetime / disposal" paragraph clarifying what the `IDisposable` returned from `LogCollectorBuilder.Create()` owns. Disposing the `factory` stops new records from being captured but the records already gathered into the `collector` snapshot remain valid: the collector can be queried after the `using` block exits. Both block-form (`using (factory) { ... }`) and declaration-form (`using ILoggerFactory factory = ...`) are explicitly endorsed.
 - **`README.md`**: new "Migrating from manual assertions" section with a side-by-side before / after pairing a manual `collector.GetSnapshot()` + LINQ filter + multiple separate assertions against one fluent chain, calling out the two non-obvious wins on top of readability (failure message renders the full captured-records snapshot; the same chain extends to scopes, structured properties, exception types, and combinator nodes without restructuring the test).
 
-## [0.2.3] - 2026-05-01
+## [0.2.3] - 2026-05-01: README namespaces and terminator guidance
 
 ### Changed
 
@@ -217,13 +215,13 @@ Documentation-only release. No API or behavior change.
 - **`README.md`**: `.And` / `.Or` section rewritten. Confirms `.And` is useful for chaining a positive + negative invariant in one expression, and explicitly says `.Or` is rarely useful for log assertions (consider `MatchingAny(...)` over filters instead). Recommends `AssertAllAsync` for three-or-more conditions.
 - **`README.md`**: `Never()` vs `HasNotLogged()` clarification added to the terminators section: prefer `HasNotLogged()` when "this should not happen" is the test's primary intent; use `.Never()` when an existing positive filter chain ends up needing a zero-count expectation.
 
-## [0.2.2] - 2026-05-01
+## [0.2.2] - 2026-05-01: shorthand extensions moved to TUnit.Assertions.Extensions
 
 ### Changed
 
 - **BREAKING:** **`HasLoggedShorthandExtensions`** (the `HasLoggedOnce`, `HasLoggedExactly`, `HasLoggedAtLeast`, `HasLoggedAtMost`, `HasLoggedBetween`, `HasLoggedNothing`, `HasLoggedWarningOrAbove`, `HasLoggedErrorOrAbove` entry points) moved from namespace `LogAssertions.TUnit` to namespace `TUnit.Assertions.Extensions`. The shipped assembly (`LogAssertions.TUnit.dll`), package ID, and method signatures are unchanged. Only the public namespace of the static class moved. Consumers that used the shorthands as the extension methods they were meant to be require no code change: the methods now resolve via TUnit's auto-imported `TUnit.Assertions.Extensions` namespace, so any file that already calls `HasLogged()` will also pick up `HasLoggedOnce()` etc. without changes. Migration for fully-qualified call sites: replace `LogAssertions.TUnit.HasLoggedShorthandExtensions.HasLoggedOnce(source)` with `TUnit.Assertions.Extensions.HasLoggedShorthandExtensions.HasLoggedOnce(source)`.
 
-## [0.2.1] - 2026-05-01
+## [0.2.1] - 2026-05-01: sync AssertAllAsync overload
 
 ### Added
 
@@ -233,7 +231,7 @@ Documentation-only release. No API or behavior change.
 
 - **`PackageValidationBaselineVersion`** pinned to `0.2.0` on both packages (was `0.1.0` for `LogAssertions.TUnit`; not previously set on `LogAssertions` because 0.2.0 was its first release). ApiCompat baseline checks now compare against the previous shipped version of each package.
 
-## [0.2.0] - 2026-05-01
+## [0.2.0] - 2026-05-01: framework-agnostic core package and filter combinators
 
 ### Added
 
@@ -262,7 +260,7 @@ Documentation-only release. No API or behavior change.
 
 - **BREAKING:** **`LogAssertionBase<TSelf>.AddPredicate(Func<FakeLogRecord, bool>, string)`**: removed. Replaced by `protected virtual void AddFilter(ILogRecordFilter)` as part of the internal refactor. Only matters for consumers that were deriving from `LogAssertionBase` (which was already documented as unsupported).
 
-## [0.1.0] - 2026-05-01
+## [0.1.0] - 2026-05-01: initial release, log assertions for TUnit
 
 ### Added
 
@@ -280,7 +278,9 @@ Documentation-only release. No API or behavior change.
 - **Failure-message snapshot rendering** with 4-character level abbreviations matching the `Microsoft.Extensions.Logging` console formatter (`trce`, `dbug`, `info`, `warn`, `fail`, `crit`, `none`), indented `props:` line listing each record's structured properties (excluding the `{OriginalFormat}` entry, already implied by the message line), indented `scope:` line rendering each active scope's content as `key=value` pairs (or `ToString()` for opaque scopes), and indented `exception:` line with type name and message.
 - **`.And` / `.Or`** chaining via TUnit's `Assertion<T>` base class.
 
-[unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.9.0...HEAD
+[unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.10.1...HEAD
+[0.10.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.10.0...v0.10.1
+[0.10.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.6.3...v0.7.0
