@@ -58,7 +58,7 @@ public async Task Validation_failure_is_logged()
 
 Plus shorthands: `HasLoggedOnce()`, `HasLoggedExactly(int)`, `HasLoggedAtLeast(int)`, `HasLoggedBetween(int, int)`, `HasLoggedNothing()`, `HasLoggedWarningOrAbove()`, `HasLoggedErrorOrAbove()`.
 
-Filters chain with AND semantics: `AtLevel`, `AtLevelOrAbove`, `Containing`, `WithException<T>`, `WithException`, `WithoutException` *(v0.6.0+)*, `WithInnerException<T>` *(v0.4.0+)*, `WithInnerExceptionMessage` *(v0.4.0+)*, `WithProperty`, `WithProperty<T>` *(v0.6.0+)*, `WithCategory`, `WithEventId`, `WithScope<T>`, `WithScopeProperty`, `WithScopeProperty<T>` *(v0.6.0+)*, `WithScopeProperties` *(v0.4.0+)*, plus combinators `MatchingAny`/`MatchingAll`/`Not`/`WithFilter` for composable filter objects. Sequence assertions chain via `Then()` (strict order) or `ThenAnyOrder(...)` *(v0.4.0+)* (concurrent group; sub-steps may match in any order). [Full filter reference on GitHub.](https://github.com/JohnVerheij/LogAssertions.TUnit#filter-reference)
+Filters chain with AND semantics: `AtLevel`, `AtLevelOrAbove`, `Containing`, `WithException<T>`, `WithException`, `WithoutException` *(v0.6.0+)*, `WithInnerException<T>` *(v0.4.0+)*, `WithInnerExceptionMessage` *(v0.4.0+)*, `WithProperty`, `WithProperty<T>` *(v0.6.0+)*, `WithCategory`, `WithEventId`, `WithScope<T>`, `WithScopeProperty`, `WithScopeProperty<T>` *(v0.6.0+)*, `WithScopeProperties` *(v0.4.0+)*, `Matching(LogDefinition)` / `MatchingCall(...)` *(v0.11.0+)*, plus combinators `MatchingAny`/`MatchingAll`/`Not`/`WithFilter` for composable filter objects. Sequence assertions chain via `Then()` (strict order) or `ThenAnyOrder(...)` *(v0.4.0+)* (concurrent group; sub-steps may match in any order). [Full filter reference on GitHub.](https://github.com/JohnVerheij/LogAssertions.TUnit#filter-reference)
 
 ## Cookbook
 
@@ -94,6 +94,25 @@ var (factory, collector) = TestOutputLogCollectorBuilder.CreateTeed();
 await Assert.That(collector).HasLogged()
     .WithMessageTemplate("Order {OrderId} processed").AtLeast(1);
 ```
+
+**Assert a `[LoggerMessage]` definition was logged, string-free (v0.11.0+):** capture the definition once (argument values in the capture lambda are throwaway) and assert by identity: event ID, name, and template. Wording edits stop breaking the test; a renamed definition breaks at compile time:
+
+```csharp
+private static readonly LogDefinition OrderShipped =
+    LogDefinition.Capture(log => LogMessages.OrderShipped(log, 0, ""));
+
+await Assert.That(collector).HasLogged().Matching(OrderShipped).Once();
+
+// pin only the placeholder values that matter
+await Assert.That(collector).HasLogged()
+    .Matching(OrderShipped).WithProperty("OrderId", 42).Once();
+
+// or pin the exact call: every placeholder value plus the exception
+await Assert.That(collector).HasLogged()
+    .MatchingCall(log => LogMessages.OrderShipped(log, 42, "NYC")).Once();
+```
+
+A `private` definition needs promotion to `internal` plus `[InternalsVisibleTo]` for the test project; production code never references this package. [Full typed-definition reference on GitHub.](https://github.com/JohnVerheij/LogAssertions.TUnit#typed-definition-filters-matching-matchingcall-v0110)
 
 **Assert a specific exception flowed through a logger:**
 

@@ -1752,7 +1752,7 @@ internal sealed class LogAssertionsTests
         await Assert.That(() => LogFilter.Containing(null!, StringComparison.Ordinal)).Throws<ArgumentNullException>();
         await Assert.That(() => LogFilter.ContainingAll(StringComparison.Ordinal, null!)).Throws<ArgumentNullException>();
         await Assert.That(() => LogFilter.ContainingAny(StringComparison.Ordinal, null!)).Throws<ArgumentNullException>();
-        await Assert.That(() => LogFilter.Matching(null!)).Throws<ArgumentNullException>();
+        await Assert.That(() => LogFilter.Matching((System.Text.RegularExpressions.Regex)null!)).Throws<ArgumentNullException>();
         await Assert.That(() => LogFilter.WithMessage(null!)).Throws<ArgumentNullException>();
         await Assert.That(() => LogFilter.WithMessageTemplate(null!)).Throws<ArgumentNullException>();
         await Assert.That(() => LogFilter.WithException((Func<Exception, bool>)null!)).Throws<ArgumentNullException>();

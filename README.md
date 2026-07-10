@@ -35,6 +35,7 @@ A TUnit-native fluent log-assertion DSL on top of `Microsoft.Extensions.Logging.
   - [Structured-state (property) filters](#structured-state-property-filters)
   - [Scope filters](#scope-filters)
   - [Identity filters (category, event)](#identity-filters-category-event)
+  - [Typed definition filters (`Matching`, `MatchingCall`) (v0.11.0+)](#typed-definition-filters-matching-matchingcall-v0110)
   - [Escape hatch](#escape-hatch)
   - [Combinator chain methods (`MatchingAny`, `MatchingAll`, `Not`, `WithFilter`)](#combinator-chain-methods-matchingany-matchingall-not-withfilter)
   - [Conditional configuration (`When`)](#conditional-configuration-when)
@@ -191,8 +192,9 @@ See the [Cookbook](#cookbook--common-patterns) for the patterns this replaces in
 | `.Containing("retries=")` just to prove a key is present | `.WithScopeProperty("retries")` *(v0.7.0+)* |
 | `.Containing("user created")` matching the template text | `.WithMessageTemplate("user created")` (value-independent) |
 | multi-step "warn then debug then reconnected" via several asserts | `.HasLoggedSequence().Then(...).Then(...)` |
+| any of the above pinning a specific `[LoggerMessage]` definition | `.Matching(definition)` *(v0.11.0+; see [typed definition filters](#typed-definition-filters-matching-matchingcall-v0110))* |
 
-`.WithMessageTemplate` matches the original `[LoggerMessage]` template rather than the rendered values, so it survives a value change while still pinning intent. The structured matchers also keep the failure diagnostics: a `.WithProperty` miss lists the structured state actually captured, not just "substring not found".
+`.WithMessageTemplate` matches the original `[LoggerMessage]` template rather than the rendered values, so it survives a value change while still pinning intent. The structured matchers also keep the failure diagnostics: a `.WithProperty` miss lists the structured state actually captured, not just "substring not found". From v0.11.0, `.Matching(LogDefinition)` goes one step further: it references the definition itself, so the test carries no strings at all and a renamed or re-parametered definition breaks at compile time.
 
 ---
 
@@ -411,6 +413,67 @@ await Assert.That(collector).HasLogged()
     .WithEventName("Startup")
     .Once();
 ```
+
+### Typed definition filters (`Matching`, `MatchingCall`) (v0.11.0+)
+
+Assert that a specific `[LoggerMessage]` definition was emitted, by identity instead of by
+matching rendered message text. Capture the definition once (the capture lambda's argument
+values are throwaway), store it in a `static readonly` field, and match it on any chain:
+
+```csharp
+private static readonly LogDefinition OrderShipped =
+    LogDefinition.Capture(log => LogMessages.OrderShipped(log, 0, ""));
+
+// identity: "the OrderShipped event fired", whatever the argument values
+await Assert.That(collector).HasLogged().Matching(OrderShipped).Once();
+
+// the workhorse composition: identity plus the placeholder values that matter
+await Assert.That(collector).HasLogged()
+    .Matching(OrderShipped).WithProperty("OrderId", 42).Once();
+
+// exact call: every placeholder value and the exception must match
+await Assert.That(collector).HasLogged()
+    .MatchingCall(log => LogMessages.OrderShipped(log, 42, "NYC")).Once();
+```
+
+| Filter | Behavior |
+|---|---|
+| `Matching(LogDefinition)` | Record carries the definition's identity: equal `EventId.Id`, equal `EventId.Name`, equal message template |
+| `MatchingCall(Action<ILogger>)` | Identity plus every placeholder value (order-insensitive) plus the exception (both absent, or same runtime type and equal message) |
+
+How it works: `LogDefinition.Capture` invokes the lambda once against a private probe
+`FakeLogger` and records what it emitted. No reflection, no source generation; the probe
+collects every level, so `IsEnabled` gates inside generated code cannot suppress the capture. A
+lambda that logs zero or multiple records fails fast with an explanatory `ArgumentException`.
+
+What this buys:
+
+- Wording edits to a template stop breaking tests: the test asserts intent (this event), not
+  prose. Renaming or re-parametering the definition breaks the capture lambda at compile time.
+- Argument values and level are deliberately not part of identity. A definition taking
+  `LogLevel` as a runtime parameter matches at every level; chain `AtLevel(...)` to narrow.
+- Definitions behind wrapper methods work: the record carries the generated Core method's
+  identity, so capture through the wrapper or the Core interchangeably. Prefer capturing the
+  `[LoggerMessage]` method itself when it is accessible.
+- Definitions hosted in generic classes work: close the generic in the capture lambda
+  (`log => MyHost<int>.Started(log, ...)`); identity is shared across closings.
+- Plain `logger.LogInformation("template {X}", x)` calls capture too, keyed on the template
+  with event ID zero.
+
+Practical notes:
+
+- A definition declared `private` in production code is not invocable from the test project;
+  promote it to `internal` and expose it via `[InternalsVisibleTo]` (production code never
+  references this package: the capture executes the production logging method in the test
+  process only).
+- Identity matching is broader than a substring pinned to one specific value: on a collector
+  shared across tests, correlate with `WithProperty(...)` or clear the collector between tests.
+- Two definitions with the same method name and template (in different classes, both with
+  generator-assigned event IDs) produce indistinguishable records; give one an explicit
+  `EventId` when the distinction matters.
+- `LogFilter.Matching(LogDefinition)` and `LogFilter.MatchingCall(LogDefinition)` expose the
+  same matching as composable filter objects for `WithFilter(...)` and `LogFilter.All` /
+  `Any` / `Not`.
 
 ### Escape hatch
 

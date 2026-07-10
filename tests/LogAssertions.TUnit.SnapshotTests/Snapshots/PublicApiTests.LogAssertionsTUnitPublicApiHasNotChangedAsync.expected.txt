@@ -71,9 +71,11 @@ namespace LogAssertions.TUnit
         public TSelf ExcludingCategory(string category) { }
         public TSelf ExcludingLevel(Microsoft.Extensions.Logging.LogLevel level) { }
         protected System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord> GetMatches(System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord> snapshot) { }
+        public TSelf Matching(LogAssertions.LogDefinition definition) { }
         public TSelf Matching(System.Text.RegularExpressions.Regex pattern) { }
         public TSelf MatchingAll(params LogAssertions.ILogRecordFilter[] filters) { }
         public TSelf MatchingAny(params LogAssertions.ILogRecordFilter[] filters) { }
+        public TSelf MatchingCall(System.Action<Microsoft.Extensions.Logging.ILogger> call) { }
         public TSelf Not(LogAssertions.ILogRecordFilter filter) { }
         public TSelf NotAtLevel(Microsoft.Extensions.Logging.LogLevel level) { }
         public TSelf NotContaining(string substring, System.StringComparison comparison) { }

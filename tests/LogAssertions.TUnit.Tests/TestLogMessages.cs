@@ -70,6 +70,27 @@ internal static partial class TestLogMessages
     [LoggerMessage(EventId = 92, Level = LogLevel.Information, Message = "from background")]
     public static partial void FromBackground(ILogger logger);
 
+    // --- LogDefinition matching fixtures (v0.11.0) ---
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "implicit id {Name}")]
+    public static partial void ImplicitIdSample(ILogger logger, string name);
+
+    [LoggerMessage(EventId = 300, Message = "dynamic level {Name}")]
+    public static partial void DynamicLevelSample(ILogger logger, LogLevel level, string name);
+
+    [LoggerMessage(EventId = 301, Level = LogLevel.Information, Message = "amount {Amount} at {Ratio}")]
+    public static partial void DecimalAmount(ILogger logger, decimal amount, double ratio);
+
+    /// <summary>The consumer shape where the generated definition is private and production
+    /// code exposes a wrapper; tests capture via the wrapper.</summary>
+    [LoggerMessage(EventId = 302, Level = LogLevel.Information, Message = "core {Name} started")]
+    private static partial void PrivateCoreSample(ILogger logger, string name);
+
+    /// <summary>Wrapper over <see cref="PrivateCoreSample"/> mirroring the private-Core-plus-wrapper production shape.</summary>
+    /// <param name="logger">The target logger.</param>
+    /// <param name="name">The name placeholder value.</param>
+    public static void PrivateCoreViaWrapper(ILogger logger, string name) => PrivateCoreSample(logger, name);
+
     /// <summary>
     /// Allocation-free factory for a formatted-template scope of shape <c>"Order {OrderId}"</c>.
     /// Used by tests that need to exercise the message-template scope idiom without tripping
@@ -79,4 +100,5 @@ internal static partial class TestLogMessages
     public static readonly Func<ILogger, int, IDisposable?> OrderScope =
         LoggerMessage.DefineScope<int>("Order {OrderId}");
 }
+
 
