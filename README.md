@@ -27,6 +27,7 @@ A TUnit-native fluent log-assertion DSL on top of `Microsoft.Extensions.Logging.
 - [Quick start](#quick-start)
 - [Migrating from manual assertions](#migrating-from-manual-assertions)
 - [Entry points](#entry-points)
+  - [The log gate: `HasLoggedOnly` (v0.12.0+)](#the-log-gate-hasloggedonly-v0120)
   - [Shorthand entry points](#shorthand-entry-points)
 - [Filter reference](#filter-reference)
   - [Level filters](#level-filters)
@@ -36,6 +37,7 @@ A TUnit-native fluent log-assertion DSL on top of `Microsoft.Extensions.Logging.
   - [Scope filters](#scope-filters)
   - [Identity filters (category, event)](#identity-filters-category-event)
   - [Typed definition filters (`Matching`, `MatchingCall`) (v0.11.0+)](#typed-definition-filters-matching-matchingcall-v0110)
+    - [Where your `[LoggerMessage]` definitions must live](#where-your-loggermessage-definitions-must-live)
   - [Escape hatch](#escape-hatch)
   - [Combinator chain methods (`MatchingAny`, `MatchingAll`, `Not`, `WithFilter`)](#combinator-chain-methods-matchingany-matchingall-not-withfilter)
   - [Conditional configuration (`When`)](#conditional-configuration-when)
@@ -200,15 +202,45 @@ See the [Cookbook](#cookbook--common-patterns) for the patterns this replaces in
 
 ## Entry points
 
-Three core entry points are emitted by TUnit's source generator and surface as extension methods on `Assert.That(FakeLogCollector)`.
+Four core entry points are emitted by TUnit's source generator and surface as extension methods on `Assert.That(FakeLogCollector)`.
 
 | Entry point | Default expectation | Terminators allowed |
 |---|---|---|
 | `HasLogged()` | At least 1 matching record | All count terminators (see below) |
 | `HasNotLogged()` | Zero matching records | None: fixed at zero |
-| `HasLoggedSequence()` | An ordered series of matches; `Then()` separates steps | None: each step's match is implicit |
+| `HasLoggedSequence()` | An ordered series of matches; `Then()` separates steps, or `Step(definition)` *(v0.12.0+)* adds a typed step | None: each step's match is implicit |
+| `HasLoggedOnly(floor)` *(v0.12.0+)* | Nothing at or above `floor` other than the definitions passed to `Allowing(...)` | None: `Allowing(...)` sets the allowlist |
 
-All three accept the full filter chain. `HasLogged()` is the workhorse; `HasNotLogged()` is its inverse with cleaner failure semantics; `HasLoggedSequence()` is for multi-step traces (e.g. *"Started -> Validation failed -> Stopped"*).
+The first three accept the full filter chain. `HasLogged()` is the workhorse; `HasNotLogged()` is its inverse with cleaner failure semantics; `HasLoggedSequence()` is for multi-step traces (e.g. *"Started -> Validation failed -> Stopped"*).
+
+### The log gate: `HasLoggedOnly` (v0.12.0+)
+
+The other three assert that an *expected* record is present. The gate asserts that no **unexpected**
+one is, which is the check most suites are missing:
+
+```csharp
+// "nothing at Warning-or-above escaped, except these two known-good events"
+await Assert.That(collector).HasLoggedOnly(LogLevel.Warning)
+    .Allowing(
+        UpstreamContractViolated,   // deliberately emitted; flags an upstream bug
+        StaleSessionDropped);      // benign post-restart close
+
+// no allowlist: the clean-run check
+await Assert.That(collector).HasLoggedOnly(LogLevel.Warning);
+```
+
+Every record **at or above the floor** must carry the identity of an allowed definition. Records
+**below the floor are always permitted and never enumerated** - that is what makes the gate usable
+on a real service, where the Debug/Trace volume (heartbeats, request bodies) is enormous but the
+warning-and-above band is small enough to list.
+
+Assert it once **per test class or fixture** (a TUnit `[After]` hook over the fixture's collector is
+the natural home), not per test. Because it keys on definition identity rather than wording, a
+reworded template cannot slip an unexpected record past it.
+
+Guard against a false green: if the collector's **capture floor** sits above the gate's floor, the
+records the gate claims to inspect were never captured, so the gate fails loudly as vacuous rather
+than passing for the wrong reason (the same protection `HasNotLogged()` has).
 
 ### Shorthand entry points
 
@@ -439,7 +471,74 @@ await Assert.That(collector).HasLogged()
 | Filter | Behavior |
 |---|---|
 | `Matching(LogDefinition)` | Record carries the definition's identity: equal `EventId.Id`, equal `EventId.Name`, equal message template |
+| `MatchingAny(LogDefinition, ...)` *(v0.12.0+)* | Record carries the identity of **any** of the given definitions. For one logical event emitted by more than one definition (a verbose form that attaches the exception and a terse form that folds it into the message, chosen at run time by a flag) |
 | `MatchingCall(Action<ILogger>)` | Identity plus every placeholder value (order-insensitive) plus the exception (both absent, or same runtime type and equal message) |
+
+There is deliberately **no** "matching all definitions" counterpart: a record carries exactly one
+identity, so requiring it to match two distinct definitions could never be satisfied. To narrow one
+definition further, chain the level, property, and exception filters after `Matching(...)`.
+
+#### Where your `[LoggerMessage]` definitions must live
+
+Typed capture calls the definition, so the definition must be **callable from the test project**:
+`internal` (with `[InternalsVisibleTo]`) or `public`. Two rules follow, and the second one bites:
+
+1. **Promote the `[LoggerMessage]` method itself, not just a wrapper.** Capture the generated
+   definition; the record carries *its* identity.
+2. **Do not host definitions you intend to assert on inside a generic type.** Roslynator's
+   **RCS1158 - "Static member in generic type should use a type parameter"** ignores `private`
+   members, so a `private static partial void LogXxxCore(...)` on a generic base compiles fine
+   until you promote it to `internal` for typed capture, at which point the build breaks:
+
+   ```csharp
+   // MyProcessBase<TSettings, TClient>
+   [LoggerMessage(Level = LogLevel.Warning, Message = "[{Name}] ping to {Uri} failed")]
+   internal static partial void LogPingFailedCore(ILogger logger, string name, string uri); // RCS1158
+   ```
+
+   The fix is to move the definitions off the generic type into a **non-generic** static holder:
+
+   ```csharp
+   internal static partial class MyProcessLog     // non-generic
+   {
+       [LoggerMessage(Level = LogLevel.Warning, Message = "[{Name}] ping to {Uri} failed")]
+       internal static partial void LogPingFailedCore(ILogger logger, string name, string uri);
+   }
+   ```
+
+   Capture then reads far better too, since there is no generic to close at the call site:
+
+   ```csharp
+   // on a generic base: verbose and typo-prone
+   LogDefinition.Capture(log => MyProcessBase<TOptions, TClient>.LogPingFailedCore(log, "n", "u"));
+
+   // on a non-generic holder:
+   LogDefinition.Capture(log => MyProcessLog.LogPingFailedCore(log, "n", "u"));
+   ```
+
+   (RCS1158 fires only where the whole Roslynator rule category is enabled, which is common in
+   strict analyzer setups. The non-generic holder is the better shape regardless.)
+
+#### Negative assertions gain the most
+
+The benefit that is easy to miss: `HasNotLogged()` with a substring **silently passes** once the
+wording drifts, which is exactly when you want it to fail. Keyed on identity it cannot:
+
+```csharp
+// rots silently: reword the template and this passes for the wrong reason
+await Assert.That(collector).HasNotLogged().Containing("stale session", StringComparison.Ordinal);
+
+// cannot rot: the definition either fired or it did not
+await Assert.That(collector).HasNotLogged().Matching(StaleSessionDropped);
+```
+
+#### Typed definitions or a rendered snapshot?
+
+They are complementary. Use **typed definitions** to assert that a specific event did (or did not)
+occur, and to pin the handful of placeholder values that matter. Use `LogSnapshotRenderer` +
+`MatchesSnapshot` when the *whole record sequence* is the contract and you want any change to
+surface as a diff. Reach for the snapshot when you cannot enumerate what you care about; reach for
+typed definitions when you can.
 
 How it works: `LogDefinition.Capture` invokes the lambda once against a private probe
 `FakeLogger` and records what it emitted. No reflection, no source generation; the probe
@@ -456,8 +555,9 @@ What this buys:
 - Definitions behind wrapper methods work: the record carries the generated Core method's
   identity, so capture through the wrapper or the Core interchangeably. Prefer capturing the
   `[LoggerMessage]` method itself when it is accessible.
-- Definitions hosted in generic classes work: close the generic in the capture lambda
-  (`log => MyHost<int>.Started(log, ...)`); identity is shared across closings.
+- Definitions hosted in generic classes capture fine (close the generic in the capture lambda,
+  `log => MyHost<int>.Started(log, ...)`; identity is shared across closings), but a non-generic
+  holder is the better shape: see [Where your definitions must live](#where-your-loggermessage-definitions-must-live).
 - Plain `logger.LogInformation("template {X}", x)` calls capture too, keyed on the template
   with event ID zero.
 

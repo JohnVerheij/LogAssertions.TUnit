@@ -130,6 +130,37 @@ public static class LogFilter
     }
 
     /// <summary>
+    /// Records produced by <em>any</em> of the given definitions: the disjunction of
+    /// <see cref="Matching(LogDefinition)"/> over each. Use it when one logical event is emitted by
+    /// more than one definition, for example a verbose form that attaches the exception and a terse
+    /// form that folds the exception text into the message, selected at run time by a flag.
+    /// </summary>
+    /// <param name="definition">The first definition. Must be non-null.</param>
+    /// <param name="moreDefinitions">Any further definitions. Must be non-null and contain no nulls.</param>
+    /// <returns>A filter accepting records carrying the identity of any supplied definition.</returns>
+    /// <remarks>
+    /// There is deliberately no conjunction ("matching all") counterpart over definitions: a record
+    /// carries exactly one identity, so requiring it to match two distinct definitions can never be
+    /// satisfied. Compose <see cref="Matching(LogDefinition)"/> with the level, property, and
+    /// exception filters instead when narrowing one definition further.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+    public static ILogRecordFilter MatchingAny(LogDefinition definition, params LogDefinition[] moreDefinitions)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        ArgumentNullException.ThrowIfNull(moreDefinitions);
+
+        var filters = new ILogRecordFilter[moreDefinitions.Length + 1];
+        filters[0] = Matching(definition);
+        for (var i = 0; i < moreDefinitions.Length; i++)
+        {
+            filters[i + 1] = Matching(moreDefinitions[i]);
+        }
+
+        return new OrFilter(filters);
+    }
+
+    /// <summary>
     /// Records matching the given captured call exactly: the definition's identity plus every
     /// placeholder value (formatted strings, order-insensitive) plus the exception (both absent,
     /// or same runtime type and equal message). Level is not compared.

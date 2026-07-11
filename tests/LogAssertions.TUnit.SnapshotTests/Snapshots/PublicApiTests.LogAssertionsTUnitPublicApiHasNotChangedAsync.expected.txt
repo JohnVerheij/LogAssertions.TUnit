@@ -37,6 +37,14 @@ namespace LogAssertions.TUnit
         public LogAssertions.TUnit.HasLoggedAssertion Never() { }
         public LogAssertions.TUnit.HasLoggedAssertion Once() { }
     }
+    [TUnit.Assertions.Attributes.AssertionExtension("HasLoggedOnly")]
+    public sealed class HasLoggedOnlyAssertion : TUnit.Assertions.Core.Assertion<Microsoft.Extensions.Logging.Testing.FakeLogCollector>
+    {
+        public HasLoggedOnlyAssertion(TUnit.Assertions.Core.AssertionContext<Microsoft.Extensions.Logging.Testing.FakeLogCollector> context, Microsoft.Extensions.Logging.LogLevel floor) { }
+        public LogAssertions.TUnit.HasLoggedOnlyAssertion Allowing(params LogAssertions.LogDefinition[] definitions) { }
+        protected override System.Threading.Tasks.Task<TUnit.Assertions.Core.AssertionResult> CheckAsync(TUnit.Assertions.Core.EvaluationMetadata<Microsoft.Extensions.Logging.Testing.FakeLogCollector> metadata) { }
+        protected override string GetExpectation() { }
+    }
     [TUnit.Assertions.Attributes.AssertionExtension("HasLoggedSequence")]
     public sealed class HasLoggedSequenceAssertion : LogAssertions.TUnit.LogAssertionBase<LogAssertions.TUnit.HasLoggedSequenceAssertion>
     {
@@ -44,6 +52,7 @@ namespace LogAssertions.TUnit
         protected override void AddFilter(LogAssertions.ILogRecordFilter filter) { }
         protected override System.Threading.Tasks.Task<TUnit.Assertions.Core.AssertionResult> CheckAsync(TUnit.Assertions.Core.EvaluationMetadata<Microsoft.Extensions.Logging.Testing.FakeLogCollector> metadata) { }
         protected override string GetExpectation() { }
+        public LogAssertions.TUnit.HasLoggedSequenceAssertion Step(LogAssertions.LogDefinition definition) { }
         public LogAssertions.TUnit.HasLoggedSequenceAssertion Then() { }
         public LogAssertions.TUnit.HasLoggedSequenceAssertion ThenAnyOrder(params System.Action<LogAssertions.TUnit.HasLoggedSequenceAssertion>[] subSteps) { }
     }
@@ -75,6 +84,7 @@ namespace LogAssertions.TUnit
         public TSelf Matching(System.Text.RegularExpressions.Regex pattern) { }
         public TSelf MatchingAll(params LogAssertions.ILogRecordFilter[] filters) { }
         public TSelf MatchingAny(params LogAssertions.ILogRecordFilter[] filters) { }
+        public TSelf MatchingAny(LogAssertions.LogDefinition definition, params LogAssertions.LogDefinition[] moreDefinitions) { }
         public TSelf MatchingCall(System.Action<Microsoft.Extensions.Logging.ILogger> call) { }
         public TSelf Not(LogAssertions.ILogRecordFilter filter) { }
         public TSelf NotAtLevel(Microsoft.Extensions.Logging.LogLevel level) { }
@@ -127,6 +137,11 @@ namespace TUnit.Assertions.Extensions
     public static class HasLoggedAssertionExtensions
     {
         public static LogAssertions.TUnit.HasLoggedAssertion HasLogged<TActual>(this TUnit.Assertions.Core.IAssertionSource<TActual> source)
+            where TActual : Microsoft.Extensions.Logging.Testing.FakeLogCollector { }
+    }
+    public static class HasLoggedOnlyAssertionExtensions
+    {
+        public static LogAssertions.TUnit.HasLoggedOnlyAssertion HasLoggedOnly<TActual>(this TUnit.Assertions.Core.IAssertionSource<TActual> source, Microsoft.Extensions.Logging.LogLevel floor, [System.Runtime.CompilerServices.CallerArgumentExpression("floor")] string? floorExpression = null)
             where TActual : Microsoft.Extensions.Logging.Testing.FakeLogCollector { }
     }
     public static class HasLoggedSequenceAssertionExtensions

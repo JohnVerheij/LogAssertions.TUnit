@@ -133,6 +133,33 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
         return this;
     }
 
+    /// <summary>
+    /// Adds a strictly-ordered step matching the given <paramref name="definition"/>. Sugar for
+    /// <c>Then().Matching(definition)</c> that starts a new step only when the current one already
+    /// carries filters, so a whole flow reads as one call per event:
+    /// <c>.HasLoggedSequence().Step(OrderReceived).Step(PaymentCaptured).Step(OrderShipped)</c>.
+    /// Further filters chain onto the step just opened
+    /// (<c>.Step(Retry).AtLevel(LogLevel.Warning).Step(Succeeded)</c>).
+    /// </summary>
+    /// <param name="definition">The definition the step matches. Must be non-null.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">Called inside a <see cref="ThenAnyOrder"/> sub-step
+    /// configurator, which describes filters for one concurrent group rather than outer sequence structure.</exception>
+    public HasLoggedSequenceAssertion Step(LogDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+
+        // The constructor opens the first step, so the first Step() call fills it rather than
+        // opening an empty one ahead of itself. Then() enforces the sub-step guard.
+        if (_currentFilters.Count > 0)
+        {
+            _ = Then();
+        }
+
+        return Matching(definition);
+    }
+
     /// <inheritdoc/>
     protected override void AddFilter(ILogRecordFilter filter)
     {

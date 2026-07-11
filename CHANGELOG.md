@@ -15,6 +15,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-07-11: gate a run on its log output
+
+Minor release. Adds the assertion the rest of the DSL was missing: `HasLogged()` and friends assert that an expected record is present, while the new gate asserts that no unexpected one is. Additive; no existing API changed.
+
+### Added
+
+- **`Assert.That(collector).HasLoggedOnly(floor).Allowing(definitions)`** asserts that every captured record at or above `floor` carries the identity of an allowed `[LoggerMessage]` definition. Records below the floor are always permitted and are never enumerated, which is what makes the gate usable on a service whose Debug and Trace volume (heartbeats, request bodies) is large while its warning-and-above band is small enough to list. With no `Allowing(...)` call the gate is the clean-run check: nothing was logged at or above the floor at all. Because it keys on definition identity rather than rendered text, a reworded template cannot slip an unexpected record past it. Assert it once per test class or fixture (a TUnit `[After]` hook over the fixture's collector) rather than per test. When the collector's capture floor sits above the gate's floor the records it claims to inspect were never captured, so the gate fails as vacuous rather than passing for the wrong reason, matching the guard `HasNotLogged()` already had.
+- **`MatchingAny(LogDefinition, params LogDefinition[])`** on the assertion chains, and **`LogFilter.MatchingAny(LogDefinition, params LogDefinition[])`** in the framework-agnostic core, filter to records carrying the identity of any of the given definitions. This covers one logical event that is emitted by more than one definition, such as a verbose form that attaches the exception and a terse form that folds the exception text into the message, selected at run time by a flag. There is deliberately no conjunction counterpart: a record carries exactly one identity, so requiring it to match two distinct definitions could never be satisfied.
+- **`Step(LogDefinition)`** on `HasLoggedSequence()` adds a strictly-ordered typed step, so a flow reads as one call per event (`.Step(OrderReceived).Step(PaymentCaptured).Step(OrderShipped)`) instead of alternating `Matching(...)` and `Then()`. Further filters chain onto the step just opened.
+
+### Changed
+
+- Documented **where `[LoggerMessage]` definitions must live** to be assertable: `internal` (with `[InternalsVisibleTo]`) or `public`, and **not on a generic type**. Roslynator's `RCS1158` ignores private members, so a private definition on a generic base compiles until it is promoted to `internal` for typed capture, at which point the build breaks; hosting definitions in a non-generic `static partial class` resolves it and reads better at the capture site. Also documented that negative assertions gain the most from typed definitions (a substring `HasNotLogged()` silently passes once the wording drifts; an identity-keyed one cannot), and when to reach for a rendered `LogSnapshotRenderer` snapshot instead.
+
 ## [0.11.0] - 2026-07-11: typed assertions against log definitions
 
 Minor release. A `[LoggerMessage]` definition (or any other log call) becomes a reusable assertion value: capture it once, then assert it was logged by identity instead of matching rendered message text. Wording edits to a template no longer break tests that assert intent; renaming a definition or changing its signature breaks the capture lambda at compile time. Binary-compatible and additive; one source-level compatibility note is listed under Changed. Built against TUnit 1.58; pin TUnit at or above that version when adopting.
@@ -293,7 +307,8 @@ Documentation-only release. No API or behavior change.
 - **Failure-message snapshot rendering** with 4-character level abbreviations matching the `Microsoft.Extensions.Logging` console formatter (`trce`, `dbug`, `info`, `warn`, `fail`, `crit`, `none`), indented `props:` line listing each record's structured properties (excluding the `{OriginalFormat}` entry, already implied by the message line), indented `scope:` line rendering each active scope's content as `key=value` pairs (or `ToString()` for opaque scopes), and indented `exception:` line with type name and message.
 - **`.And` / `.Or`** chaining via TUnit's `Assertion<T>` base class.
 
-[unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.11.0...HEAD
+[unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.10.1...v0.11.0
 [0.10.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.10.0...v0.10.1
 [0.10.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.9.0...v0.10.0
