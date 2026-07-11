@@ -95,7 +95,7 @@ await Assert.That(collector).HasLogged()
     .WithMessageTemplate("Order {OrderId} processed").AtLeast(1);
 ```
 
-**Assert a `[LoggerMessage]` definition was logged, string-free (v0.11.0+):** capture the definition once (argument values in the capture lambda are throwaway) and assert by identity: event ID, name, and template. Wording edits stop breaking the test; a renamed definition breaks at compile time:
+**Assert a `[LoggerMessage]` definition was logged by identity (v0.11.0+):** capture the definition once (argument values in the capture lambda are throwaway) and assert by identity: event ID, name, and template. Wording edits stop breaking the test; a renamed definition breaks at compile time:
 
 ```csharp
 private static readonly LogDefinition OrderShipped =

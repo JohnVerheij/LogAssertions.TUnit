@@ -194,7 +194,7 @@ See the [Cookbook](#cookbook--common-patterns) for the patterns this replaces in
 | multi-step "warn then debug then reconnected" via several asserts | `.HasLoggedSequence().Then(...).Then(...)` |
 | any of the above pinning a specific `[LoggerMessage]` definition | `.Matching(definition)` *(v0.11.0+; see [typed definition filters](#typed-definition-filters-matching-matchingcall-v0110))* |
 
-`.WithMessageTemplate` matches the original `[LoggerMessage]` template rather than the rendered values, so it survives a value change while still pinning intent. The structured matchers also keep the failure diagnostics: a `.WithProperty` miss lists the structured state actually captured, not just "substring not found". From v0.11.0, `.Matching(LogDefinition)` goes one step further: it references the definition itself, so the test carries no strings at all and a renamed definition (or a change to its signature) breaks at compile time.
+`.WithMessageTemplate` matches the original `[LoggerMessage]` template rather than the rendered values, so it survives a value change while still pinning intent. The structured matchers also keep the failure diagnostics: a `.WithProperty` miss lists the structured state actually captured, not just "substring not found". From v0.11.0, `.Matching(LogDefinition)` goes one step further: it references the definition itself, so the assertion holds no message text to keep in sync, and a renamed definition (or a change to its signature) breaks the capture at compile time.
 
 ---
 
