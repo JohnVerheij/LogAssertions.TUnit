@@ -133,6 +133,44 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
         return this;
     }
 
+    /// <summary>
+    /// Adds a strictly-ordered step matching the given <paramref name="definition"/>. Sugar for
+    /// <c>Then().Matching(definition)</c> that starts a new step only when the current one already
+    /// carries filters, so a whole flow reads as one call per event:
+    /// <c>.HasLoggedSequence().Step(OrderReceived).Step(PaymentCaptured).Step(OrderShipped)</c>.
+    /// Further filters chain onto the step just opened
+    /// (<c>.Step(Retry).AtLevel(LogLevel.Warning).Step(Succeeded)</c>).
+    /// </summary>
+    /// <param name="definition">The definition the step matches. Must be non-null.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">Called inside a <see cref="ThenAnyOrder"/> sub-step
+    /// configurator, which describes filters for one concurrent group rather than outer sequence structure.</exception>
+    public HasLoggedSequenceAssertion Step(LogDefinition definition)
+    {
+        // Step() is outer-sequence structure, so it carries the same guard as Then() and
+        // ThenAnyOrder(). It cannot delegate the guard to Then(): a configurator is always handed
+        // a fresh empty filter list, so its first Step() would take the Count == 0 path below and
+        // silently behave as Matching(), while a second Step() in the same configurator would
+        // throw. Guarding up front keeps the call's meaning independent of its position.
+        if (_isCapturingSubStep)
+            throw new InvalidOperationException(
+                "Step() cannot be called inside a ThenAnyOrder sub-step configurator. " +
+                "Sub-step configurators describe filters for one concurrent group: use " +
+                "Matching(definition) to match a definition inside a sub-step, and structure the " +
+                "outer sequence at the top level after ThenAnyOrder(...) returns.");
+        ArgumentNullException.ThrowIfNull(definition);
+
+        // The constructor opens the first step, so the first Step() call fills it rather than
+        // opening an empty one ahead of itself.
+        if (_currentFilters.Count > 0)
+        {
+            _ = Then();
+        }
+
+        return Matching(definition);
+    }
+
     /// <inheritdoc/>
     protected override void AddFilter(ILogRecordFilter filter)
     {

@@ -54,7 +54,8 @@ public async Task Validation_failure_is_logged()
 |---|---|
 | `HasLogged()` | At least 1 matching record |
 | `HasNotLogged()` | Zero matching records |
-| `HasLoggedSequence()` | Records appear in order; `Then()` separates steps |
+| `HasLoggedSequence()` | Records appear in order; `Then()` separates steps, `Step(definition)` adds a typed step *(v0.12.0+)* |
+| `HasLoggedOnly(floor)` *(v0.12.0+)* | Nothing at or above `floor` except the definitions passed to `Allowing(...)`; records below the floor are always permitted |
 
 Plus shorthands: `HasLoggedOnce()`, `HasLoggedExactly(int)`, `HasLoggedAtLeast(int)`, `HasLoggedBetween(int, int)`, `HasLoggedNothing()`, `HasLoggedWarningOrAbove()`, `HasLoggedErrorOrAbove()`.
 
@@ -112,7 +113,18 @@ await Assert.That(collector).HasLogged()
     .MatchingCall(log => LogMessages.OrderShipped(log, 42, "NYC")).Once();
 ```
 
-A `private` definition needs promotion to `internal` plus `[InternalsVisibleTo]` for the test project; production code never references this package. [Full typed-definition reference on GitHub.](https://github.com/JohnVerheij/LogAssertions.TUnit#typed-definition-filters-matching-matchingcall-v0110)
+A `private` definition needs promotion to `internal` plus `[InternalsVisibleTo]` for the test project; production code never references this package. **Definitions you assert on must not live on a generic type** (Roslynator RCS1158 fires once they are non-private): host them in a non-generic `static partial class`.
+
+**Gate a run on its log output (v0.12.0+):** assert that no *unexpected* record escaped, which is the check most suites lack. Records below the floor are always permitted, so the Debug/Trace volume never needs enumerating:
+
+```csharp
+await Assert.That(collector).HasLoggedOnly(LogLevel.Warning)
+    .Allowing(UpstreamContractViolated, StaleSessionDropped);
+
+await Assert.That(collector).HasLoggedOnly(LogLevel.Warning);  // clean-run check
+```
+
+**One event, two definitions (v0.12.0+):** when a verbose and a terse form of the same event are selected at run time, match either with `MatchingAny(verbose, terse)`. [Full typed-definition reference on GitHub.](https://github.com/JohnVerheij/LogAssertions.TUnit#typed-definition-filters-matching-matchingcall-v0110)
 
 **Assert a specific exception flowed through a logger:**
 

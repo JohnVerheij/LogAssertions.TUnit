@@ -679,6 +679,34 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     }
 
     /// <summary>
+    /// Filters to records produced by <em>any</em> of the given definitions. Use it when one logical
+    /// event is emitted by more than one definition, for example a verbose form that attaches the
+    /// exception and a terse form that folds the exception text into the message, selected at run
+    /// time by a flag:
+    /// <c>.HasLogged().MatchingAny(PingFailed, PingFailedWithException).AtLeast(1)</c>.
+    /// </summary>
+    /// <param name="definition">The first definition. Must be non-null.</param>
+    /// <param name="moreDefinitions">Any further definitions. Must be non-null and contain no nulls.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <remarks>
+    /// <para>There is deliberately no "matching all definitions" counterpart: a record carries exactly
+    /// one identity, so requiring it to match two distinct definitions can never be satisfied. To
+    /// narrow a single definition further, chain the level, property, and exception filters after
+    /// <see cref="Matching(LogDefinition)"/>.</para>
+    /// <para>The first definition is a separate parameter so that a bare <c>MatchingAny()</c> keeps
+    /// resolving to the <see cref="MatchingAny(ILogRecordFilter[])"/> overload rather than becoming
+    /// ambiguous between the two.</para>
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+    public TSelf MatchingAny(LogDefinition definition, params LogDefinition[] moreDefinitions)
+    {
+        ArgumentNullException.ThrowIfNull(moreDefinitions);
+        AddFilter(LogFilter.MatchingAny(definition, moreDefinitions));
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".MatchingAny({moreDefinitions.Length + 1} definitions)");
+        return Self;
+    }
+
+    /// <summary>
     /// Adds a conjunction (AND) of <paramref name="filters"/> as a single composite filter
     /// on the chain. Equivalent to chaining the filters individually but useful when composing
     /// pre-built reusable filters.

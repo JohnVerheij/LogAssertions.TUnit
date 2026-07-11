@@ -16,6 +16,8 @@ namespace LogAssertions.TUnit.Tests;
 [Timeout(5_000)]
 internal sealed class HasLoggedSequenceAnyOrderTests
 {
+    private static readonly LogDefinition First = LogDefinition.Capture(TestLogMessages.First);
+
     [Test]
     public async Task ThenAnyOrder_TwoSubsteps_MatchInDeclaredOrder(CancellationToken ct)
     {
@@ -187,6 +189,48 @@ internal sealed class HasLoggedSequenceAnyOrderTests
                 .ThenAnyOrder(s => { _ = s.ThenAnyOrder(inner => inner.Containing("first", StringComparison.Ordinal)); }))
             .Throws<InvalidOperationException>();
 #pragma warning restore MA0134
+    }
+
+    /// <summary>
+    /// Same guard again for <c>Step()</c>, which is outer-sequence structure. It cannot delegate
+    /// the guard to <c>Then()</c>: a configurator is handed a fresh empty filter list, so a first
+    /// <c>Step()</c> would take the "current step is empty, fill it" path and silently behave as
+    /// <c>Matching()</c>. The guard runs up front, so the call throws wherever it appears in the
+    /// configurator.
+    /// </summary>
+    [Test]
+    public async Task ThenAnyOrder_ConfiguratorCallsStep_ThrowsInvalidOperation(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var (factory, collector) = LogCollectorBuilder.Create();
+        using var __ = factory;
+        var logger = factory.CreateLogger("Test");
+        TestLogMessages.First(logger);
+
+        await Assert.That(async () =>
+            await Assert.That(collector).HasLoggedSequence()
+                .ThenAnyOrder(s => { _ = s.Step(First); }))
+            .Throws<InvalidOperationException>();
+    }
+
+    /// <summary>
+    /// The same call after a filter must fail the same way. Before the up-front guard these two
+    /// diverged: this one threw (via <c>Then()</c>) while the empty-configurator case above
+    /// silently passed, so the meaning of <c>Step()</c> depended on where it appeared.
+    /// </summary>
+    [Test]
+    public async Task ThenAnyOrder_ConfiguratorCallsStepAfterFilter_ThrowsInvalidOperation(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var (factory, collector) = LogCollectorBuilder.Create();
+        using var __ = factory;
+        var logger = factory.CreateLogger("Test");
+        TestLogMessages.First(logger);
+
+        await Assert.That(async () =>
+            await Assert.That(collector).HasLoggedSequence()
+                .ThenAnyOrder(s => { _ = s.Containing("first", StringComparison.Ordinal).Step(First); }))
+            .Throws<InvalidOperationException>();
     }
 
     /// <summary>

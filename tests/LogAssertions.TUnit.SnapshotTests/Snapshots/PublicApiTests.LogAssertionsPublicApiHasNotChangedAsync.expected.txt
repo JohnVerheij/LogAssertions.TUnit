@@ -59,6 +59,7 @@ namespace LogAssertions
         public static LogAssertions.ILogRecordFilter ContainingAny(System.StringComparison comparison, params string[] substrings) { }
         public static LogAssertions.ILogRecordFilter Matching(LogAssertions.LogDefinition definition) { }
         public static LogAssertions.ILogRecordFilter Matching(System.Text.RegularExpressions.Regex pattern) { }
+        public static LogAssertions.ILogRecordFilter MatchingAny(LogAssertions.LogDefinition definition, params LogAssertions.LogDefinition[] moreDefinitions) { }
         public static LogAssertions.ILogRecordFilter MatchingCall(LogAssertions.LogDefinition capturedCall) { }
         public static LogAssertions.ILogRecordFilter Not(LogAssertions.ILogRecordFilter filter) { }
         public static LogAssertions.ILogRecordFilter Where(System.Func<Microsoft.Extensions.Logging.Testing.FakeLogRecord, bool> predicate) { }
