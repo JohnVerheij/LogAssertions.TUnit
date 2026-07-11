@@ -207,6 +207,24 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
         return Self;
     }
 
+    /// <summary>
+    /// Filters to records produced by the given <paramref name="definition"/>: equal event ID
+    /// (numeric ID plus name) and equal message template. Argument values and level are not
+    /// compared: chain <c>WithProperty</c> to pin specific placeholder values and <c>AtLevel</c>
+    /// when the level matters. Capture the definition once in a <c>static readonly</c> field via
+    /// <see cref="LogDefinition.Capture"/> (the capture lambda's argument values are throwaway).
+    /// </summary>
+    /// <param name="definition">The captured definition. Must be non-null.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
+    public TSelf Matching(LogDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        AddFilter(LogFilter.Matching(definition));
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".Matching({definition})");
+        return Self;
+    }
+
     /// <summary>Filters to records whose message matches the regular expression <paramref name="pattern"/>.</summary>
     /// <param name="pattern">The compiled regex. Must be non-null.</param>
     /// <returns>This assertion for chaining.</returns>
@@ -215,6 +233,30 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     {
         AddFilter(LogFilter.Matching(pattern));
         Context.ExpressionBuilder.Append(".Matching(/regex/)");
+        return Self;
+    }
+
+    /// <summary>
+    /// Filters to records matching the log call performed by <paramref name="call"/> exactly:
+    /// the definition's identity plus every placeholder value plus the exception (both absent,
+    /// or same runtime type and equal message). The lambda is invoked once against a probe
+    /// logger at chain-build time; pass the exact argument values the production code is
+    /// expected to have logged. Level is not compared. Prefer
+    /// <see cref="Matching(LogDefinition)"/> plus <c>WithProperty</c> when only some argument
+    /// values are deterministic.
+    /// </summary>
+    /// <param name="call">A delegate performing exactly one log call with the expected argument
+    /// values. Must be non-null.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="call"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">The supplied delegate logged zero or multiple records
+    /// (thrown by <see cref="LogDefinition.Capture"/>).</exception>
+    public TSelf MatchingCall(Action<ILogger> call)
+    {
+        ArgumentNullException.ThrowIfNull(call);
+        var captured = LogDefinition.Capture(call);
+        AddFilter(LogFilter.MatchingCall(captured));
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".MatchingCall({captured})");
         return Self;
     }
 

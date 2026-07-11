@@ -114,6 +114,37 @@ public static class LogFilter
             "Message matches /" + pattern + "/");
     }
 
+    /// <summary>
+    /// Records produced by the given <paramref name="definition"/>: equal event ID (numeric ID
+    /// plus name) and equal message template. Argument values, level, exception, category, and
+    /// scopes are not compared; compose further filters for those.
+    /// </summary>
+    /// <param name="definition">The captured definition (see <see cref="LogDefinition.Capture"/>). Must be non-null.</param>
+    /// <returns>A filter accepting records carrying the definition's identity.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
+    public static ILogRecordFilter Matching(LogDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        return new PredicateFilter(definition.MatchesIdentity,
+            "Definition " + definition.ToString());
+    }
+
+    /// <summary>
+    /// Records matching the given captured call exactly: the definition's identity plus every
+    /// placeholder value (formatted strings, order-insensitive) plus the exception (both absent,
+    /// or same runtime type and equal message). Level is not compared.
+    /// </summary>
+    /// <param name="capturedCall">The captured call (see <see cref="LogDefinition.Capture"/>,
+    /// invoked with the exact argument values to assert). Must be non-null.</param>
+    /// <returns>A filter accepting records that match the captured call exactly.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="capturedCall"/> is <see langword="null"/>.</exception>
+    public static ILogRecordFilter MatchingCall(LogDefinition capturedCall)
+    {
+        ArgumentNullException.ThrowIfNull(capturedCall);
+        return new PredicateFilter(capturedCall.MatchesCall,
+            "Call " + capturedCall.ToString() + " with supplied argument values");
+    }
+
     /// <summary>Records whose formatted message satisfies <paramref name="predicate"/>.</summary>
     /// <param name="predicate">The message predicate. Must be non-null.</param>
     /// <returns>A filter accepting records whose message satisfies the predicate.</returns>

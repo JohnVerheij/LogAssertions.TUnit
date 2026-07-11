@@ -15,6 +15,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-07-11: typed assertions against log definitions
+
+Minor release. A `[LoggerMessage]` definition (or any other log call) becomes a reusable assertion value: capture it once, then assert it was logged by identity instead of matching rendered message text. Wording edits to a template no longer break tests that assert intent; renaming a definition or changing its signature breaks the capture lambda at compile time. Binary-compatible and additive; one source-level compatibility note is listed under Changed. Built against TUnit 1.58; pin TUnit at or above that version when adopting.
+
+### Added
+
+- **`LogDefinition.Capture(Action<ILogger>)`** (core) invoked a logging delegate once against a private probe logger and returned the captured call shape: event ID (numeric ID plus name), level, message template, formatted placeholder values, and exception. The probe collects every level, so an `IsEnabled` gate inside generated logging code cannot suppress the capture. A lambda that logs zero or multiple records fails fast with an explanatory `ArgumentException`. Argument values in the capture lambda are throwaway; store definitions in `static readonly` fields.
+- **`Matching(LogDefinition)`** on the `HasLogged()` / `HasNotLogged()` / `HasLoggedSequence()` chains filtered to records carrying the definition's identity: equal event ID, event name, and message template. Argument values and level are deliberately not part of identity: chain `WithProperty(...)` to pin placeholder values and `AtLevel(...)` when the level matters. Works for definitions behind wrapper methods (the record carries the generated Core's identity), definitions with generator-assigned event IDs, and definitions hosted in generic classes (close the generic in the capture lambda).
+- **`MatchingCall(Action<ILogger>)`** on the same chains matched a log call exactly: the definition's identity plus every placeholder value (formatted strings, order-insensitive, culture-invariant) plus the exception (both absent, or same runtime type and equal message). The lambda is invoked once against the probe at chain-build time with the exact argument values expected.
+- **`LogFilter.Matching(LogDefinition)`** and **`LogFilter.MatchingCall(LogDefinition)`** exposed the same matching as composable `ILogRecordFilter` factories for reuse via `WithFilter(...)` and `LogFilter.All` / `Any` / `Not`.
+
+### Changed
+
+- **`LogFilter.Matching(null!)`** call sites became ambiguous between the `Regex` and `LogDefinition` overloads; a null-literal argument needs a cast to pick one. Compiled code is unaffected.
+
 ## [0.10.1] - 2026-06-26: correct shared-host tee routing
 
 Patch release. The built-in test-output tee now prefers the test resolved at emit time and uses the captured writer only as a per-test fallback, so a tee reused across many tests routes each test's records to its own report. No public API change.
@@ -278,7 +293,8 @@ Documentation-only release. No API or behavior change.
 - **Failure-message snapshot rendering** with 4-character level abbreviations matching the `Microsoft.Extensions.Logging` console formatter (`trce`, `dbug`, `info`, `warn`, `fail`, `crit`, `none`), indented `props:` line listing each record's structured properties (excluding the `{OriginalFormat}` entry, already implied by the message line), indented `scope:` line rendering each active scope's content as `key=value` pairs (or `ToString()` for opaque scopes), and indented `exception:` line with type name and message.
 - **`.And` / `.Or`** chaining via TUnit's `Assertion<T>` base class.
 
-[unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.10.1...HEAD
+[unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.10.1...v0.11.0
 [0.10.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.10.0...v0.10.1
 [0.10.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.8.0...v0.9.0
