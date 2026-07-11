@@ -15,9 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.11.0] - 2026-07-12: typed assertions against log definitions
+## [0.11.0] - 2026-07-11: typed assertions against log definitions
 
-Minor release. A `[LoggerMessage]` definition (or any other log call) becomes a reusable, string-free assertion value: capture it once, then assert it was logged by identity instead of matching rendered message text. Wording edits to a template no longer break tests that assert intent; renaming or re-parametering a definition breaks the capture lambda at compile time. Additive; no existing API changed. Built against TUnit 1.58; pin TUnit at or above that version when adopting.
+Minor release. A `[LoggerMessage]` definition (or any other log call) becomes a reusable, string-free assertion value: capture it once, then assert it was logged by identity instead of matching rendered message text. Wording edits to a template no longer break tests that assert intent; renaming or reparameterizing a definition breaks the capture lambda at compile time. Binary-compatible and additive; one source-level compatibility note is listed under Changed. Built against TUnit 1.58; pin TUnit at or above that version when adopting.
 
 ### Added
 

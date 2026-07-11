@@ -194,7 +194,7 @@ See the [Cookbook](#cookbook--common-patterns) for the patterns this replaces in
 | multi-step "warn then debug then reconnected" via several asserts | `.HasLoggedSequence().Then(...).Then(...)` |
 | any of the above pinning a specific `[LoggerMessage]` definition | `.Matching(definition)` *(v0.11.0+; see [typed definition filters](#typed-definition-filters-matching-matchingcall-v0110))* |
 
-`.WithMessageTemplate` matches the original `[LoggerMessage]` template rather than the rendered values, so it survives a value change while still pinning intent. The structured matchers also keep the failure diagnostics: a `.WithProperty` miss lists the structured state actually captured, not just "substring not found". From v0.11.0, `.Matching(LogDefinition)` goes one step further: it references the definition itself, so the test carries no strings at all and a renamed or re-parametered definition breaks at compile time.
+`.WithMessageTemplate` matches the original `[LoggerMessage]` template rather than the rendered values, so it survives a value change while still pinning intent. The structured matchers also keep the failure diagnostics: a `.WithProperty` miss lists the structured state actually captured, not just "substring not found". From v0.11.0, `.Matching(LogDefinition)` goes one step further: it references the definition itself, so the test carries no strings at all and a renamed or reparameterized definition breaks at compile time.
 
 ---
 
@@ -449,7 +449,7 @@ lambda that logs zero or multiple records fails fast with an explanatory `Argume
 What this buys:
 
 - Wording edits to a template stop breaking tests: the test asserts intent (this event), not
-  prose. Renaming or re-parametering the definition breaks the capture lambda at compile time.
+  prose. Renaming or reparameterizing the definition breaks the capture lambda at compile time.
 - Argument values and level are deliberately not part of identity. A definition taking
   `LogLevel` as a runtime parameter matches at every level; chain `AtLevel(...)` to narrow.
 - Definitions behind wrapper methods work: the record carries the generated Core method's

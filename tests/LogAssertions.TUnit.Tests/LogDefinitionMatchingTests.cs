@@ -426,4 +426,28 @@ internal sealed class LogDefinitionMatchingTests
 
         await Assert.That(thrown).IsTrue();
     }
+
+    /// <summary>Verifies the null-call guard on MatchingCall attributes the error to the chain
+    /// method's own parameter name, not the probe's.</summary>
+    /// <param name="cancellationToken">The test cancellation token.</param>
+    [Test]
+    public async Task MatchingCallThrowsOnNullCallWithOwnParamNameAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var (collector, _) = CreateCollectorAndLogger();
+
+        string? paramName = null;
+        try
+        {
+#pragma warning disable TUnitAssertions0002 // the guard throws at chain-build time, before any await
+            _ = Assert.That(collector).HasLogged().MatchingCall(null!);
+#pragma warning restore TUnitAssertions0002
+        }
+        catch (ArgumentNullException ex)
+        {
+            paramName = ex.ParamName;
+        }
+
+        await Assert.That(paramName).IsEqualTo("call");
+    }
 }

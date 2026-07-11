@@ -249,9 +249,11 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     /// values. Must be non-null.</param>
     /// <returns>This assertion for chaining.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="call"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException"><paramref name="call"/> logged zero or multiple records.</exception>
+    /// <exception cref="ArgumentException">The supplied delegate logged zero or multiple records
+    /// (thrown by <see cref="LogDefinition.Capture"/>).</exception>
     public TSelf MatchingCall(Action<ILogger> call)
     {
+        ArgumentNullException.ThrowIfNull(call);
         var captured = LogDefinition.Capture(call);
         AddFilter(LogFilter.MatchingCall(captured));
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".MatchingCall({captured})");
