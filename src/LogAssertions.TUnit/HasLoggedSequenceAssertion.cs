@@ -148,10 +148,21 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
     /// configurator, which describes filters for one concurrent group rather than outer sequence structure.</exception>
     public HasLoggedSequenceAssertion Step(LogDefinition definition)
     {
+        // Step() is outer-sequence structure, so it carries the same guard as Then() and
+        // ThenAnyOrder(). It cannot delegate the guard to Then(): a configurator is always handed
+        // a fresh empty filter list, so its first Step() would take the Count == 0 path below and
+        // silently behave as Matching(), while a second Step() in the same configurator would
+        // throw. Guarding up front keeps the call's meaning independent of its position.
+        if (_isCapturingSubStep)
+            throw new InvalidOperationException(
+                "Step() cannot be called inside a ThenAnyOrder sub-step configurator. " +
+                "Sub-step configurators describe filters for one concurrent group: use " +
+                "Matching(definition) to match a definition inside a sub-step, and structure the " +
+                "outer sequence at the top level after ThenAnyOrder(...) returns.");
         ArgumentNullException.ThrowIfNull(definition);
 
         // The constructor opens the first step, so the first Step() call fills it rather than
-        // opening an empty one ahead of itself. Then() enforces the sub-step guard.
+        // opening an empty one ahead of itself.
         if (_currentFilters.Count > 0)
         {
             _ = Then();
