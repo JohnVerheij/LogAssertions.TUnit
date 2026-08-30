@@ -81,7 +81,7 @@ internal sealed class LogDefinitionMatchingTests
     {
         cancellationToken.ThrowIfCancellationRequested();
         var ex = Assert.Throws<ArgumentException>(() => LogDefinition.Capture(_ => { }));
-        await Assert.That(ex!.Message).Contains("logged nothing", StringComparison.Ordinal);
+        await Assert.That(ex.Message).Contains("logged nothing", StringComparison.Ordinal);
     }
 
     /// <summary>Verifies a lambda that logs more than once fails fast naming the record count.</summary>
@@ -95,7 +95,7 @@ internal sealed class LogDefinitionMatchingTests
             TestLogMessages.First(log);
             TestLogMessages.Second(log);
         }));
-        await Assert.That(ex!.Message).Contains("2 records", StringComparison.Ordinal);
+        await Assert.That(ex.Message).Contains("2 records", StringComparison.Ordinal);
     }
 
     /// <summary>Verifies the null-lambda guard.</summary>

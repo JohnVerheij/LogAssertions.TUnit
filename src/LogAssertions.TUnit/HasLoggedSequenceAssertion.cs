@@ -314,7 +314,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
 
             if (step.Kind is SequenceStepKind.Simple)
             {
-                sb.AppendJoin(" + ", step.Filters.Select(f => f.Description));
+                sb.AppendJoin(" + ", step.Filters.Select(static f => f.Description));
             }
             else
             {
@@ -324,7 +324,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
                 {
                     if (!first)
                         sb.Append(" / ");
-                    sb.AppendJoin(" + ", sub.Select(f => f.Description));
+                    sb.AppendJoin(" + ", sub.Select(static f => f.Description));
                     first = false;
                 }
                 sb.Append(')');
@@ -346,7 +346,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
         if (step.Kind is SequenceStepKind.Simple)
         {
             sb.Append("Step filters: ")
-                .AppendJoin(" + ", step.Filters.Select(f => f.Description));
+                .AppendJoin(" + ", step.Filters.Select(static f => f.Description));
         }
         else
         {
@@ -354,7 +354,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
             for (var i = 0; i < step.AnyOrderSubSteps!.Count; i++)
             {
                 sb.AppendLine().Append(CultureInfo.InvariantCulture, $"  [{i + 1}] ")
-                    .AppendJoin(" + ", step.AnyOrderSubSteps[i].Select(f => f.Description));
+                    .AppendJoin(" + ", step.AnyOrderSubSteps[i].Select(static f => f.Description));
             }
         }
 

@@ -135,7 +135,7 @@ public sealed class LogDefinition
 
         var record = records[0];
         KeyValuePair<string, string?>[] properties =
-            [.. (record.StructuredState ?? []).Where(kvp => !string.Equals(kvp.Key, OriginalFormatKey, StringComparison.Ordinal))];
+            [.. (record.StructuredState ?? []).Where(static kvp => !string.Equals(kvp.Key, OriginalFormatKey, StringComparison.Ordinal))];
 
         return new LogDefinition(
             record.Id,
@@ -191,7 +191,7 @@ public sealed class LogDefinition
     private bool PropertiesMatch(FakeLogRecord record)
     {
         KeyValuePair<string, string?>[] actual =
-            [.. (record.StructuredState ?? []).Where(kvp => !string.Equals(kvp.Key, OriginalFormatKey, StringComparison.Ordinal))];
+            [.. (record.StructuredState ?? []).Where(static kvp => !string.Equals(kvp.Key, OriginalFormatKey, StringComparison.Ordinal))];
         if (actual.Length != _sortedProperties.Length)
             return false;
 
@@ -214,8 +214,8 @@ public sealed class LogDefinition
     /// <returns>The sorted copy.</returns>
     private static KeyValuePair<string, string?>[] SortPairs(KeyValuePair<string, string?>[] pairs)
         => [.. pairs
-            .OrderBy(kvp => kvp.Key, StringComparer.Ordinal)
-            .ThenBy(kvp => kvp.Value, StringComparer.Ordinal)];
+            .OrderBy(static kvp => kvp.Key, StringComparer.Ordinal)
+            .ThenBy(static kvp => kvp.Value, StringComparer.Ordinal)];
 
     /// <summary>Renders the identity as <c>Name#Id "template"</c> (name falls back to <c>?</c>
     /// when the record carried none), for failure-message descriptions and diagnostics.</summary>

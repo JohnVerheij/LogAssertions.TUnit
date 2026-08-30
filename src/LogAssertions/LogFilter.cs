@@ -86,7 +86,7 @@ public static class LogFilter
     {
         ArgumentNullException.ThrowIfNull(substrings);
         string[] snapshot = [.. substrings];
-        var description = "Message contains all [" + string.Join(", ", snapshot.Select(s => "\"" + s + "\"")) + "] (" + comparison + ")";
+        var description = "Message contains all [" + string.Join(", ", snapshot.Select(static s => "\"" + s + "\"")) + "] (" + comparison + ")";
         return new PredicateFilter(r => snapshot.All(s => r.Message.Contains(s, comparison)), description);
     }
 
@@ -99,7 +99,7 @@ public static class LogFilter
     {
         ArgumentNullException.ThrowIfNull(substrings);
         string[] snapshot = [.. substrings];
-        var description = "Message contains any [" + string.Join(", ", snapshot.Select(s => "\"" + s + "\"")) + "] (" + comparison + ")";
+        var description = "Message contains any [" + string.Join(", ", snapshot.Select(static s => "\"" + s + "\"")) + "] (" + comparison + ")";
         return new PredicateFilter(r => snapshot.Any(s => r.Message.Contains(s, comparison)), description);
     }
 
@@ -202,13 +202,13 @@ public static class LogFilter
     /// <typeparam name="TException">The exception type.</typeparam>
     /// <returns>A filter accepting records whose exception is the specified type or a subclass.</returns>
     public static ILogRecordFilter WithException<TException>() where TException : Exception
-        => new PredicateFilter(r => r.Exception is TException,
+        => new PredicateFilter(static r => r.Exception is TException,
             "Exception is " + typeof(TException).Name);
 
     /// <summary>Records whose <see cref="FakeLogRecord.Exception"/> is non-null (any type).</summary>
     /// <returns>A filter accepting records that carry any exception.</returns>
     public static ILogRecordFilter WithException()
-        => new PredicateFilter(r => r.Exception is not null, "Exception is non-null");
+        => new PredicateFilter(static r => r.Exception is not null, "Exception is non-null");
 
     /// <summary>Records whose <see cref="FakeLogRecord.Exception"/> satisfies <paramref name="predicate"/>.</summary>
     /// <param name="predicate">The predicate. Receives the non-null exception or returns <see langword="false"/> when the record has no exception.</param>
@@ -229,7 +229,7 @@ public static class LogFilter
     /// disabled): asserting the <i>absence</i> of an exception is as meaningful as asserting its
     /// type.</remarks>
     public static ILogRecordFilter WithoutException()
-        => new PredicateFilter(r => r.Exception is null, "Exception is null");
+        => new PredicateFilter(static r => r.Exception is null, "Exception is null");
 
     /// <summary>Records whose exception's message contains <paramref name="substring"/> under the supplied
     /// <paramref name="comparison"/>.</summary>
@@ -256,7 +256,7 @@ public static class LogFilter
     /// <see cref="WithException{TException}"/> via <see cref="All(ILogRecordFilter[])"/>.</remarks>
     public static ILogRecordFilter WithInnerException<TInner>() where TInner : Exception
         => new PredicateFilter(
-            r => r.Exception?.InnerException is TInner,
+            static r => r.Exception?.InnerException is TInner,
             "InnerException is " + typeof(TInner).Name);
 
     /// <summary>Records whose <see cref="Exception.InnerException"/>'s
@@ -392,7 +392,7 @@ public static class LogFilter
     /// <typeparam name="TScope">The scope state type to match.</typeparam>
     /// <returns>A filter accepting records with an active scope of the specified type.</returns>
     public static ILogRecordFilter WithScope<TScope>()
-        => new PredicateFilter(r => r.Scopes.OfType<TScope>().Any(),
+        => new PredicateFilter(static r => r.Scopes.OfType<TScope>().Any(),
             "Scope of type " + typeof(TScope).Name + " active");
 
     /// <summary>Records whose active scopes contain a property with the specified key and value.</summary>
@@ -421,7 +421,7 @@ public static class LogFilter
     {
         ArgumentNullException.ThrowIfNull(key);
         return new PredicateFilter(
-            r => ScopePropertyMatches(r, key, _ => true),
+            r => ScopePropertyMatches(r, key, static _ => true),
             "Scope " + key + " present");
     }
 
@@ -508,7 +508,7 @@ public static class LogFilter
         foreach (var kv in required)
             snapshot[kv.Key] = kv.Value;
         var description = "All scope properties: {" + string.Join(", ",
-            snapshot.Select(kv => kv.Key + "=" + (kv.Value ?? "null"))) + "}";
+            snapshot.Select(static kv => kv.Key + "=" + (kv.Value ?? "null"))) + "}";
         return new PredicateFilter(
             r => snapshot.All(kv => ScopePropertyMatches(r, kv.Key, v => Equals(v, kv.Value))),
             description);
