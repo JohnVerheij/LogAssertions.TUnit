@@ -16,5 +16,5 @@ internal sealed class OrFilter(IReadOnlyList<ILogRecordFilter> children) : ILogR
     /// <inheritdoc/>
     public string Description { get; } = children.Count is 0
         ? "(none)"
-        : "(" + string.Join(" OR ", children.Select(c => c.Description)) + ")";
+        : "(" + string.Join(" OR ", children.Select(static c => c.Description)) + ")";
 }

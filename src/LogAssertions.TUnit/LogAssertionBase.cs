@@ -831,7 +831,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
         if (_filters.Count > 0)
         {
             sb.Append(" matching: ")
-                .AppendJoin(", ", _filters.Select(f => f.Description));
+                .AppendJoin(", ", _filters.Select(static f => f.Description));
         }
     }
 

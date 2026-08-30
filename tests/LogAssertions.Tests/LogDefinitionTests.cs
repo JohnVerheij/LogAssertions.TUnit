@@ -63,7 +63,7 @@ internal sealed class LogDefinitionTests
     {
         cancellationToken.ThrowIfCancellationRequested();
         var ex = Assert.Throws<ArgumentException>(() => LogDefinition.Capture(_ => { }));
-        await Assert.That(ex!.ParamName).IsEqualTo("invocation");
+        await Assert.That(ex.ParamName).IsEqualTo("invocation");
     }
 
     /// <summary>Verifies the multi-record probe failure.</summary>
@@ -77,7 +77,7 @@ internal sealed class LogDefinitionTests
             CoreTestLogMessages.Plain(log);
             CoreTestLogMessages.Plain(log);
         }));
-        await Assert.That(ex!.ParamName).IsEqualTo("invocation");
+        await Assert.That(ex.ParamName).IsEqualTo("invocation");
     }
 
     /// <summary>Verifies LogFilter.Matching accepts identity across argument values and
