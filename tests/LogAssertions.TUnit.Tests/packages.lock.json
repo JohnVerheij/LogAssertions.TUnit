@@ -10,9 +10,9 @@
       },
       "Meziantou.Analyzer": {
         "type": "Direct",
-        "requested": "[3.0.235, )",
-        "resolved": "3.0.235",
-        "contentHash": "z4jo0a7vcp5Q0XSuTz/nZo16mzhjoa31W+Vgc/7f/ra5I5DFnRuVp8QwtS/dL/VsUZaxVq4c2NLIi3pzg9vwfg=="
+        "requested": "[3.0.263, )",
+        "resolved": "3.0.263",
+        "contentHash": "FqZ1OqrTlq2AAPd7Vu6xGu+rqWzqbLgSmSGWIPntLsbqvwks8xjBZ9sc/ggTnSvF/jDYxqa1jxWR8mGp1DU8QA=="
       },
       "Microsoft.Extensions.Diagnostics.Testing": {
         "type": "Direct",
