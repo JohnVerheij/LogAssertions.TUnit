@@ -63,7 +63,7 @@ public static class AssertAllExtensions
     /// <summary>
     /// Ergonomic overload that accepts assertion-builder configurators (returning the
     /// fluent assertion object directly) instead of awaited delegates. Drops the
-    /// <c>async</c>/<c>await</c> boilerplate from every entry:
+    /// <see langword="async"/>/<see langword="await"/> boilerplate from every entry:
     /// <code>
     /// await Assert.That(c).AssertAllAsync(
     ///     c =&gt; c.HasLogged().AtLevel(LogLevel.Information).AtLeast(1),

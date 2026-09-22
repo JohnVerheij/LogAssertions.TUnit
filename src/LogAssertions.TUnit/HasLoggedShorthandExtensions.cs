@@ -26,9 +26,7 @@ namespace TUnit.Assertions.Extensions;
 /// </remarks>
 public static class HasLoggedShorthandExtensions
 {
-    /// <summary>
-    /// Shorthand for <c>HasLogged().Once()</c>: exactly one matching record.
-    /// </summary>
+    /// <summary>Shorthand for <c>HasLogged().Once()</c>: exactly one matching record.</summary>
     /// <typeparam name="TActual">The actual type carried by the assertion source.</typeparam>
     /// <param name="source">The assertion source over a <see cref="FakeLogCollector"/>.</param>
     /// <returns>The assertion, configured for an exact count of 1.</returns>
@@ -36,9 +34,7 @@ public static class HasLoggedShorthandExtensions
         where TActual : FakeLogCollector
         => source.HasLogged().Once();
 
-    /// <summary>
-    /// Shorthand for <c>HasLogged().Exactly(count)</c>: exactly <paramref name="count"/> matching records.
-    /// </summary>
+    /// <summary>Shorthand for <c>HasLogged().Exactly(count)</c>: exactly <paramref name="count"/> matching records.</summary>
     /// <typeparam name="TActual">The actual type carried by the assertion source.</typeparam>
     /// <param name="source">The assertion source over a <see cref="FakeLogCollector"/>.</param>
     /// <param name="count">The required match count. Must be non-negative.</param>
@@ -47,9 +43,7 @@ public static class HasLoggedShorthandExtensions
         where TActual : FakeLogCollector
         => source.HasLogged().Exactly(count);
 
-    /// <summary>
-    /// Shorthand for <c>HasLogged().AtLeast(count)</c>: at least <paramref name="count"/> matching records.
-    /// </summary>
+    /// <summary>Shorthand for <c>HasLogged().AtLeast(count)</c>: at least <paramref name="count"/> matching records.</summary>
     /// <typeparam name="TActual">The actual type carried by the assertion source.</typeparam>
     /// <param name="source">The assertion source over a <see cref="FakeLogCollector"/>.</param>
     /// <param name="count">The minimum match count. Must be non-negative.</param>
@@ -58,9 +52,7 @@ public static class HasLoggedShorthandExtensions
         where TActual : FakeLogCollector
         => source.HasLogged().AtLeast(count);
 
-    /// <summary>
-    /// Shorthand for <c>HasLogged().AtMost(count)</c>: at most <paramref name="count"/> matching records.
-    /// </summary>
+    /// <summary>Shorthand for <c>HasLogged().AtMost(count)</c>: at most <paramref name="count"/> matching records.</summary>
     /// <typeparam name="TActual">The actual type carried by the assertion source.</typeparam>
     /// <param name="source">The assertion source over a <see cref="FakeLogCollector"/>.</param>
     /// <param name="count">The maximum match count. Must be non-negative.</param>

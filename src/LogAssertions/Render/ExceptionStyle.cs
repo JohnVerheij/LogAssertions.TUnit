@@ -3,9 +3,7 @@ namespace LogAssertions.Render;
 /// <summary>How <see cref="LogSnapshotRenderer"/> renders an exception attached to a record.</summary>
 public enum ExceptionStyle
 {
-    /// <summary>
-    /// Render <c>{ExceptionTypeName}: {Message}</c> only. Fully deterministic.
-    /// </summary>
+    /// <summary>Render <c>{ExceptionTypeName}: {Message}</c> only. Fully deterministic.</summary>
     TypeAndMessage,
 
     /// <summary>
