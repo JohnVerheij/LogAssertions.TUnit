@@ -37,9 +37,7 @@ public static class LogAssertionRendering
     public static void AppendCapturedRecords(StringBuilder sb, IReadOnlyList<FakeLogRecord> snapshot)
         => AppendCapturedRecords(sb, snapshot, DumpVerbosity.Default);
 
-    /// <summary>
-    /// Verbosity-controlled overload of <see cref="AppendCapturedRecords(StringBuilder, IReadOnlyList{FakeLogRecord})"/>.
-    /// </summary>
+    /// <summary>Verbosity-controlled overload of <see cref="AppendCapturedRecords(StringBuilder, IReadOnlyList{FakeLogRecord})"/>.</summary>
     /// <param name="sb">The target string builder.</param>
     /// <param name="snapshot">All captured records.</param>
     /// <param name="verbosity">How much detail to render per record. See

@@ -92,15 +92,11 @@ public sealed class HasLoggedAssertion : LogAssertionBase<HasLoggedAssertion>
         return this;
     }
 
-    /// <summary>
-    /// Expects the matching record count to fall in the inclusive range [<paramref name="min"/>, <paramref name="max"/>].
-    /// </summary>
+    /// <summary>Expects the matching record count to fall in the inclusive range [<paramref name="min"/>, <paramref name="max"/>].</summary>
     /// <param name="min">The minimum match count (inclusive). Must be non-negative.</param>
     /// <param name="max">The maximum match count (inclusive). Must be greater than or equal to <paramref name="min"/>.</param>
     /// <returns>This assertion for chaining.</returns>
-    /// <exception cref="ArgumentOutOfRangeException">
-    /// <paramref name="min"/> is negative, or <paramref name="max"/> is less than <paramref name="min"/>.
-    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="min"/> is negative, or <paramref name="max"/> is less than <paramref name="min"/>.</exception>
     public HasLoggedAssertion Between(int min, int max)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(min);

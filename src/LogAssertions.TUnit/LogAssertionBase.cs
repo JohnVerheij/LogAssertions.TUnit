@@ -298,9 +298,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
         return Self;
     }
 
-    /// <summary>
-    /// Filters to records whose <see cref="FakeLogRecord.Exception"/> is non-null (any type).
-    /// </summary>
+    /// <summary>Filters to records whose <see cref="FakeLogRecord.Exception"/> is non-null (any type).</summary>
     /// <returns>This assertion for chaining.</returns>
     public TSelf WithException()
     {
@@ -309,9 +307,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
         return Self;
     }
 
-    /// <summary>
-    /// Filters to records whose <see cref="FakeLogRecord.Exception"/> satisfies <paramref name="predicate"/>.
-    /// </summary>
+    /// <summary>Filters to records whose <see cref="FakeLogRecord.Exception"/> satisfies <paramref name="predicate"/>.</summary>
     /// <param name="predicate">A predicate over the (non-null) exception. Must be non-null.</param>
     /// <returns>This assertion for chaining.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="predicate"/> is <see langword="null"/>.</exception>
@@ -322,9 +318,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
         return Self;
     }
 
-    /// <summary>
-    /// Filters to records whose <see cref="FakeLogRecord.Exception"/> is <see langword="null"/>.
-    /// </summary>
+    /// <summary>Filters to records whose <see cref="FakeLogRecord.Exception"/> is <see langword="null"/>.</summary>
     /// <returns>This assertion for chaining.</returns>
     /// <remarks>The complement of <see cref="WithException()"/>. Use when a code path logs at a
     /// warning/error level but deliberately omits the exception object, and the test needs to
@@ -606,9 +600,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
         return Self;
     }
 
-    /// <summary>
-    /// Filters to records whose <see cref="FakeLogRecord.Id"/> name equals <paramref name="eventName"/> (ordinal).
-    /// </summary>
+    /// <summary>Filters to records whose <see cref="FakeLogRecord.Id"/> name equals <paramref name="eventName"/> (ordinal).</summary>
     /// <param name="eventName">The event name (the second argument of <see cref="EventId"/>) to match. Must be non-null.</param>
     /// <returns>This assertion for chaining.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="eventName"/> is <see langword="null"/>.</exception>
@@ -794,9 +786,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
         return Self;
     }
 
-    /// <summary>
-    /// Counts records in <paramref name="snapshot"/> that satisfy every filter in the chain.
-    /// </summary>
+    /// <summary>Counts records in <paramref name="snapshot"/> that satisfy every filter in the chain.</summary>
     /// <param name="snapshot">The captured records to evaluate.</param>
     /// <returns>The number of matching records.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="snapshot"/> is <see langword="null"/>.</exception>
