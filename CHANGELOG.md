@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`HasLoggedSequence().ThenAnyOrder(params Func<HasLoggedSequenceAssertion, HasLoggedSequenceAssertion>[])`** and **`When(bool, Func<TSelf, TSelf>)`** (on every `HasLogged` / `HasNotLogged` / `HasLoggedSequence` chain) take configurators that return the assertion, which is what an expression lambda such as `s => s.Containing("x", StringComparison.Ordinal)` does. Such lambdas now bind to these overloads, so the awaitable assertion they return is observed instead of discarded, and analyzers that require awaitables to be observed (Meziantou.Analyzer MA0134 from 3.0.318, Microsoft.VisualStudio.Threading.Analyzers VSTHRD110 from 18.12) no longer report every configurator. Statement-lambda configurators keep binding to the existing `Action` overloads, with the same semantics.
+
+### Changed
+
+- **BREAKING:** `ThenAnyOrder()` called with no argument, and `ThenAnyOrder(null)` or `When(condition, null)` called with a bare `null`, no longer compile: both overloads accept those calls, so they need a cast to choose one. Calls that pass lambdas are unaffected.
+
 ## [0.12.0] - 2026-07-11: gate a run on its log output
 
 Minor release. Adds the assertion the rest of the DSL was missing: `HasLogged()` and friends assert that an expected record is present, while the new gate asserts that no unexpected one is. Additive; no existing API changed.

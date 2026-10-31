@@ -719,7 +719,7 @@ await Assert.That(collector).HasLoggedSequence()
 
 Semantics:
 
-- Each sub-step is configured by an `Action<HasLoggedSequenceAssertion>`: call the same filter methods (`AtLevel`, `Containing`, `WithException<T>`, etc.) on the supplied assertion to build that sub-step's filter chain.
+- Each sub-step is configured by a lambda that calls the same filter methods (`AtLevel`, `Containing`, `WithException<T>`, etc.) on the supplied assertion to build that sub-step's filter chain. An expression lambda as above binds to the `Func<HasLoggedSequenceAssertion, HasLoggedSequenceAssertion>` overload, so the awaitable assertion it returns is observed and analyzers that require that (Meziantou MA0134, VSTHRD110) stay quiet; a statement lambda binds to the `Action<HasLoggedSequenceAssertion>` overload.
 - All sub-steps must match in the remaining records before the group is satisfied. Records that match no sub-step are skipped.
 - **Backtracking matcher:** sub-steps are matched against records via backtracking, so any order-independent valid assignment is found if one exists. Overlapping filters compose safely: a broad sub-step that matches many records will not starve a more specific sub-step that needs a particular record. Sub-step declaration order does not affect whether the group succeeds (it still affects the order filter descriptions appear in failure messages).
 - **Sub-step configurators add filters only.** Calling `Then()` or recursive `ThenAnyOrder(...)` from within a sub-step configurator throws `InvalidOperationException`: outer-sequence structure must be expressed at the top level after `ThenAnyOrder(...)` returns.

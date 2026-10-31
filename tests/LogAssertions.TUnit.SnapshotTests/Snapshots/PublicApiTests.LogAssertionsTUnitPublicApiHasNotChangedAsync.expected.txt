@@ -55,6 +55,7 @@ namespace LogAssertions.TUnit
         public LogAssertions.TUnit.HasLoggedSequenceAssertion Step(LogAssertions.LogDefinition definition) { }
         public LogAssertions.TUnit.HasLoggedSequenceAssertion Then() { }
         public LogAssertions.TUnit.HasLoggedSequenceAssertion ThenAnyOrder(params System.Action<LogAssertions.TUnit.HasLoggedSequenceAssertion>[] subSteps) { }
+        public LogAssertions.TUnit.HasLoggedSequenceAssertion ThenAnyOrder(params System.Func<LogAssertions.TUnit.HasLoggedSequenceAssertion, LogAssertions.TUnit.HasLoggedSequenceAssertion>[] subSteps) { }
     }
     [TUnit.Assertions.Attributes.AssertionExtension("HasNotLogged")]
     public sealed class HasNotLoggedAssertion : LogAssertions.TUnit.LogAssertionBase<LogAssertions.TUnit.HasNotLoggedAssertion>
@@ -90,6 +91,7 @@ namespace LogAssertions.TUnit
         public TSelf NotAtLevel(Microsoft.Extensions.Logging.LogLevel level) { }
         public TSelf NotContaining(string substring, System.StringComparison comparison) { }
         public TSelf When(bool condition, System.Action<TSelf> apply) { }
+        public TSelf When(bool condition, System.Func<TSelf, TSelf> apply) { }
         public TSelf Where(System.Func<Microsoft.Extensions.Logging.Testing.FakeLogRecord, bool> predicate) { }
         public TSelf WithCategory(string category) { }
         public TSelf WithEventId(int eventId) { }
