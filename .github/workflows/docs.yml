@@ -32,7 +32,7 @@ jobs:
           global-json-file: global.json
 
       - name: Restore dependencies
-        run: dotnet restore LogAssertions.TUnit.slnx
+        run: dotnet restore LogAssertions.TUnit.slnx --locked-mode
 
       - name: Build (so XML docs exist in obj/)
         run: dotnet build LogAssertions.TUnit.slnx --configuration Release --no-restore
