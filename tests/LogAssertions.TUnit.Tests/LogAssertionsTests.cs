@@ -1916,9 +1916,10 @@ internal sealed class LogAssertionsTests
         cancellationToken.ThrowIfCancellationRequested();
         FakeLogCollector collector = CreateCollectorWithSampleRecords();
 
-        // Condition true: extra Containing filter applied → only the validation record matches.
+        // Condition true: the Containing filter is applied, so only the validation record matches.
+        // No level filter: the seed holds one record per level, so a level filter would let Once()
+        // pass even if the configurator were skipped.
         await Assert.That(collector).HasLogged()
-            .AtLevel(LogLevel.Warning)
             .When(true, b => b.Containing("validation", StringComparison.Ordinal))
             .Once();
 
@@ -1935,9 +1936,8 @@ internal sealed class LogAssertionsTests
             .Throws<ArgumentNullException>();
 
         // Statement-lambda configurator binds to the Action overload; same semantics as the
-        // expression-lambda (Func) form above.
+        // expression-lambda (Func) form above, and the same reason for having no level filter.
         await Assert.That(collector).HasLogged()
-            .AtLevel(LogLevel.Warning)
             .When(true, b => { _ = b.Containing("validation", StringComparison.Ordinal); })
             .Once();
     }
