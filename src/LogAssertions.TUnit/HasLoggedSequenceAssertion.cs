@@ -52,7 +52,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
     /// records the filters describe, with the empty steps acting as inert separators.
     /// </summary>
     /// <returns>This assertion for chaining.</returns>
-    /// <exception cref="InvalidOperationException">Called inside a <see cref="ThenAnyOrder"/>
+    /// <exception cref="InvalidOperationException">Called inside a <see cref="ThenAnyOrder(Action{HasLoggedSequenceAssertion}[])"/>
     /// sub-step configurator. Sub-step configurators describe filters for one concurrent group;
     /// structure the outer sequence at the top level instead.</exception>
     public HasLoggedSequenceAssertion Then()
@@ -81,7 +81,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
     /// <returns>This assertion for chaining.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     /// <exception cref="InvalidOperationException">Called inside another sub-step configurator,
-    /// or a sub-step configurator calls <see cref="Then"/> or <see cref="ThenAnyOrder"/>.
+    /// or a sub-step configurator calls <see cref="Then"/> or <see cref="ThenAnyOrder(Action{HasLoggedSequenceAssertion}[])"/>.
     /// Sub-step configurators must add filters only: outer sequence structure must be expressed
     /// at the top level, not inside a configurator.</exception>
     public HasLoggedSequenceAssertion ThenAnyOrder(params Action<HasLoggedSequenceAssertion>[] subSteps)
@@ -134,6 +134,36 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
     }
 
     /// <summary>
+    /// Same as <see cref="ThenAnyOrder(Action{HasLoggedSequenceAssertion}[])"/>, for sub-step
+    /// configurators written as expression lambdas such as
+    /// <c>s =&gt; s.Containing("x", StringComparison.Ordinal)</c>. Such a lambda returns the
+    /// assertion, which is awaitable; passed as an <see cref="Action{T}"/> that value would be
+    /// discarded, which analyzers that require awaitables to be observed report (Meziantou MA0134,
+    /// Microsoft.VisualStudio.Threading VSTHRD110). C# overload resolution picks this overload for
+    /// expression lambdas; statement lambdas keep binding to the <see cref="Action{T}"/> overload.
+    /// </summary>
+    /// <param name="subSteps">Configurators for each concurrent sub-step. Each receives the
+    /// assertion, adds filter calls, and returns the assertion it was given.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">Under the same conditions as the
+    /// <see cref="Action{T}"/> overload.</exception>
+    public HasLoggedSequenceAssertion ThenAnyOrder(params Func<HasLoggedSequenceAssertion, HasLoggedSequenceAssertion>[] subSteps)
+    {
+        ArgumentNullException.ThrowIfNull(subSteps);
+
+        var configurators = new Action<HasLoggedSequenceAssertion>[subSteps.Length];
+        for (var i = 0; i < subSteps.Length; i++)
+        {
+            var configurator = subSteps[i]
+                ?? throw new ArgumentNullException(nameof(subSteps), "Sub-step configurator must not be null.");
+            configurators[i] = assertion => { _ = configurator(assertion); };
+        }
+
+        return ThenAnyOrder(configurators);
+    }
+
+    /// <summary>
     /// Adds a strictly-ordered step matching the given <paramref name="definition"/>. Sugar for
     /// <c>Then().Matching(definition)</c> that starts a new step only when the current one already
     /// carries filters, so a whole flow reads as one call per event:
@@ -144,7 +174,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
     /// <param name="definition">The definition the step matches. Must be non-null.</param>
     /// <returns>This assertion for chaining.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
-    /// <exception cref="InvalidOperationException">Called inside a <see cref="ThenAnyOrder"/> sub-step
+    /// <exception cref="InvalidOperationException">Called inside a <see cref="ThenAnyOrder(Action{HasLoggedSequenceAssertion}[])"/> sub-step
     /// configurator, which describes filters for one concurrent group rather than outer sequence structure.</exception>
     public HasLoggedSequenceAssertion Step(LogDefinition definition)
     {

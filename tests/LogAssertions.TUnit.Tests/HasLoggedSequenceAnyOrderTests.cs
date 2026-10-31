@@ -144,8 +144,57 @@ internal sealed class HasLoggedSequenceAnyOrderTests
 
         await Assert.That(async () =>
             await Assert.That(collector).HasLoggedSequence()
-                .ThenAnyOrder(null!))
+                .ThenAnyOrder((Action<HasLoggedSequenceAssertion>[])null!))
             .Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task ThenAnyOrder_NullFuncArray_ThrowsArgumentNull(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var (factory, collector) = LogCollectorBuilder.Create();
+        using var __ = factory;
+
+        await Assert.That(async () =>
+            await Assert.That(collector).HasLoggedSequence()
+                .ThenAnyOrder((Func<HasLoggedSequenceAssertion, HasLoggedSequenceAssertion>[])null!))
+            .Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task ThenAnyOrder_NullFuncElement_ThrowsArgumentNull(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var (factory, collector) = LogCollectorBuilder.Create();
+        using var __ = factory;
+
+        await Assert.That(async () =>
+            await Assert.That(collector).HasLoggedSequence()
+                .ThenAnyOrder(s => s.Containing("first", StringComparison.Ordinal), null!))
+            .Throws<ArgumentNullException>();
+    }
+
+    /// <summary>
+    /// Statement-lambda configurators bind to the <see cref="Action{T}"/> overload; expression
+    /// lambdas (every other test here) bind to the <see cref="Func{T, TResult}"/> overload. Both
+    /// must produce the same sequence semantics.
+    /// </summary>
+    [Test]
+    public async Task ThenAnyOrder_StatementLambdaConfigurators_MatchInAnyOrder(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var (factory, collector) = LogCollectorBuilder.Create();
+        using var __ = factory;
+        var logger = factory.CreateLogger("Test");
+        TestLogMessages.First(logger);
+        TestLogMessages.Second(logger);
+        TestLogMessages.Third(logger);
+
+        await Assert.That(collector).HasLoggedSequence()
+            .Containing("first", StringComparison.Ordinal)
+            .ThenAnyOrder(
+                s => { _ = s.Containing("third", StringComparison.Ordinal); },
+                s => { _ = s.Containing("second", StringComparison.Ordinal); });
     }
 
     /// <summary>

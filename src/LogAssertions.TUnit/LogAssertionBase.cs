@@ -786,6 +786,25 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
         return Self;
     }
 
+    /// <summary>
+    /// Same as <see cref="When(bool, Action{TSelf})"/>, for configurators written as expression
+    /// lambdas such as <c>b =&gt; b.Containing("retry", StringComparison.Ordinal)</c>. Such a lambda
+    /// returns the assertion, which is awaitable; passed as an <see cref="Action{T}"/> that value
+    /// would be discarded, which analyzers that require awaitables to be observed report
+    /// (Meziantou MA0134, Microsoft.VisualStudio.Threading VSTHRD110). C# overload resolution picks
+    /// this overload for expression lambdas; statement lambdas keep binding to the
+    /// <see cref="Action{T}"/> overload.
+    /// </summary>
+    /// <param name="condition">When <see langword="true"/>, applies the configurator.</param>
+    /// <param name="apply">The configurator. Must be non-null.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="apply"/> is <see langword="null"/>.</exception>
+    public TSelf When(bool condition, Func<TSelf, TSelf> apply)
+    {
+        ArgumentNullException.ThrowIfNull(apply);
+        return When(condition, assertion => { _ = apply(assertion); });
+    }
+
     /// <summary>Counts records in <paramref name="snapshot"/> that satisfy every filter in the chain.</summary>
     /// <param name="snapshot">The captured records to evaluate.</param>
     /// <returns>The number of matching records.</returns>
