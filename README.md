@@ -88,10 +88,10 @@ This repo ships **two** NuGet packages:
 
 | Package | Purpose | Depends on |
 |---|---|---|
-| [`LogAssertions`](https://www.nuget.org/packages/LogAssertions/) | Framework-agnostic core: `ILogRecordFilter` + `LogFilter` + rendering + collector inspection extensions | `Microsoft.Extensions.Diagnostics.Testing` |
+| [`LogAssertions`](https://www.nuget.org/packages/LogAssertions/) | Framework-agnostic core: `ILogRecordFilter` + `LogFilter` + rendering + collector inspection extensions + event-driven waits (`WaitForLogAsync`) + `LogCollectorBuilder` | `Microsoft.Extensions.Diagnostics.Testing` |
 | [`LogAssertions.TUnit`](https://www.nuget.org/packages/LogAssertions.TUnit/) | TUnit-specific entry points: `HasLogged()`, `HasNotLogged()`, `HasLoggedSequence()` and shorthands | `LogAssertions` + `TUnit.Assertions` |
 
-You install `LogAssertions.TUnit`; `LogAssertions` comes transitively. Adapters for other test frameworks (NUnit, xUnit, MSTest) are *not* shipped today: they'd reuse the `LogAssertions` core. If you'd find one useful, [open a feature request](https://github.com/JohnVerheij/LogAssertions.TUnit/issues/new?template=feature_request.yml).
+You install `LogAssertions.TUnit`; `LogAssertions` comes transitively. Both are safe to reference from a shared test-support library (for example one that wires `AddTeedFakeLogging` for several test projects): `LogAssertions.TUnit` depends on `TUnit.Assertions` and `TUnit.Core`, not on the `TUnit` meta-package, so the library does not turn into a test project. Adapters for other test frameworks (NUnit, xUnit, MSTest) are *not* shipped today: they'd reuse the `LogAssertions` core. If you'd find one useful, [open a feature request](https://github.com/JohnVerheij/LogAssertions.TUnit/issues/new?template=feature_request.yml).
 
 ## Namespaces (and a `GlobalUsings.cs` recommendation)
 
@@ -242,6 +242,14 @@ reworded template cannot slip an unexpected record past it.
 Guard against a false green: if the collector's **capture floor** sits above the gate's floor, the
 records the gate claims to inspect were never captured, so the gate fails loudly as vacuous rather
 than passing for the wrong reason (the same protection `HasNotLogged()` has).
+
+**Expect it to fail the first time.** Added to an existing golden-path suite, the gate is an audit: it
+lists every warning-or-above record the tests have been producing unnoticed. Each one is either a real
+defect, a fixture gap (a missing setting, a stub that logs an error), or a known-good event that
+belongs in `Allowing(...)`. Work through the list once; after that, a new entry means a regression.
+
+The gate answers *what* escaped. For *how often* a known record may appear, pair it with a count on that
+definition: `await Assert.That(collector).HasLogged().Matching(RetryScheduled).Exactly(3);`.
 
 ### Shorthand entry points
 
@@ -909,15 +917,21 @@ await Assert.That(collector).HasNotLogged().AtLevelOrAbove(LogLevel.Error);
 
 ### Wait for a log produced by background work
 
-Background- or pump-driven logs (a `BackgroundService`, a timer, a fire-and-forget handler) can land after the call that triggered them returns, so a synchronous `HasLogged()` races the producer and flakes. Wrap the assertion in TUnit's own `Eventually` (or `WaitsFor`) to poll the live collector until the record appears or the timeout elapses, instead of hand-rolling a wait:
+Background- or pump-driven logs (a `BackgroundService`, a timer, a fire-and-forget handler) can land after the call that triggered them returns, so a synchronous `HasLogged()` races the producer and flakes. Wait for the record itself (v0.13.0+):
 
 ```csharp
-await Assert.That(collector).Eventually(
-    c => c.HasLogged().Containing("dead-lettered", StringComparison.OrdinalIgnoreCase).AtLeast(1),
-    TimeSpan.FromSeconds(5));
+// Returns the moment a matching record is logged; already-logged records count.
+var record = await collector.WaitForLogAsync(
+    LogFilter.Containing("dead-lettered", StringComparison.OrdinalIgnoreCase),
+    cancellationToken);
+
+// Then assert as usual: the record is there now.
+await Assert.That(collector).HasLogged().Containing("dead-lettered", StringComparison.OrdinalIgnoreCase).Once();
 ```
 
-`Eventually` re-runs the inner assertion against the live collector each interval and re-reads its records, so any filter and terminator chain works inside it - `HasNotLogged()`, sequences, counts, and the structured matchers all compose. The poll interval and a `CancellationToken` are optional parameters on `Eventually`/`WaitsFor`.
+`WaitForLogAsync` takes any `ILogRecordFilter` (compose them with `LogFilter.All` / `Any` / `Not`) or a `Func<FakeLogRecord, bool>`, and `WaitForLogsAsync(filter, count, cancellationToken)` waits for several. They are built on `FakeLogCollector.GetLogsAsync`, so they wake on each new record: no polling interval, no real-time delay, and no cost when the record is already there. The token is the only bound and is required; pass the test's token, or a linked source with a timeout. On cancellation the `OperationCanceledException` says how many records arrived and how many matched.
+
+A wait proves that a record arrived; it cannot prove that one did not. For "has not logged", let the work finish first (await its completion, or wait for the log that marks the end of the step) and then assert `HasNotLogged()`. For an arbitrary condition on the collector that no single record signals, TUnit's `Eventually` / `WaitsFor` still polls an assertion chain.
 
 ### Assert a specific call site was hit
 
@@ -1025,24 +1039,15 @@ b.AddTeedFakeLogging(collector, LogLevel.Trace, new CorrelatedTUnitLoggerProvide
 
 ### Don't use `NullLogger` for code under coverage
 
-A service guarded by `if (logger.IsEnabled(LogLevel.Debug)) { ... }` needs an **enabled** logger under test, or the guard only ever takes its false branch and that branch's coverage silently drops. `NullLogger` and a provider-less factory both report `IsEnabled == false`. Use a real (enabled) logger. If a particular test does not assert on logs and you only need the guard to evaluate true, an enabled non-capturing provider avoids the unbounded growth of a long-lived `FakeLogCollector`:
+A service guarded by `if (logger.IsEnabled(LogLevel.Debug)) { ... }` needs an **enabled** logger under test, or the guard only ever takes its false branch and that branch's coverage silently drops. `NullLogger` and a provider-less factory both report `IsEnabled == false`. Use a real (enabled) logger. If a particular test does not assert on logs and you only need the guard to evaluate true, an enabled non-capturing factory avoids the unbounded growth of a long-lived `FakeLogCollector` (v0.13.0+):
 
 ```csharp
-// An enabled, discarding provider: IsEnabled-guarded log statements run, nothing is retained.
-internal sealed class DiscardingLoggerProvider : ILoggerProvider
-{
-    public ILogger CreateLogger(string categoryName) => DiscardingLogger.Instance;
-    public void Dispose() { }
+// Enabled at every level; IsEnabled-guarded log statements run, nothing is retained.
+using var loggerFactory = LogCollectorBuilder.CreateDiscarding();
+var service = new MyService(loggerFactory.CreateLogger<MyService>());
 
-    private sealed class DiscardingLogger : ILogger
-    {
-        public static readonly DiscardingLogger Instance = new();
-        public IDisposable BeginScope<TState>(TState state) where TState : notnull => NullScope.Instance;
-        public bool IsEnabled(LogLevel logLevel) => true;
-        public void Log<TState>(LogLevel l, EventId e, TState s, Exception? x, Func<TState, Exception?, string> f) { }
-        private sealed class NullScope : IDisposable { public static readonly NullScope Instance = new(); public void Dispose() { } }
-    }
-}
+// Or enabled from Information up, to exercise the guard's other branch too:
+using var quieter = LogCollectorBuilder.CreateDiscarding(LogLevel.Information);
 ```
 
 The `FakeLogCollector` itself grows without bound as records accumulate. Scope it per test (the `Create()` / `CreateTeed()` helpers return a fresh one each call); never hold one in a `static readonly` field shared across a reused host.
@@ -1108,6 +1113,17 @@ await Assert.That(rendered).MatchesSnapshot();
 `LogSnapshotRenderer` lives in the framework-agnostic `LogAssertions` core; `MatchesSnapshot()` is from the sibling [`SnapshotAssertions.TUnit`](https://github.com/JohnVerheij/SnapshotAssertions.TUnit) package. The two-line composition is deliberate: the renderer never takes a hard dependency on a snapshot framework.
 
 The rendered text is verbatim and deterministic: LF line endings (a baseline committed on one OS stays valid on every other), capture order preserved, no baked-in scrubbing. Volatile values (GUIDs, timestamps, durations in message bodies) are the snapshot layer's concern: compose `SnapshotAssertions.Scrubbers` at the `MatchesSnapshot()` call site.
+
+A recommended scrubber set for log snapshots: `Scrubbers.Common` (GUIDs in both forms, ISO-8601 timestamps, Unix epoch milliseconds, `NNNms` durations), plus a `Scrubbers.Pattern(...)` per volatile value your own messages carry, such as a port or a host name:
+
+```csharp
+await Assert.That(LogSnapshotRenderer.Render(collector))
+    .MatchesSnapshot()
+    .WithScrubber(Scrubbers.Common)
+    .WithScrubber(Scrubbers.Pattern(@"localhost:\d+", "localhost:<port>"));
+```
+
+**Migrating from a hand-rolled renderer:** if your tests already flatten `collector.GetSnapshot()` into a string (with scrubbing inlined in the loop), replace the loop with `LogSnapshotRenderer.Render(collector, options)` and move each inline replacement into a scrubber on the `MatchesSnapshot()` chain. The first run rewrites every baseline once, because the line format changes; review that diff for content, not layout, and accept it. Keeping the scrubbing out of the renderer is deliberate: the same rendered text can then be inspected unscrubbed when a snapshot fails.
 
 `LogSnapshotOptions` controls the rendering: level abbreviation vs full name, leaf vs full category, scope inclusion, and exception detail:
 
@@ -1189,7 +1205,7 @@ Per [SemVer](https://semver.org/), the `0.x` series is initial development: anyt
 
 The current surface covers the common cases: composable filters, count terminators, sequence assertions (strict and concurrent), scope-property matching, batch assertions, and the `LogSnapshotRenderer` for pinning a full log sequence. Everything below is a demand-driven backlog; nothing is committed.
 
-- **Filters:** time-based (`WithElapsedTime`, `WithTimestamp`, sequence gaps), `DescribedAs` labels, a `WithinTimeout` polling terminator.
+- **Filters:** time-based (`WithElapsedTime`, `WithTimestamp`, sequence gaps), `DescribedAs` labels. (Waiting for background work is covered by `WaitForLogAsync`.)
 - **Sequence:** `ThenImmediately`, `NotInterleaved`, `InOrder`, `HasNotLoggedSequence`, cursor control (`FromNewest` / `SinceLastAssert`).
 - **Bigger pieces:** a `[LoggerMessage]`-derived typed-assertion source generator, `ToVerifyString()` golden files, and `LogAssertions.NUnit` / `.xUnit` / `.MSTest` adapters (the core already supports them; built on request).
 
@@ -1221,6 +1237,9 @@ For per-package release notes:
 - **[`SseAssertions.TUnit`](https://www.nuget.org/packages/SseAssertions.TUnit/)**: Server-Sent Events (SSE) wire-format assertions: event-count, field shape (`event:`, `data:`, `id:`, `retry:`), and stream content validation.
 - **[`GrpcAssertions.TUnit`](https://www.nuget.org/packages/GrpcAssertions.TUnit/)**: fluent gRPC outcome assertions (`ThrowsGrpcException` with `StatusCode` shorthands and detail refinements) plus the `GrpcCallBuilder` test-double helper.
 - **[`TracingAssertions.TUnit`](https://www.nuget.org/packages/TracingAssertions.TUnit/)**: fluent OpenTelemetry distributed-tracing (`Activity` / span) assertions: operation name, tags, status, and parent/child and same-trace relationships, captured via a raw `ActivityListener` with no OpenTelemetry SDK dependency.
+- **[`MetricsAssertions.TUnit`](https://www.nuget.org/packages/MetricsAssertions.TUnit/)**: fluent assertions over `System.Diagnostics.Metrics` instruments (counters, histograms, gauges), built on `MetricCollector`.
+
+**Not a sibling, but often compared:** [`TUnit.Mocks.Logging`](https://tunit.dev/docs/writing-tests/mocking/logging/) gives you a `MockLogger` to inject and verify calls on, mock-style. This package asserts on what real loggers wrote into a `FakeLogCollector`, including structured state, scopes, and exceptions, across every category the code under test creates. Use the mock when the logger is a collaborator you inject by hand; use the collector when you test a service wired through `ILoggerFactory` or a host.
 
 ---
 

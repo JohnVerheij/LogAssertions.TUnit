@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 
@@ -42,4 +43,26 @@ public static class LogCollectorBuilder
         LogCaptureFloorRegistry.Register(collector, minimumLevel);
         return (factory, collector);
     }
+
+    /// <summary>
+    /// Creates an <see cref="ILoggerFactory"/> whose loggers are enabled at <paramref name="minimumLevel"/> and above
+    /// but keep nothing. Use it where a test needs a real, enabled logger and does not assert on logs: code guarded by
+    /// <c>logger.IsEnabled(...)</c> takes its logging branch (so coverage includes it), and a long-lived host does not
+    /// accumulate records the way a <see cref="FakeLogCollector"/> would.
+    /// </summary>
+    /// <remarks>
+    /// A <c>NullLogger</c> or a factory without providers reports every level as disabled, so the guarded branch never
+    /// runs under test. To assert on what was logged, use <see cref="Create"/> instead.
+    /// </remarks>
+    /// <param name="minimumLevel">The lowest level reported as enabled. Default is <see cref="LogLevel.Trace"/>
+    /// (every level).</param>
+    /// <returns>The factory. The caller owns it and disposes it when the test completes.</returns>
+    public static ILoggerFactory CreateDiscarding(LogLevel minimumLevel = LogLevel.Trace)
+        => LoggerFactory.Create(b =>
+        {
+            b.SetMinimumLevel(minimumLevel);
+            // Registered through a factory, so the logging container owns the provider and disposes it with the
+            // returned factory, like the providers it creates itself.
+            b.Services.AddSingleton<ILoggerProvider>(static _ => new DiscardingLoggerProvider());
+        });
 }

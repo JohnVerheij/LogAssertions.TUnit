@@ -15,13 +15,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-01: wait for a log from background work, a discarding logger factory
+
+Minor release. Event-driven waits return once background work has logged a matching record, without polling; `LogCollectorBuilder.CreateDiscarding` gives an enabled logger that keeps nothing; the sequence and `When` configurators take expression lambdas. One source-breaking edge (see Changed).
+
 ### Added
 
+- **`FakeLogCollector.WaitForLogAsync(ILogRecordFilter filter, CancellationToken cancellationToken)`** waits until the collector holds a record that matches the filter and returns it. It is built on `FakeLogCollector.GetLogsAsync`, so it wakes on each new record, with no polling interval and no real-time delay; records logged before the call count. On cancellation the `OperationCanceledException` says how many records arrived and how many matched.
+- **`FakeLogCollector.WaitForLogAsync(Func<FakeLogRecord, bool> predicate, CancellationToken cancellationToken)`** is the predicate form.
+- **`FakeLogCollector.WaitForLogsAsync(ILogRecordFilter filter, int count, CancellationToken cancellationToken)`** waits for `count` matching records and returns them in the order they were logged.
+- **`LogCollectorBuilder.CreateDiscarding(LogLevel minimumLevel = LogLevel.Trace)`** returns an `ILoggerFactory` whose loggers are enabled at `minimumLevel` and above but keep nothing, so code guarded by `logger.IsEnabled(...)` runs its logging branch under coverage without a collector that grows in a long-lived host. It replaces the discarding provider the README used to show.
 - **`HasLoggedSequence().ThenAnyOrder(params Func<HasLoggedSequenceAssertion, HasLoggedSequenceAssertion>[])`** and **`When(bool, Func<TSelf, TSelf>)`** (on every `HasLogged` / `HasNotLogged` / `HasLoggedSequence` chain) take configurators that return the assertion, which is what an expression lambda such as `s => s.Containing("x", StringComparison.Ordinal)` does. Such lambdas now bind to these overloads, so the awaitable assertion they return is observed instead of discarded, and analyzers that require awaitables to be observed (Meziantou.Analyzer MA0134 from 3.0.318, Microsoft.VisualStudio.Threading.Analyzers VSTHRD110 from 18.12) no longer report every configurator. Statement-lambda configurators keep binding to the existing `Action` overloads, with the same semantics. A `ThenAnyOrder` call that mixes a statement lambda with expression lambdas binds as a whole to the `Action` overload, so its expression lambdas still discard their result; write every sub-step of such a call as an expression lambda.
 
 ### Changed
 
 - **BREAKING:** `ThenAnyOrder()` with no argument no longer compiles; pass `Array.Empty<Action<HasLoggedSequenceAssertion>>()` instead. `ThenAnyOrder(null)` and `When(condition, null)` with a bare `null` need a cast to the `Action` or `Func` type to choose an overload. Calls that pass lambdas are unaffected.
+- **`TUnit.Assertions`** and **`TUnit.Core`** minimum versions raised from 1.58.0 to 1.77.0, and **`Microsoft.Extensions.Diagnostics.Testing`** from 10.7.0 to 10.11.0 (`GetLogsAsync`, which the waits build on, needs 10.9.0 or later).
+- **README:** waiting for a log from background work uses `WaitForLogAsync` instead of polling with `Eventually`; the `HasLoggedOnly` section frames the gate as an audit that is expected to fail the first time and points to counts; the snapshot section recommends a scrubber set and explains migrating from a hand-rolled renderer; `TUnit.Mocks.Logging` is compared with collector capture.
 
 ## [0.12.0] - 2026-07-11: gate a run on its log output
 
@@ -315,7 +325,8 @@ Documentation-only release. No API or behavior change.
 - **Failure-message snapshot rendering** with 4-character level abbreviations matching the `Microsoft.Extensions.Logging` console formatter (`trce`, `dbug`, `info`, `warn`, `fail`, `crit`, `none`), indented `props:` line listing each record's structured properties (excluding the `{OriginalFormat}` entry, already implied by the message line), indented `scope:` line rendering each active scope's content as `key=value` pairs (or `ToString()` for opaque scopes), and indented `exception:` line with type name and message.
 - **`.And` / `.Or`** chaining via TUnit's `Assertion<T>` base class.
 
-[unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.12.0...HEAD
+[unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.10.1...v0.11.0
 [0.10.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.10.0...v0.10.1

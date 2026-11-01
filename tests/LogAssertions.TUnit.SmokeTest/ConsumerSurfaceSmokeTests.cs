@@ -131,4 +131,34 @@ internal sealed class ConsumerSurfaceSmokeTests
                 .Once();
         }
     }
+
+    /// <summary>
+    /// Pins the v0.13.0 core surface for an external consumer: <c>WaitForLogAsync</c> returns once background work
+    /// has logged the record (on <c>FakeLogCollector.GetLogsAsync</c>), and <c>CreateDiscarding</c> gives an enabled
+    /// logger that keeps nothing. The Native AOT gate compiles and runs this ahead of time.
+    /// </summary>
+    [Test]
+    public async Task WaitForLogAndDiscardingFactoryResolveAndRunAsync(CancellationToken cancellationToken)
+    {
+        var (factory, collector) = LogCollectorBuilder.Create();
+        using (factory)
+        {
+            ILogger logger = factory.CreateLogger("Worker");
+            _ = Task.Run(
+                async () =>
+                {
+                    await Task.Yield();
+                    logger.LogWarning("worker ready");
+                },
+                cancellationToken);
+
+            var record = await collector.WaitForLogAsync(
+                LogFilter.All(LogFilter.AtLevel(LogLevel.Warning), LogFilter.Containing("ready", StringComparison.Ordinal)),
+                cancellationToken);
+            await Assert.That(record.Category).IsEqualTo("Worker");
+        }
+
+        using var discarding = LogCollectorBuilder.CreateDiscarding(LogLevel.Information);
+        await Assert.That(discarding.CreateLogger("Quiet").IsEnabled(LogLevel.Information)).IsTrue();
+    }
 }

@@ -222,34 +222,41 @@ public static class LogSnapshotRenderer
             return;
         }
 
-        if (scope is IEnumerable<KeyValuePair<string, object?>> kvps)
+        if (scope is IEnumerable<KeyValuePair<string, object?>> kvps && AppendScopeProperties(sb, kvps))
         {
-            var any = false;
-            foreach (var kvp in kvps)
+            return;
+        }
+
+        sb.Append(Convert.ToString(scope, CultureInfo.InvariantCulture) ?? "null");
+    }
+
+    /// <summary>Appends a structured scope's properties as <c>key=value</c> pairs, leaving out the original
+    /// format.</summary>
+    /// <param name="sb">The target builder.</param>
+    /// <param name="kvps">The scope's properties.</param>
+    /// <returns><see langword="true"/> when at least one property was appended.</returns>
+    private static bool AppendScopeProperties(StringBuilder sb, IEnumerable<KeyValuePair<string, object?>> kvps)
+    {
+        var any = false;
+        foreach (var kvp in kvps)
+        {
+            if (string.Equals(kvp.Key, OriginalFormatKey, StringComparison.Ordinal))
             {
-                if (string.Equals(kvp.Key, OriginalFormatKey, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                if (any)
-                {
-                    sb.Append(", ");
-                }
-
-                sb.Append(kvp.Key)
-                  .Append('=')
-                  .Append(Convert.ToString(kvp.Value, CultureInfo.InvariantCulture) ?? "null");
-                any = true;
+                continue;
             }
 
             if (any)
             {
-                return;
+                sb.Append(", ");
             }
+
+            sb.Append(kvp.Key)
+              .Append('=')
+              .Append(Convert.ToString(kvp.Value, CultureInfo.InvariantCulture) ?? "null");
+            any = true;
         }
 
-        sb.Append(Convert.ToString(scope, CultureInfo.InvariantCulture) ?? "null");
+        return any;
     }
 
     private static void AppendException(StringBuilder sb, Exception exception, ExceptionStyle style)

@@ -69,15 +69,15 @@ Filters chain with AND semantics: `AtLevel`, `AtLevelOrAbove`, `Containing`, `Wi
 await Assert.That(collector).HasNotLogged().AtLevelOrAbove(LogLevel.Error);
 ```
 
-**Wait for a log from background work (poll until it arrives):** background- or pump-driven logs can land after the triggering call returns, so a synchronous `HasLogged()` races the producer. Wrap it in TUnit's `Eventually` to poll the live collector until the record appears or the timeout elapses, instead of hand-rolling a wait loop:
+**Wait for a log from background work (v0.13.0+):** background- or pump-driven logs can land after the triggering call returns, so a synchronous `HasLogged()` races the producer. Wait for the record itself; the wait wakes on each new record, with no polling and no real-time delay, and already-logged records count:
 
 ```csharp
-await Assert.That(collector).Eventually(
-    c => c.HasLogged().Containing("dead-lettered", StringComparison.OrdinalIgnoreCase).AtLeast(1),
-    TimeSpan.FromSeconds(5));
+var record = await collector.WaitForLogAsync(
+    LogFilter.Containing("dead-lettered", StringComparison.OrdinalIgnoreCase),
+    cancellationToken);
 ```
 
-`Eventually` (and `WaitsFor`) come from TUnit itself; they re-run the inner assertion against the live collector each interval, so any filter and terminator chain works inside them.
+`WaitForLogsAsync(filter, count, cancellationToken)` waits for several. The token is the only bound; on cancellation the exception says how many records arrived and how many matched.
 
 **Mirror logs into the test report (v0.8.0+):** `TestOutputLogCollectorBuilder.CreateTeed()` captures for assertions and also mirrors each record to the test's output, so logs appear inline in the TUnit report. The owning test is captured when you call it (on the test's own thread), so records logged on a background thread are teed too (v0.10.0+):
 
@@ -189,6 +189,8 @@ Part of an assertion family for TUnit:
 - [JsonAssertions.TUnit](https://github.com/JohnVerheij/JsonAssertions.TUnit)
 - [SseAssertions.TUnit](https://github.com/JohnVerheij/SseAssertions.TUnit)
 - [GrpcAssertions.TUnit](https://github.com/JohnVerheij/GrpcAssertions.TUnit)
+- [TracingAssertions.TUnit](https://github.com/JohnVerheij/TracingAssertions.TUnit)
+- [MetricsAssertions.TUnit](https://github.com/JohnVerheij/MetricsAssertions.TUnit)
 
 ## License
 
