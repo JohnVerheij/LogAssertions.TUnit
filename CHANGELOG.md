@@ -30,7 +30,7 @@ Minor release. Event-driven waits return once background work has logged a match
 ### Changed
 
 - **BREAKING:** `ThenAnyOrder()` with no argument no longer compiles; pass `Array.Empty<Action<HasLoggedSequenceAssertion>>()` instead. `ThenAnyOrder(null)` and `When(condition, null)` with a bare `null` need a cast to the `Action` or `Func` type to choose an overload. Calls that pass lambdas are unaffected.
-- **`TUnit.Assertions`** and **`TUnit.Core`** minimum versions raised from 1.58.0 to 1.76.45, and **`Microsoft.Extensions.Diagnostics.Testing`** from 10.7.0 to 10.11.0 (`GetLogsAsync`, which the waits build on, needs 10.9.0 or later).
+- **`TUnit.Assertions`** and **`TUnit.Core`** minimum versions raised from 1.58.0 to 1.77.0, and **`Microsoft.Extensions.Diagnostics.Testing`** from 10.7.0 to 10.11.0 (`GetLogsAsync`, which the waits build on, needs 10.9.0 or later).
 - **README:** waiting for a log from background work uses `WaitForLogAsync` instead of polling with `Eventually`; the `HasLoggedOnly` section frames the gate as an audit that is expected to fail the first time and points to counts; the snapshot section recommends a scrubber set and explains migrating from a hand-rolled renderer; `TUnit.Mocks.Logging` is compared with collector capture.
 
 ## [0.12.0] - 2026-07-11: gate a run on its log output
