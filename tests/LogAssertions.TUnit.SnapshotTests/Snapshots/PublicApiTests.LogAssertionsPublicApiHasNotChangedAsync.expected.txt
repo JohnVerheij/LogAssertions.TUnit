@@ -18,6 +18,12 @@ namespace LogAssertions
         public static void DumpTo(this Microsoft.Extensions.Logging.Testing.FakeLogCollector collector, System.IO.TextWriter writer, LogAssertions.DumpVerbosity verbosity) { }
         public static System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord> Filter(this Microsoft.Extensions.Logging.Testing.FakeLogCollector collector, params LogAssertions.ILogRecordFilter[] filters) { }
     }
+    public static class FakeLogCollectorWaitExtensions
+    {
+        public static System.Threading.Tasks.Task<Microsoft.Extensions.Logging.Testing.FakeLogRecord> WaitForLogAsync(this Microsoft.Extensions.Logging.Testing.FakeLogCollector collector, LogAssertions.ILogRecordFilter filter, System.Threading.CancellationToken cancellationToken) { }
+        public static System.Threading.Tasks.Task<Microsoft.Extensions.Logging.Testing.FakeLogRecord> WaitForLogAsync(this Microsoft.Extensions.Logging.Testing.FakeLogCollector collector, System.Func<Microsoft.Extensions.Logging.Testing.FakeLogRecord, bool> predicate, System.Threading.CancellationToken cancellationToken) { }
+        public static System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord>> WaitForLogsAsync(this Microsoft.Extensions.Logging.Testing.FakeLogCollector collector, LogAssertions.ILogRecordFilter filter, int count, System.Threading.CancellationToken cancellationToken) { }
+    }
     public interface ILogRecordFilter
     {
         string Description { get; }
@@ -35,6 +41,7 @@ namespace LogAssertions
                 "Factory",
                 "Collector"})]
         public static System.ValueTuple<Microsoft.Extensions.Logging.ILoggerFactory, Microsoft.Extensions.Logging.Testing.FakeLogCollector> Create(Microsoft.Extensions.Logging.LogLevel minimumLevel = 0) { }
+        public static Microsoft.Extensions.Logging.ILoggerFactory CreateDiscarding(Microsoft.Extensions.Logging.LogLevel minimumLevel = 0) { }
     }
     public sealed class LogDefinition
     {

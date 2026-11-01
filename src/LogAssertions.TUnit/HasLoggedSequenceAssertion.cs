@@ -297,16 +297,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
         for (var rIdx = startIdx; rIdx < snapshot.Count; rIdx++)
         {
             // Skip records already claimed by earlier sub-steps in this assignment path.
-            var claimed = false;
-            for (var j = 0; j < subStepIdx; j++)
-            {
-                if (assigned[j] == rIdx)
-                {
-                    claimed = true;
-                    break;
-                }
-            }
-            if (claimed)
+            if (Array.IndexOf(assigned, rIdx, 0, subStepIdx) >= 0)
                 continue;
 
             if (filters.TrueForAll(f => f.Matches(snapshot[rIdx])))
@@ -341,29 +332,36 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
                 continue;
 
             sb.Append(hasContent ? " then " : ": ");
-
-            if (step.Kind is SequenceStepKind.Simple)
-            {
-                sb.AppendJoin(" + ", step.Filters.Select(static f => f.Description));
-            }
-            else
-            {
-                sb.Append("(any-order: ");
-                var first = true;
-                foreach (var sub in step.AnyOrderSubSteps!)
-                {
-                    if (!first)
-                        sb.Append(" / ");
-                    sb.AppendJoin(" + ", sub.Select(static f => f.Description));
-                    first = false;
-                }
-                sb.Append(')');
-            }
-
+            AppendStepDescription(sb, step);
             hasContent = true;
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>Appends one step of the sequence to the expectation line: its filters, or its any-order
+    /// sub-steps.</summary>
+    /// <param name="sb">The target builder.</param>
+    /// <param name="step">The step.</param>
+    private static void AppendStepDescription(StringBuilder sb, SequenceStep step)
+    {
+        if (step.Kind is SequenceStepKind.Simple)
+        {
+            sb.AppendJoin(" + ", step.Filters.Select(static f => f.Description));
+            return;
+        }
+
+        sb.Append("(any-order: ");
+        var first = true;
+        foreach (var sub in step.AnyOrderSubSteps!)
+        {
+            if (!first)
+                sb.Append(" / ");
+            sb.AppendJoin(" + ", sub.Select(static f => f.Description));
+            first = false;
+        }
+
+        sb.Append(')');
     }
 
     private string BuildSequenceFailureMessage(int failedStepIndex, IReadOnlyList<FakeLogRecord> snapshot, string stepLabel)

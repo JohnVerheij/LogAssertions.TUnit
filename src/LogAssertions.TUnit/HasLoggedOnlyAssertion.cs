@@ -96,28 +96,51 @@ public sealed class HasLoggedOnlyAssertion : Assertion<FakeLogCollector>
         if (collector is null)
             return Task.FromResult(AssertionResult.Failed("collector was null"));
 
-        // Guard a vacuous gate: when the collector's capture floor sits above the asserted floor, the
-        // records in between were never captured, so an empty offender list would mean "nothing was
-        // recorded", not "nothing was logged". Same class of false green the HasNotLogged floor guard
-        // catches.
-        if (LogCaptureFloorRegistry.TryGetFloor(collector, out var captureFloor) && captureFloor > _floor)
+        if (VacuousGateFailure(collector) is { } vacuous)
         {
-            return Task.FromResult(AssertionResult.Failed(string.Format(
-                CultureInfo.InvariantCulture,
-                "this gate inspects records at level {0} or above, but the collector's capture floor is {1}, "
-                + "so records between {0} and {1} were never captured and the gate would pass vacuously. "
-                + "Lower the floor (LogCollectorBuilder.Create with a lower minimumLevel) or raise the gate's floor to {1}.",
-                _floor,
-                captureFloor)));
+            return Task.FromResult(vacuous);
         }
 
+        var offenders = FindOffenders(collector);
+        return Task.FromResult(offenders.Count is 0
+            ? AssertionResult.Passed
+            : AssertionResult.Failed(BuildFailureMessage(offenders)));
+    }
+
+    /// <summary>
+    /// Guards a vacuous gate: when the collector's capture floor sits above the asserted floor, the records in
+    /// between were never captured, so an empty offender list would mean "nothing was recorded", not "nothing was
+    /// logged". Same class of false green the HasNotLogged floor guard catches.
+    /// </summary>
+    /// <param name="collector">The collector the gate inspects.</param>
+    /// <returns>The failure when the gate would pass vacuously; otherwise <see langword="null"/>.</returns>
+    private AssertionResult? VacuousGateFailure(FakeLogCollector collector)
+    {
+        if (!LogCaptureFloorRegistry.TryGetFloor(collector, out var captureFloor) || captureFloor <= _floor)
+        {
+            return null;
+        }
+
+        return AssertionResult.Failed(string.Format(
+            CultureInfo.InvariantCulture,
+            "this gate inspects records at level {0} or above, but the collector's capture floor is {1}, "
+            + "so records between {0} and {1} were never captured and the gate would pass vacuously. "
+            + "Lower the floor (LogCollectorBuilder.Create with a lower minimumLevel) or raise the gate's floor to {1}.",
+            _floor,
+            captureFloor));
+    }
+
+    /// <summary>Finds the records at or above the floor that no allowed definition covers.</summary>
+    /// <param name="collector">The collector the gate inspects.</param>
+    /// <returns>The offending records, in capture order.</returns>
+    private List<FakeLogRecord> FindOffenders(FakeLogCollector collector)
+    {
         var allowedFilter = _allowed.Count is 0
             ? null
             : LogFilter.MatchingAny(_allowed[0], [.. _allowed.GetRange(1, _allowed.Count - 1)]);
 
-        var snapshot = collector.GetSnapshot();
         var offenders = new List<FakeLogRecord>();
-        foreach (var record in snapshot)
+        foreach (var record in collector.GetSnapshot())
         {
             if (record.Level >= _floor && !(allowedFilter?.Matches(record) ?? false))
             {
@@ -125,9 +148,7 @@ public sealed class HasLoggedOnlyAssertion : Assertion<FakeLogCollector>
             }
         }
 
-        return Task.FromResult(offenders.Count is 0
-            ? AssertionResult.Passed
-            : AssertionResult.Failed(BuildFailureMessage(offenders)));
+        return offenders;
     }
 
     /// <summary>Renders the gate failure: the records that escaped the allowlist, then the allowlist

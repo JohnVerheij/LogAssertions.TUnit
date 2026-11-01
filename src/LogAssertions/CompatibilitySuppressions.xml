@@ -2,15 +2,22 @@
 <!-- https://learn.microsoft.com/dotnet/fundamentals/package-validation/diagnostic-ids -->
 <Suppressions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <Suppression>
+    <DiagnosticId>CP0001</DiagnosticId>
+    <Target>T:LogAssertions.FakeLogCollectorWaitExtensions</Target>
+    <Left>lib/net10.0/LogAssertions.dll</Left>
+    <Right>lib/net10.0/LogAssertions.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
     <DiagnosticId>CP0002</DiagnosticId>
-    <Target>M:LogAssertions.LogFilter.MatchingAny(LogAssertions.LogDefinition,LogAssertions.LogDefinition[])</Target>
+    <Target>M:LogAssertions.LogCollectorBuilder.CreateDiscarding(Microsoft.Extensions.Logging.LogLevel)</Target>
     <Left>lib/net10.0/LogAssertions.dll</Left>
     <Right>lib/net10.0/LogAssertions.dll</Right>
     <IsBaselineSuppression>true</IsBaselineSuppression>
   </Suppression>
   <Suppression>
     <DiagnosticId>CP0003</DiagnosticId>
-    <Target>LogAssertions, Version=0.11.0.0, Culture=neutral, PublicKeyToken=null</Target>
+    <Target>LogAssertions, Version=0.12.0.0, Culture=neutral, PublicKeyToken=null</Target>
     <Left>lib/net10.0/LogAssertions.dll</Left>
     <Right>lib/net10.0/LogAssertions.dll</Right>
     <IsBaselineSuppression>true</IsBaselineSuppression>
