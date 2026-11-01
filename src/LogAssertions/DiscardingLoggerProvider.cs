@@ -6,13 +6,10 @@ namespace LogAssertions;
 /// <summary>
 /// A logger provider whose loggers are enabled for every level but keep nothing: code guarded by
 /// <c>logger.IsEnabled(...)</c> runs its logging branch, and no record is retained. Behind
-/// <see cref="LogCollectorBuilder.CreateDiscarding"/>.
+/// <see cref="LogCollectorBuilder.CreateDiscarding"/>, which creates one per factory; the factory disposes it.
 /// </summary>
 internal sealed class DiscardingLoggerProvider : ILoggerProvider
 {
-    /// <summary>Gets the shared instance; the provider holds no state.</summary>
-    public static DiscardingLoggerProvider Instance { get; } = new();
-
     /// <inheritdoc/>
     public ILogger CreateLogger(string categoryName) => DiscardingLogger.Shared;
 

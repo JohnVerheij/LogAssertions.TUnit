@@ -31,6 +31,10 @@ namespace LogAssertions;
 /// </remarks>
 public static class FakeLogCollectorWaitExtensions
 {
+    /// <summary>The largest initial capacity of the list of matches. A larger count grows the list as records
+    /// match, so an unrealistic count fails on the token, not on the allocation.</summary>
+    private const int MaxInitialCapacity = 16;
+
     /// <summary>Waits until <paramref name="collector"/> holds a record that matches <paramref name="filter"/>, and
     /// returns the first such record.</summary>
     /// <param name="collector">The collector to wait on.</param>
@@ -93,7 +97,7 @@ public static class FakeLogCollectorWaitExtensions
         ArgumentNullException.ThrowIfNull(filter);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
 
-        var matches = new List<FakeLogRecord>(count);
+        var matches = new List<FakeLogRecord>(Math.Min(count, MaxInitialCapacity));
         var seen = 0;
         try
         {

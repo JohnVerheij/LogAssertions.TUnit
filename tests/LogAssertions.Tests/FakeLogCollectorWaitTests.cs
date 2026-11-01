@@ -171,6 +171,21 @@ internal sealed class FakeLogCollectorWaitTests
             .Throws<OperationCanceledException>();
     }
 
+    /// <summary>A count far beyond any real test allocates nothing up front: the wait starts and ends on its
+    /// token.</summary>
+    [Test]
+    public async Task WaitForLogsAsync_HugeCount_EndsOnTheToken(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var collector = new FakeLogCollector();
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        var exception = await Assert.That(async () => await collector.WaitForLogsAsync(Ready, int.MaxValue, cts.Token))
+            .Throws<OperationCanceledException>();
+        await Assert.That(exception!.Message).Contains("Waiting for 2147483647 log record(s)");
+    }
+
     /// <summary>Null arguments and a non-positive count are rejected.</summary>
     [Test]
     public async Task Waits_InvalidArguments_Throw(CancellationToken cancellationToken)

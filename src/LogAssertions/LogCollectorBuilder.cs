@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 
@@ -60,6 +61,8 @@ public static class LogCollectorBuilder
         => LoggerFactory.Create(b =>
         {
             b.SetMinimumLevel(minimumLevel);
-            b.AddProvider(DiscardingLoggerProvider.Instance);
+            // Registered through a factory, so the logging container owns the provider and disposes it with the
+            // returned factory, like the providers it creates itself.
+            b.Services.AddSingleton<ILoggerProvider>(static _ => new DiscardingLoggerProvider());
         });
 }
