@@ -53,6 +53,10 @@ public static class LogCollectorBuilder
     /// <remarks>
     /// A <c>NullLogger</c> or a factory without providers reports every level as disabled, so the guarded branch never
     /// runs under test. To assert on what was logged, use <see cref="Create"/> instead.
+    /// <para>
+    /// <c>BeginScope</c> returns a shared scope whose disposal does nothing, never <see langword="null"/>, as
+    /// <c>NullLogger</c> does: code that requires a scope instance runs as it does under a production logger.
+    /// </para>
     /// </remarks>
     /// <param name="minimumLevel">The lowest level reported as enabled. Default is <see cref="LogLevel.Trace"/>
     /// (every level).</param>

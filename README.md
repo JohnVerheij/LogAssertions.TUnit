@@ -1050,6 +1050,8 @@ var service = new MyService(loggerFactory.CreateLogger<MyService>());
 using var quieter = LogCollectorBuilder.CreateDiscarding(LogLevel.Information);
 ```
 
+`BeginScope` on these loggers returns a shared scope whose disposal does nothing, as `NullLogger` does, so code that requires a scope instance behaves as it does under a production logger. In v0.13.0 it returned `null`, which made such code throw (fixed in v0.13.1).
+
 The `FakeLogCollector` itself grows without bound as records accumulate. Scope it per test (the `Create()` / `CreateTeed()` helpers return a fresh one each call); never hold one in a `static readonly` field shared across a reused host.
 
 ### Reuse a filter across many tests
