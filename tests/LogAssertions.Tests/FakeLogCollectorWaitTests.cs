@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using LogAssertions;
@@ -256,6 +257,25 @@ internal sealed class FakeLogCollectorWaitTests
         using var factory = LogCollectorBuilder.CreateDiscarding();
 
         await Assert.That(factory.CreateLogger("Test").IsEnabled(LogLevel.Trace)).IsTrue();
+    }
+
+    /// <summary>A scope is the same non-null instance for every state, as with <c>NullLogger</c>, so code that
+    /// requires a scope instance runs; disposing it, also twice, does nothing.</summary>
+    [Test]
+    public async Task CreateDiscarding_BeginScopeReturnsASharedScope(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        using var factory = LogCollectorBuilder.CreateDiscarding();
+        var logger = factory.CreateLogger<FakeLogCollectorWaitTests>();
+
+        var first = logger.BeginScope("first");
+        var second = logger.BeginScope(new Dictionary<string, object>(StringComparer.Ordinal) { ["key"] = 1 });
+
+        await Assert.That(first).IsNotNull();
+        await Assert.That(second).IsSameReferenceAs(first);
+        first!.Dispose();
+        first.Dispose();
+        Write(logger, "after the scope", LogLevel.Information);
     }
 
     /// <summary>A filter that cancels the wait while it evaluates a record, and matches nothing.</summary>

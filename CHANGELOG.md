@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-11-02: discarding loggers return a scope
+
+Patch release. `LogCollectorBuilder.CreateDiscarding` loggers now return a scope from `BeginScope`, as `NullLogger` and the other common loggers do.
+
+### Fixed
+
+- **`LogCollectorBuilder.CreateDiscarding`** loggers returned `null` from `BeginScope`. The `ILogger` contract allows that, but `NullLogger` and the common production loggers return a scope, so code that requires a scope instance passed in production and threw under a discarding logger. `BeginScope` now returns a shared scope whose disposal does nothing.
+
 ## [0.13.0] - 2026-11-01: wait for a log from background work, a discarding logger factory
 
 Minor release. Event-driven waits return once background work has logged a matching record, without polling; `LogCollectorBuilder.CreateDiscarding` gives an enabled logger that keeps nothing; the sequence and `When` configurators take expression lambdas. One source-breaking edge (see Changed).
@@ -325,7 +333,8 @@ Documentation-only release. No API or behavior change.
 - **Failure-message snapshot rendering** with 4-character level abbreviations matching the `Microsoft.Extensions.Logging` console formatter (`trce`, `dbug`, `info`, `warn`, `fail`, `crit`, `none`), indented `props:` line listing each record's structured properties (excluding the `{OriginalFormat}` entry, already implied by the message line), indented `scope:` line rendering each active scope's content as `key=value` pairs (or `ToString()` for opaque scopes), and indented `exception:` line with type name and message.
 - **`.And` / `.Or`** chaining via TUnit's `Assertion<T>` base class.
 
-[unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.13.0...HEAD
+[unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.13.1...HEAD
+[0.13.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.10.1...v0.11.0
