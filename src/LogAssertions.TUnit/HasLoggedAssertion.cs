@@ -183,7 +183,12 @@ public sealed class HasLoggedAssertion : LogAssertionBase<HasLoggedAssertion>
 
     /// <inheritdoc/>
     protected override Task<AssertionResult> CheckAsync(EvaluationMetadata<FakeLogCollector> metadata)
-        => Task.FromResult(RememberFailure(Decide(metadata)));
+    {
+        // The same instance can be evaluated again (each GetMatch() or await runs the check), so an earlier check's
+        // matches must never answer for this one.
+        _capturedMatches = null;
+        return Task.FromResult(RememberFailure(Decide(metadata)));
+    }
 
     /// <summary>Checks the source, then evaluates the collector.</summary>
     /// <param name="metadata">The evaluation of the assertion source.</param>

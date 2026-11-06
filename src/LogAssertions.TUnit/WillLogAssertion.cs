@@ -203,7 +203,12 @@ public sealed class WillLogAssertion : LogAssertionBase<WillLogAssertion>
 
     /// <inheritdoc/>
     protected override async Task<AssertionResult> CheckAsync(EvaluationMetadata<FakeLogCollector> metadata)
-        => RememberFailure(await CheckSourceAndWaitAsync(metadata).ConfigureAwait(false));
+    {
+        // The same instance can be evaluated again (each GetMatch() or await runs the check), so an earlier check's
+        // matches must never answer for this one.
+        _capturedMatches = null;
+        return RememberFailure(await CheckSourceAndWaitAsync(metadata).ConfigureAwait(false));
+    }
 
     /// <summary>Checks the source and the capture floor, then waits for the matching records.</summary>
     /// <param name="metadata">The evaluation of the assertion source.</param>

@@ -1,7 +1,9 @@
 using System;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Testing;
+using TUnit.Assertions.Core;
 using TUnit.Assertions.Exceptions;
 using TUnit.Core;
 
@@ -75,6 +77,50 @@ internal sealed class AssertMultipleTerminatorTests
         await Assert.That(reported!.Message).Contains(failure, StringComparison.Ordinal);
         await Assert.That(uncaught).IsTypeOf<AssertionException>();
         await Assert.That(uncaught!.Message).Contains(failure, StringComparison.Ordinal);
+    }
+
+    /// <summary>The same assertion instance passes, then fails when it is evaluated again inside the scope (a second
+    /// matching record arrived in between): <c>GetMatch()</c> throws instead of returning the match of the first check.
+    /// The instance is built directly, because TUnit's analyzer only allows an awaited <c>Assert.That</c>.</summary>
+    [Test]
+    [Arguments("HasLogged")]
+    [Arguments("WillLog")]
+    public async Task ReEvaluatedAssertion_FailingTheSecondTime_DoesNotReturnTheOldMatch(string assertion, CancellationToken cancellationToken)
+    {
+        var collector = new FakeLogCollector();
+        var logger = new FakeLogger(collector, "Again");
+        DirectLog.Write(logger, "ready 1");
+        var context = new AssertionContext<FakeLogCollector>(collector, new StringBuilder("Assert.That(collector)"));
+        Func<Task<FakeLogRecord>> getMatch;
+        if (assertion is "HasLogged")
+            getMatch = new HasLoggedAssertion(context).Containing("ready", StringComparison.Ordinal).Once().GetMatch;
+        else
+            getMatch = new WillLogAssertion(context, Bound, TimeProvider.System, cancellationToken).Containing("ready", StringComparison.Ordinal).Once().GetMatch;
+
+        var first = await getMatch();
+        DirectLog.Write(logger, "ready 2");
+        FakeLogRecord? second = null;
+        InvalidOperationException? thrown = null;
+        var reported = await CatchAsync<AssertionException>(async () =>
+        {
+            using (Assert.Multiple())
+            {
+                try
+                {
+                    second = await getMatch();
+                }
+                catch (InvalidOperationException exception)
+                {
+                    thrown = exception;
+                }
+            }
+        });
+
+        await Assert.That(first.Message).IsEqualTo("ready 1");
+        await Assert.That(second).IsNull();
+        await Assert.That(thrown).IsNotNull();
+        await Assert.That(thrown!.Message).Contains("2 record(s) matched", StringComparison.Ordinal);
+        await Assert.That(reported!.Message).Contains("2 record(s) matched", StringComparison.Ordinal);
     }
 
     /// <summary>A passing assertion inside the scope returns its matches as usual.</summary>
