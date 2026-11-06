@@ -132,6 +132,9 @@ public sealed class HasLoggedAssertion : LogAssertionBase<HasLoggedAssertion>
     /// assertions without a duplicate <c>collector.Filter(...)</c> call.
     /// </summary>
     /// <returns>The matched records in original order; the list is a snapshot, not bound to the live collector.</returns>
+    /// <exception cref="InvalidOperationException">The assertion failed inside <c>Assert.Multiple()</c>, which records
+    /// the failure instead of throwing it, so there are no matches to return; the message names the failure, and the
+    /// scope still reports it.</exception>
     public Task<IReadOnlyList<FakeLogRecord>> GetMatches()
     {
         Context.ExpressionBuilder.Append(".GetMatches()");
@@ -148,7 +151,10 @@ public sealed class HasLoggedAssertion : LogAssertionBase<HasLoggedAssertion>
     /// that allows N matches.
     /// </summary>
     /// <returns>The single matched record.</returns>
-    /// <exception cref="InvalidOperationException">The chain's count expectation does not constrain the match count to exactly one.</exception>
+    /// <exception cref="InvalidOperationException">The chain's count expectation does not constrain the match count to
+    /// exactly one; or the assertion failed inside <c>Assert.Multiple()</c>, which records the failure instead of
+    /// throwing it, so there is no match to return (the message names the failure, and the scope still reports
+    /// it).</exception>
     public Task<FakeLogRecord> GetMatch()
     {
         if (!_count.IsExactlyOne)
@@ -166,39 +172,38 @@ public sealed class HasLoggedAssertion : LogAssertionBase<HasLoggedAssertion>
     private async Task<IReadOnlyList<FakeLogRecord>> ExecuteAndReturnMatchesAsync()
     {
         await AssertAsync();
-        return _capturedMatches ?? [];
+        return _capturedMatches ?? throw NoMatchAfterRecordedFailure("GetMatches()");
     }
 
     private async Task<FakeLogRecord> ExecuteAndReturnSingleMatchAsync()
     {
         await AssertAsync();
-        return _capturedMatches![0];
+        return _capturedMatches is { } matches ? matches[0] : throw NoMatchAfterRecordedFailure("GetMatch()");
     }
 
     /// <inheritdoc/>
     protected override Task<AssertionResult> CheckAsync(EvaluationMetadata<FakeLogCollector> metadata)
+        => Task.FromResult(RememberFailure(Decide(metadata)));
+
+    /// <summary>Checks the source, then evaluates the collector.</summary>
+    /// <param name="metadata">The evaluation of the assertion source.</param>
+    /// <returns>The outcome.</returns>
+    private AssertionResult Decide(EvaluationMetadata<FakeLogCollector> metadata)
     {
         if (metadata.Exception is not null)
-        {
-            return Task.FromResult(AssertionResult.Failed(
-                $"threw {metadata.Exception.GetType().Name}", metadata.Exception));
-        }
+            return AssertionResult.Failed($"threw {metadata.Exception.GetType().Name}", metadata.Exception);
 
-        var collector = metadata.Value;
-        if (collector is null)
-            return Task.FromResult(AssertionResult.Failed("collector was null"));
-
-        return Task.FromResult(Evaluate(collector));
+        return metadata.Value is { } collector ? Evaluate(collector) : AssertionResult.Failed("collector was null");
     }
 
-    /// <summary>Evaluates the count, the capture floor, and the spacing against the collector's records.</summary>
+    /// <summary>Evaluates the count, the capture floor, and the spacing against the collector's records. The matches
+    /// are kept for <see cref="GetMatch"/> and <see cref="GetMatches"/> only when the assertion passes.</summary>
     /// <param name="collector">The collector under assertion.</param>
     /// <returns>The outcome.</returns>
     private AssertionResult Evaluate(FakeLogCollector collector)
     {
         var snapshot = collector.GetSnapshot();
         var matches = GetMatches(snapshot);
-        _capturedMatches = matches;
 
         if (!_count.IsSatisfiedBy(matches.Count))
         {
@@ -212,9 +217,11 @@ public sealed class HasLoggedAssertion : LogAssertionBase<HasLoggedAssertion>
         if (matches.Count is 0 && TryDescribeVacuousFloor(collector, out var vacuous))
             return AssertionResult.Failed(vacuous);
 
-        return _minimumGap is { } interval && DescribeTooClose(matches, interval) is { } tooClose
-            ? AssertionResult.Failed(BuildFailureMessage(tooClose, snapshot))
-            : AssertionResult.Passed;
+        if (_minimumGap is { } interval && DescribeTooClose(matches, interval) is { } tooClose)
+            return AssertionResult.Failed(BuildFailureMessage(tooClose, snapshot));
+
+        _capturedMatches = matches;
+        return AssertionResult.Passed;
     }
 
     /// <summary>Finds the first two consecutive matching records (by timestamp) that are less than

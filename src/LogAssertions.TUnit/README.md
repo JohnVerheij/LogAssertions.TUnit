@@ -71,7 +71,7 @@ Filters chain with AND semantics: `AtLevel`, `AtLevelOrAbove`, `Containing`, `Wi
 await Assert.That(collector).HasNotLogged().AtLevelOrAbove(LogLevel.Error);
 ```
 
-**Wait for a log from background work (v0.14.0+):** background- or pump-driven logs can land after the triggering call returns, so a synchronous `HasLogged()` races the producer. Assert that the record will be logged; the wait wakes on each new record, with no polling and no real-time delay, already-logged records count, and when the `timeout` (real time, from when the assertion runs) or the token ends the wait it fails with the expectation, the count, and the captured records:
+**Wait for a log from background work (v0.14.0+):** background- or pump-driven logs can land after the triggering call returns, so a synchronous `HasLogged()` races the producer. Assert that the record will be logged; the wait wakes on each new record, with no polling and no real-time delay. The count is read from the collector right after the minimum number of matching records has been captured. Records captured by then count, including ones logged before the assertion ran; a record that arrives after the assertion has passed isn't checked (to pin "no more than one", assert `HasLogged()...Once()` after the work has settled). When the `timeout` (real time, from when the assertion runs) or the token ends the wait, it fails with the expectation, the count, and the captured records:
 
 ```csharp
 await Assert.That(collector).WillLog(TimeSpan.FromSeconds(5), cancellationToken)

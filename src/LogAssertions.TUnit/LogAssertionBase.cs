@@ -53,6 +53,11 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     private readonly HashSet<LogLevel> _matchableLevels =
         [LogLevel.Trace, LogLevel.Debug, LogLevel.Information, LogLevel.Warning, LogLevel.Error, LogLevel.Critical];
 
+    /// <summary>The failure of the last check that did not pass, as TUnit reports it. Read by the value-returning
+    /// terminators: inside <c>Assert.Multiple()</c> TUnit records a failure instead of throwing it, so they have no
+    /// match to return and name this failure instead.</summary>
+    private string? _failure;
+
     /// <summary>Initializes the base assertion with the supplied TUnit context.</summary>
     /// <param name="context">The assertion context supplied by TUnit.</param>
     protected LogAssertionBase(AssertionContext<FakeLogCollector> context) : base(context) { }
@@ -141,6 +146,25 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
         highest = LogLevel.None;
         return false;
     }
+
+    /// <summary>Keeps the failure message of <paramref name="result"/>, as TUnit reports it, when the check did not
+    /// pass.</summary>
+    /// <param name="result">The outcome of the check.</param>
+    /// <returns><paramref name="result"/>, unchanged.</returns>
+    private protected AssertionResult RememberFailure(AssertionResult result)
+    {
+        if (!result.IsPassed)
+            _failure = CreateException(result).Message;
+        return result;
+    }
+
+    /// <summary>Creates the exception a value-returning terminator throws when the assertion did not pass and did not
+    /// throw either: inside <c>Assert.Multiple()</c>, TUnit records the failure, lets the test go on, and reports the
+    /// failure when the scope ends.</summary>
+    /// <param name="terminator">The terminator, for example <c>GetMatch()</c>.</param>
+    /// <returns>The exception; its message names the recorded failure.</returns>
+    private protected InvalidOperationException NoMatchAfterRecordedFailure(string terminator) => new(
+        $"{terminator} has no match to return: the assertion failed inside Assert.Multiple(), which records the failure instead of throwing it. The failure:{Environment.NewLine}{_failure}");
 
     /// <summary>The chain's filters as one filter (a conjunction; with no filters it matches every record).</summary>
     /// <returns>The combined filter.</returns>

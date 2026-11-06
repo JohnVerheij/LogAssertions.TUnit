@@ -74,7 +74,8 @@ internal sealed class WillLogTests
         await Assert.That(collector).WillLog(Bound, cancellationToken).Containing("item", StringComparison.Ordinal).Between(1, 3);
     }
 
-    /// <summary>More matching records than the maximum fail at once, with the standard dump.</summary>
+    /// <summary>A second matching record already captured before the wait runs fails <c>Once()</c> at once, with the
+    /// standard dump: records captured by the time the minimum is reached count.</summary>
     [Test]
     public async Task OverTheMaximum_FailsAtOnce(CancellationToken cancellationToken)
     {
@@ -89,6 +90,23 @@ internal sealed class WillLogTests
         await Assert.That(exception!.Message).Contains("exactly 1 log record(s) to be logged within 00:00:05 matching: Message contains \"ready\" (Ordinal)", StringComparison.Ordinal);
         await Assert.That(exception.Message).Contains("2 record(s) matched, more than the maximum of 1", StringComparison.Ordinal);
         await Assert.That(exception.Message).Contains("Captured records (2 total):", StringComparison.Ordinal);
+    }
+
+    /// <summary>A second matching record logged after <c>Once()</c> has passed is not checked: the passed result
+    /// stands, and the matches it returned are the ones captured when it passed.</summary>
+    [Test]
+    public async Task RecordAfterThePass_DoesNotChangeThePassedResult(CancellationToken cancellationToken)
+    {
+        var collector = new FakeLogCollector();
+        var logger = new FakeLogger(collector, "Worker");
+        DirectLog.Write(logger, "ready 1");
+
+        var matches = await Assert.That(collector).WillLog(Bound, cancellationToken).Containing("ready", StringComparison.Ordinal).Once().GetMatches();
+        DirectLog.Write(logger, "ready 2");
+
+        await Assert.That(matches).Count().IsEqualTo(1);
+        await Assert.That(matches[0].Message).IsEqualTo("ready 1");
+        await Assert.That(collector.Count).IsEqualTo(2);
     }
 
     /// <summary>The timeout ends the wait exactly when it has run out, not a tick before, and the wait fails with the

@@ -255,10 +255,10 @@ await Assert.That(collector).WillLog(TimeSpan.FromSeconds(5), cancellationToken)
     .Once();
 ```
 
-`WillLog` is the event-driven form of `HasLogged()`: it checks the records already captured at once, then each time a matching record is logged (on `FakeLogCollector.GetLogsAsync`, the stream `WaitForLogAsync` uses: no polling, no real-time delay), and passes the first time the count is in range. A record logged before the assertion runs counts. It fails at once when it sees more records than the maximum, and when `timeout` or the token ends the wait it fails with the same diagnostics as `HasLogged()`: the expectation, the count, and the captured records. A chain whose levels all sit below the collector's capture floor fails at once, since no such record can arrive.
+`WillLog` is the event-driven form of `HasLogged()`: it waits on `FakeLogCollector.GetLogsAsync`, the stream `WaitForLogAsync` uses (no polling, no real-time delay). The count is read from the collector right after the minimum number of matching records has been captured. Records captured by then count, including ones logged before the assertion ran. A record that arrives after the assertion has passed isn't checked: to pin "no more than one", assert `HasLogged()...Once()` after the work has settled. The assertion fails when that count is above the maximum, and when `timeout` or the token ends the wait it fails with the same diagnostics as `HasLogged()`: the expectation, the count, and the captured records. A chain whose levels all sit below the collector's capture floor fails at once, since no such record can arrive.
 
 - The `timeout` is required and is the bound; the token is optional. It is real time, and it starts when the assertion runs (at `await`), not when the chain is built. Choose a timeout below the test's own `[Timeout]`, so the wait fails with its own diagnostics first.
-- A wait proves that records arrived, not that no more follow, so there is no `Never()` or `AtMost(n)`. A record that arrives after the wait passed is not checked; to pin "no more than one", let the work finish and assert `HasLogged()...Once()`. For absence, use `HasNotLogged()` after the work has finished.
+- A wait proves that records arrived, not that no more follow, so there is no `Never()` or `AtMost(n)`. For absence, use `HasNotLogged()` after the work has finished.
 - `GetMatch()` / `GetMatches()` run the assertion and return the matches, as on `HasLogged()`.
 
 #### `WillLog` with a fake clock
@@ -784,6 +784,8 @@ await Assert.That(retries).Count().IsEqualTo(3);
 
 The returned list from `.GetMatches()` is a defensive snapshot captured at evaluation time; it isn't bound to the live collector.
 
+Inside `Assert.Multiple()`, TUnit records a failed assertion instead of throwing it, so there is no match to return. `.GetMatch()` and `.GetMatches()` (also on `WillLog`) then throw `InvalidOperationException`, whose message names the failure; the scope still reports the original failure when it ends.
+
 ---
 
 ## Sequence assertions: `HasLoggedSequence`
@@ -1020,7 +1022,7 @@ await Assert.That(collector).HasNotLogged().AtLevelOrAbove(LogLevel.Error);
 Background- or pump-driven logs (a `BackgroundService`, a timer, a fire-and-forget handler) can land after the call that triggered them returns, so a synchronous `HasLogged()` races the producer and flakes. Assert that the record **will** be logged (v0.14.0+):
 
 ```csharp
-// Passes the moment a matching record is logged; already-logged records count.
+// Passes once a matching record is captured; already-logged records count.
 await Assert.That(collector).WillLog(TimeSpan.FromSeconds(5), cancellationToken)
     .Containing("dead-lettered", StringComparison.OrdinalIgnoreCase)
     .Once();

@@ -24,11 +24,13 @@ namespace LogAssertions.TUnit;
 /// </example>
 /// <remarks>
 /// <para>
-/// It checks the records already captured at once, then each time a matching record is logged, and passes the first
-/// time the count of matching records is in range: a record logged before the assertion runs counts (it reads the
-/// same collector stream as <see cref="FakeLogCollectorWaitExtensions.WaitForLogAsync(FakeLogCollector, ILogRecordFilter, CancellationToken)"/>).
-/// It fails at once when the count is above the maximum (records only accumulate), and when the <c>timeout</c> or the
-/// token ends the wait, it fails with the expectation, the count, and the captured records: the same diagnostics as
+/// It waits on the collector's stream of records, the one
+/// <see cref="FakeLogCollectorWaitExtensions.WaitForLogAsync(FakeLogCollector, ILogRecordFilter, CancellationToken)"/>
+/// reads. The count is read from the collector right after the minimum number of matching records has been captured.
+/// Records captured by then count, including ones logged before the assertion ran. A record that arrives after the
+/// assertion has passed isn't checked: to pin "no more than one", assert <c>HasLogged()...Once()</c> after the work
+/// has settled. The assertion fails when that count is above the maximum, and when the <c>timeout</c> or the token
+/// ends the wait, it fails with the expectation, the count, and the captured records: the same diagnostics as
 /// <c>HasLogged()</c>, not a bare cancellation. A chain whose levels all sit below the collector's capture floor fails
 /// at once, since such a record can never be captured.
 /// </para>
@@ -63,8 +65,17 @@ public sealed class WillLogAssertion : LogAssertionBase<WillLogAssertion>
 
     /// <summary>Initializes a waiting log assertion bounded by <paramref name="timeout"/> (real time) and
     /// <paramref name="cancellationToken"/>. Called by the TUnit source generator.</summary>
-    /// <remarks>Clock: <paramref name="timeout"/> runs on <see cref="TimeProvider.System"/>, from the moment the
-    /// assertion runs.</remarks>
+    /// <remarks>
+    /// <para>
+    /// The count is read from the collector right after the minimum number of matching records has been captured.
+    /// Records captured by then count, including ones logged before the assertion ran. A record that arrives after the
+    /// assertion has passed isn't checked: to pin "no more than one", assert <c>HasLogged()...Once()</c> after the work
+    /// has settled.
+    /// </para>
+    /// <para>
+    /// Clock: <paramref name="timeout"/> runs on <see cref="TimeProvider.System"/>, from the moment the assertion runs.
+    /// </para>
+    /// </remarks>
     /// <param name="context">The assertion context supplied by TUnit.</param>
     /// <param name="timeout">The longest the wait may take, in real time, counted from when the assertion runs. Must be
     /// positive and at most about 49 days. Choose it below the test's own timeout, so the wait fails with its
@@ -149,6 +160,9 @@ public sealed class WillLogAssertion : LogAssertionBase<WillLogAssertion>
     /// <summary>Runs the assertion and returns the matched records once the wait passes, as
     /// <c>HasLogged().GetMatches()</c> does.</summary>
     /// <returns>The records that matched when the wait passed, in the order they were logged; a snapshot.</returns>
+    /// <exception cref="InvalidOperationException">The assertion failed inside <c>Assert.Multiple()</c>, which records
+    /// the failure instead of throwing it, so there are no matches to return; the message names the failure, and the
+    /// scope still reports it.</exception>
     public Task<IReadOnlyList<FakeLogRecord>> GetMatches()
     {
         Context.ExpressionBuilder.Append(".GetMatches()");
@@ -159,7 +173,9 @@ public sealed class WillLogAssertion : LogAssertionBase<WillLogAssertion>
     /// <c>HasLogged().GetMatch()</c> does. Requires the count to be exactly one (<see cref="Once"/>, <c>Exactly(1)</c>,
     /// or <c>Between(1, 1)</c>).</summary>
     /// <returns>The single matched record.</returns>
-    /// <exception cref="InvalidOperationException">The chain's count expectation is not exactly one.</exception>
+    /// <exception cref="InvalidOperationException">The chain's count expectation is not exactly one; or the assertion
+    /// failed inside <c>Assert.Multiple()</c>, which records the failure instead of throwing it, so there is no match to
+    /// return (the message names the failure, and the scope still reports it).</exception>
     public Task<FakeLogRecord> GetMatch()
     {
         if (!_count.IsExactlyOne)
@@ -176,17 +192,23 @@ public sealed class WillLogAssertion : LogAssertionBase<WillLogAssertion>
     private async Task<IReadOnlyList<FakeLogRecord>> ExecuteAndReturnMatchesAsync()
     {
         await AssertAsync();
-        return _capturedMatches!;
+        return _capturedMatches ?? throw NoMatchAfterRecordedFailure("GetMatches()");
     }
 
     private async Task<FakeLogRecord> ExecuteAndReturnSingleMatchAsync()
     {
         await AssertAsync();
-        return _capturedMatches![0];
+        return _capturedMatches is { } matches ? matches[0] : throw NoMatchAfterRecordedFailure("GetMatch()");
     }
 
     /// <inheritdoc/>
     protected override async Task<AssertionResult> CheckAsync(EvaluationMetadata<FakeLogCollector> metadata)
+        => RememberFailure(await CheckSourceAndWaitAsync(metadata).ConfigureAwait(false));
+
+    /// <summary>Checks the source and the capture floor, then waits for the matching records.</summary>
+    /// <param name="metadata">The evaluation of the assertion source.</param>
+    /// <returns>The outcome.</returns>
+    private async Task<AssertionResult> CheckSourceAndWaitAsync(EvaluationMetadata<FakeLogCollector> metadata)
     {
         if (metadata.Exception is not null)
         {
