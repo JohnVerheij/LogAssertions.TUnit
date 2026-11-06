@@ -27,9 +27,9 @@ internal sealed class LogCollectorBuilderAndInspectionTests
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var (factory, collector) = LogCollectorBuilder.Create(LogLevel.Information);
-        using (factory)
+        using (var factory = LogCollectorBuilder.Create(LogLevel.Information))
         {
+            var collector = factory.Collector;
             var logger = factory.CreateLogger("Test");
 #pragma warning disable CA1848
             logger.LogTrace("dropped");
@@ -54,9 +54,9 @@ internal sealed class LogCollectorBuilderAndInspectionTests
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using (factory)
+        using (var factory = LogCollectorBuilder.Create())
         {
+            var collector = factory.Collector;
 #pragma warning disable CA1848
             factory.CreateLogger("Test").LogTrace("captured");
 #pragma warning restore CA1848
@@ -75,9 +75,9 @@ internal sealed class LogCollectorBuilderAndInspectionTests
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using (factory)
+        using (var factory = LogCollectorBuilder.Create())
         {
+            var collector = factory.Collector;
             var logger = factory.CreateLogger("Test");
 #pragma warning disable CA1848
             logger.LogWarning("first");
@@ -108,9 +108,9 @@ internal sealed class LogCollectorBuilderAndInspectionTests
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using (factory)
+        using (var factory = LogCollectorBuilder.Create())
         {
+            var collector = factory.Collector;
 #pragma warning disable CA1848
             factory.CreateLogger("Test").LogWarning("validation failed: TimeoutMs out of range");
 #pragma warning restore CA1848
@@ -136,9 +136,9 @@ internal sealed class LogCollectorBuilderAndInspectionTests
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using (factory)
+        using (var factory = LogCollectorBuilder.Create())
         {
+            var collector = factory.Collector;
             await Assert.That(() => collector.Filter(null!)).Throws<ArgumentNullException>();
             await Assert.That(() => collector.CountMatching(null!)).Throws<ArgumentNullException>();
             await Assert.That(() => collector.DumpTo(null!)).Throws<ArgumentNullException>();

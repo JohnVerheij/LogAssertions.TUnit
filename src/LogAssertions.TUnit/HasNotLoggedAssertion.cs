@@ -14,7 +14,7 @@ namespace LogAssertions.TUnit;
 [AssertionExtension("HasNotLogged")]
 public sealed class HasNotLoggedAssertion : LogAssertionBase<HasNotLoggedAssertion>
 {
-    /// <summary>Initialises a negative log assertion. Called by the TUnit source generator.</summary>
+    /// <summary>Initializes a negative log assertion. Called by the TUnit source generator.</summary>
     /// <param name="context">The assertion context supplied by TUnit.</param>
     public HasNotLoggedAssertion(AssertionContext<FakeLogCollector> context) : base(context) { }
 

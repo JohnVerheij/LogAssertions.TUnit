@@ -2,8 +2,57 @@
 <!-- https://learn.microsoft.com/dotnet/fundamentals/package-validation/diagnostic-ids -->
 <Suppressions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <Suppression>
+    <DiagnosticId>CP0001</DiagnosticId>
+    <Target>T:LogAssertions.LogCapture</Target>
+    <Left>lib/net10.0/LogAssertions.dll</Left>
+    <Right>lib/net10.0/LogAssertions.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0001</DiagnosticId>
+    <Target>T:LogAssertions.Render.LogContractRenderer</Target>
+    <Left>lib/net10.0/LogAssertions.dll</Left>
+    <Right>lib/net10.0/LogAssertions.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0002</DiagnosticId>
+    <Target>M:LogAssertions.LogCollectorBuilder.Create(Microsoft.Extensions.Logging.LogLevel)</Target>
+    <Left>lib/net10.0/LogAssertions.dll</Left>
+    <Right>lib/net10.0/LogAssertions.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0002</DiagnosticId>
+    <Target>M:LogAssertions.LogCollectorBuilder.Create(System.TimeProvider,Microsoft.Extensions.Logging.LogLevel)</Target>
+    <Left>lib/net10.0/LogAssertions.dll</Left>
+    <Right>lib/net10.0/LogAssertions.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
     <DiagnosticId>CP0003</DiagnosticId>
-    <Target>LogAssertions, Version=0.13.0.0, Culture=neutral, PublicKeyToken=null</Target>
+    <Target>LogAssertions, Version=0.13.1.0, Culture=neutral, PublicKeyToken=null</Target>
+    <Left>lib/net10.0/LogAssertions.dll</Left>
+    <Right>lib/net10.0/LogAssertions.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0014</DiagnosticId>
+    <Target>M:LogAssertions.LogCollectorBuilder.CreateDiscarding(Microsoft.Extensions.Logging.LogLevel):[T:System.Runtime.CompilerServices.NullableContextAttribute]</Target>
+    <Left>lib/net10.0/LogAssertions.dll</Left>
+    <Right>lib/net10.0/LogAssertions.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0016</DiagnosticId>
+    <Target>T:LogAssertions.LogCollectorBuilder:[T:System.Runtime.CompilerServices.NullableAttribute]</Target>
+    <Left>lib/net10.0/LogAssertions.dll</Left>
+    <Right>lib/net10.0/LogAssertions.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0016</DiagnosticId>
+    <Target>T:LogAssertions.LogCollectorBuilder:[T:System.Runtime.CompilerServices.NullableContextAttribute]</Target>
     <Left>lib/net10.0/LogAssertions.dll</Left>
     <Right>lib/net10.0/LogAssertions.dll</Right>
     <IsBaselineSuppression>true</IsBaselineSuppression>

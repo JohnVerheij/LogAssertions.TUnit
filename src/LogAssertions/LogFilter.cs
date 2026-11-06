@@ -111,7 +111,7 @@ public static class LogFilter
     {
         ArgumentNullException.ThrowIfNull(pattern);
         return new PredicateFilter(r => pattern.IsMatch(r.Message),
-            "Message matches /" + pattern + "/");
+            "Message matches /" + pattern.ToString() + "/");
     }
 
     /// <summary>
@@ -194,7 +194,7 @@ public static class LogFilter
     {
         ArgumentNullException.ThrowIfNull(template);
         return new PredicateFilter(
-            r => string.Equals(r.GetStructuredStateValue(OriginalFormatKey), template, StringComparison.Ordinal),
+            r => string.Equals(RecordState.Value(r, OriginalFormatKey), template, StringComparison.Ordinal),
             string.Format(CultureInfo.InvariantCulture, "Template = \"{0}\"", template));
     }
 
@@ -278,14 +278,15 @@ public static class LogFilter
 
     /// <summary>Records containing a structured-state entry with the specified key and value.</summary>
     /// <param name="key">The structured-state key. Must be non-null.</param>
-    /// <param name="value">The expected formatted-string value (ordinal); may be <see langword="null"/>.</param>
+    /// <param name="value">The expected formatted-string value (ordinal); may be <see langword="null"/>, which also
+    /// matches a record that has no entry for <paramref name="key"/>.</param>
     /// <returns>A filter accepting records whose structured-state entry matches.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
     public static ILogRecordFilter WithProperty(string key, string? value)
     {
         ArgumentNullException.ThrowIfNull(key);
         return new PredicateFilter(
-            r => string.Equals(r.GetStructuredStateValue(key), value, StringComparison.Ordinal),
+            r => string.Equals(RecordState.Value(r, key), value, StringComparison.Ordinal),
             key + " = \"" + value + "\"");
     }
 
@@ -299,7 +300,7 @@ public static class LogFilter
         ArgumentNullException.ThrowIfNull(key);
         ArgumentNullException.ThrowIfNull(predicate);
         return new PredicateFilter(
-            r => predicate(r.GetStructuredStateValue(key)),
+            r => predicate(RecordState.Value(r, key)),
             key + " matches predicate");
     }
 
@@ -405,7 +406,7 @@ public static class LogFilter
         ArgumentNullException.ThrowIfNull(key);
         return new PredicateFilter(
             r => ScopePropertyMatches(r, key, v => Equals(v, value)),
-            "Scope " + key + " = " + (value ?? "null"));
+            string.Format(CultureInfo.InvariantCulture, "Scope {0} = {1}", key, value ?? "null"));
     }
 
     /// <summary>Records whose active scopes contain a property with the specified key, regardless of its value.</summary>
@@ -495,7 +496,7 @@ public static class LogFilter
     /// element of an empty set is satisfied. Comparison is via
     /// <see cref="object.Equals(object?, object?)"/> for values; keys are compared ordinal.</para>
     /// <para>The dictionary is snapshotted on construction; mutating the input dictionary after
-    /// the filter is created does not affect the filter's behaviour.</para>
+    /// the filter is created does not affect the filter's behavior.</para>
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="required"/> is <see langword="null"/>.</exception>
     public static ILogRecordFilter WithScopeProperties(IReadOnlyDictionary<string, object?> required)
@@ -570,7 +571,7 @@ public static class LogFilter
         FakeLogRecord record, string key, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out T parsed)
         where T : IParsable<T>
     {
-        var raw = record.GetStructuredStateValue(key);
+        var raw = RecordState.Value(record, key);
         if (raw is not null && T.TryParse(raw, CultureInfo.InvariantCulture, out var value))
         {
             parsed = value;
@@ -584,7 +585,7 @@ public static class LogFilter
     /// <summary>
     /// Walks every active scope on <paramref name="record"/>, looking for a key-value pair whose
     /// key equals <paramref name="key"/> (ordinal) and whose value satisfies
-    /// <paramref name="predicate"/>. Recognises both <see langword="object"/> and <c>object?</c> value-type
+    /// <paramref name="predicate"/>. Recognizes both <see langword="object"/> and <c>object?</c> value-type
     /// variants of the <see cref="IEnumerable{T}"/>-of-<see cref="KeyValuePair{TKey, TValue}"/>
     /// shape used by dictionary scopes and <see cref="LoggerMessage.DefineScope{T1}(string)"/>.
     /// </summary>

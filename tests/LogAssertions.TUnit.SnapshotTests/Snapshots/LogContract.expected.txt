@@ -1,0 +1,3 @@
+1201 OrderProcessed Information "Order {OrderId} processed in {DurationMs} ms" OrderId,DurationMs
+1202 OrderShipped Information "Order {OrderId} shipped to {City}" OrderId,City
+1300 PaymentFailed Warning "Payment for order {OrderId} failed" OrderId

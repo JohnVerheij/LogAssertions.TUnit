@@ -16,11 +16,13 @@ namespace LogAssertions.TUnit
     {
         public static void DumpToTestOutput(this Microsoft.Extensions.Logging.Testing.FakeLogCollector collector) { }
         public static void DumpToTestOutput(this Microsoft.Extensions.Logging.Testing.FakeLogCollector collector, LogAssertions.DumpVerbosity verbosity) { }
+        public static void DumpToTestOutputOnFailure(this Microsoft.Extensions.Logging.Testing.FakeLogCollector collector) { }
+        public static void DumpToTestOutputOnFailure(this Microsoft.Extensions.Logging.Testing.FakeLogCollector collector, LogAssertions.DumpVerbosity verbosity) { }
     }
     public static class FakeLoggingBuilderExtensions
     {
         public static Microsoft.Extensions.Logging.ILoggingBuilder AddFakeLogging(this Microsoft.Extensions.Logging.ILoggingBuilder builder, Microsoft.Extensions.Logging.Testing.FakeLogCollector collector, Microsoft.Extensions.Logging.LogLevel minimumLevel = 0) { }
-        public static Microsoft.Extensions.Logging.ILoggingBuilder AddTeedFakeLogging(this Microsoft.Extensions.Logging.ILoggingBuilder builder, Microsoft.Extensions.Logging.Testing.FakeLogCollector collector, Microsoft.Extensions.Logging.LogLevel minimumLevel = 0, Microsoft.Extensions.Logging.ILoggerProvider? teeProvider = null) { }
+        public static Microsoft.Extensions.Logging.ILoggingBuilder AddTeedFakeLogging(this Microsoft.Extensions.Logging.ILoggingBuilder builder, Microsoft.Extensions.Logging.Testing.FakeLogCollector collector, Microsoft.Extensions.Logging.LogLevel minimumLevel = 0) { }
     }
     [TUnit.Assertions.Attributes.AssertionExtension("HasLogged")]
     public sealed class HasLoggedAssertion : LogAssertions.TUnit.LogAssertionBase<LogAssertions.TUnit.HasLoggedAssertion>
@@ -28,6 +30,7 @@ namespace LogAssertions.TUnit
         public HasLoggedAssertion(TUnit.Assertions.Core.AssertionContext<Microsoft.Extensions.Logging.Testing.FakeLogCollector> context) { }
         public LogAssertions.TUnit.HasLoggedAssertion AtLeast(int count) { }
         public LogAssertions.TUnit.HasLoggedAssertion AtMost(int count) { }
+        public LogAssertions.TUnit.HasLoggedAssertion AtMostOncePer(System.TimeSpan interval) { }
         public LogAssertions.TUnit.HasLoggedAssertion Between(int min, int max) { }
         protected override System.Threading.Tasks.Task<TUnit.Assertions.Core.AssertionResult> CheckAsync(TUnit.Assertions.Core.EvaluationMetadata<Microsoft.Extensions.Logging.Testing.FakeLogCollector> metadata) { }
         public LogAssertions.TUnit.HasLoggedAssertion Exactly(int count) { }
@@ -126,12 +129,29 @@ namespace LogAssertions.TUnit
         protected static void AppendCapturedRecords(System.Text.StringBuilder sb, System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord> snapshot) { }
         protected static string BuildFailureMessage(int matchCount, System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord> snapshot) { }
     }
+    [System.AttributeUsage(System.AttributeTargets.Assembly)]
+    public sealed class LogAssertionsTestLifetimeAttribute : System.Attribute, TUnit.Core.Interfaces.IEventReceiver, TUnit.Core.Interfaces.ITestEndEventReceiver, TUnit.Core.Interfaces.ITestStartEventReceiver
+    {
+        public LogAssertionsTestLifetimeAttribute() { }
+    }
     public static class TestOutputLogCollectorBuilder
     {
-        [return: System.Runtime.CompilerServices.TupleElementNames(new string[] {
-                "Factory",
-                "Collector"})]
-        public static System.ValueTuple<Microsoft.Extensions.Logging.ILoggerFactory, Microsoft.Extensions.Logging.Testing.FakeLogCollector> CreateTeed(Microsoft.Extensions.Logging.LogLevel minimumLevel = 0) { }
+        public static LogAssertions.LogCapture CreateTeed(Microsoft.Extensions.Logging.LogLevel minimumLevel = 0) { }
+        public static LogAssertions.LogCapture CreateTeed(System.TimeProvider timeProvider, Microsoft.Extensions.Logging.LogLevel minimumLevel = 0) { }
+        public static Microsoft.Extensions.Logging.ILoggerFactory CreateTeedDiscarding(Microsoft.Extensions.Logging.LogLevel minimumLevel = 0) { }
+    }
+    [TUnit.Assertions.Attributes.AssertionExtension("WillLog")]
+    public sealed class WillLogAssertion : LogAssertions.TUnit.LogAssertionBase<LogAssertions.TUnit.WillLogAssertion>
+    {
+        public WillLogAssertion(TUnit.Assertions.Core.AssertionContext<Microsoft.Extensions.Logging.Testing.FakeLogCollector> context, System.TimeSpan timeout, System.Threading.CancellationToken cancellationToken = default) { }
+        public LogAssertions.TUnit.WillLogAssertion AtLeast(int count) { }
+        public LogAssertions.TUnit.WillLogAssertion Between(int min, int max) { }
+        protected override System.Threading.Tasks.Task<TUnit.Assertions.Core.AssertionResult> CheckAsync(TUnit.Assertions.Core.EvaluationMetadata<Microsoft.Extensions.Logging.Testing.FakeLogCollector> metadata) { }
+        public LogAssertions.TUnit.WillLogAssertion Exactly(int count) { }
+        protected override string GetExpectation() { }
+        public System.Threading.Tasks.Task<Microsoft.Extensions.Logging.Testing.FakeLogRecord> GetMatch() { }
+        public System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord>> GetMatches() { }
+        public LogAssertions.TUnit.WillLogAssertion Once() { }
     }
 }
 namespace TUnit.Assertions.Extensions
@@ -173,6 +193,11 @@ namespace TUnit.Assertions.Extensions
     public static class HasNotLoggedAssertionExtensions
     {
         public static LogAssertions.TUnit.HasNotLoggedAssertion HasNotLogged<TActual>(this TUnit.Assertions.Core.IAssertionSource<TActual> source)
+            where TActual : Microsoft.Extensions.Logging.Testing.FakeLogCollector { }
+    }
+    public static class WillLogAssertionExtensions
+    {
+        public static LogAssertions.TUnit.WillLogAssertion WillLog<TActual>(this TUnit.Assertions.Core.IAssertionSource<TActual> source, System.TimeSpan timeout, System.Threading.CancellationToken cancellationToken = default, [System.Runtime.CompilerServices.CallerArgumentExpression("timeout")] string? timeoutExpression = null, [System.Runtime.CompilerServices.CallerArgumentExpression("cancellationToken")] string? cancellationTokenExpression = null)
             where TActual : Microsoft.Extensions.Logging.Testing.FakeLogCollector { }
     }
 }

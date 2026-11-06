@@ -5,7 +5,7 @@ namespace LogAssertions.TUnit.Tests;
 
 /// <summary>
 /// LoggerMessage source-generator definitions for all test seed logging.
-/// Centralising the message templates here satisfies CA1848 (no
+/// Centralizing the message templates here satisfies CA1848 (no
 /// allocating ILogger extension calls) and keeps test files readable.
 /// </summary>
 internal static partial class TestLogMessages

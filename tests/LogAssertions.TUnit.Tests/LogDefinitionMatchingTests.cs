@@ -24,7 +24,7 @@ namespace LogAssertions.TUnit.Tests;
 [Timeout(10_000)]
 internal sealed class LogDefinitionMatchingTests
 {
-    /// <summary>Reusable definition for the parameterised order message (captured with throwaway args).</summary>
+    /// <summary>Reusable definition for the parameterized order message (captured with throwaway args).</summary>
     private static readonly LogDefinition OrderForCustomer =
         LogDefinition.Capture(log => TestLogMessages.OrderForCustomer(log, 0, ""));
 

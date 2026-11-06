@@ -46,6 +46,8 @@ public static class FakeLogCollectorWaitExtensions
     /// <see langword="null"/>.</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was canceled before a matching
     /// record arrived.</exception>
+    /// <exception cref="InvalidOperationException">The collector's record stream ended before a matching record
+    /// arrived (see <see cref="WaitForLogsAsync"/>).</exception>
     public static async Task<FakeLogRecord> WaitForLogAsync(
         this FakeLogCollector collector,
         ILogRecordFilter filter,
@@ -65,6 +67,8 @@ public static class FakeLogCollectorWaitExtensions
     /// <see langword="null"/>.</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was canceled before a matching
     /// record arrived.</exception>
+    /// <exception cref="InvalidOperationException">The collector's record stream ended before a matching record
+    /// arrived (see <see cref="WaitForLogsAsync"/>).</exception>
     public static Task<FakeLogRecord> WaitForLogAsync(
         this FakeLogCollector collector,
         Func<FakeLogRecord, bool> predicate,
@@ -87,6 +91,9 @@ public static class FakeLogCollectorWaitExtensions
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="count"/> is not positive.</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was canceled before enough
     /// matching records arrived.</exception>
+    /// <exception cref="InvalidOperationException">The collector's record stream ended before enough matching records
+    /// arrived. <c>FakeLogCollector.GetLogsAsync</c> does not end today; the wait fails rather than return fewer
+    /// records should a later version end it.</exception>
     public static async Task<IReadOnlyList<FakeLogRecord>> WaitForLogsAsync(
         this FakeLogCollector collector,
         ILogRecordFilter filter,

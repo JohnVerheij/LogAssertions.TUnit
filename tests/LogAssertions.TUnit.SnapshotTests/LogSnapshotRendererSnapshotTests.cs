@@ -36,9 +36,9 @@ internal sealed class LogSnapshotRendererSnapshotTests
     {
         ct.ThrowIfCancellationRequested();
 
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using (factory)
+        using (var factory = LogCollectorBuilder.Create())
         {
+            var collector = factory.Collector;
 #pragma warning disable CA1848, CA1873
             var logger = factory.CreateLogger("My.App.OrderService");
             logger.LogInformation("order {OrderId} accepted", 42);

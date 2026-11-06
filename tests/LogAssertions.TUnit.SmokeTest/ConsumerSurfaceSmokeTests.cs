@@ -23,9 +23,9 @@ internal sealed class ConsumerSurfaceSmokeTests
     [Test]
     public async Task CoreEntryPointHasLoggedResolvesAndPassesAsync(CancellationToken cancellationToken)
     {
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using (factory)
+        using (var factory = LogCollectorBuilder.Create())
         {
+            var collector = factory.Collector;
             ILogger logger = factory.CreateLogger("ConsumerCategory");
             logger.LogInformation("smoke");
 
@@ -45,9 +45,9 @@ internal sealed class ConsumerSurfaceSmokeTests
     [Test]
     public async Task CoreEntryPointHasNotLoggedResolvesAndPassesAsync(CancellationToken cancellationToken)
     {
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using (factory)
+        using (var factory = LogCollectorBuilder.Create())
         {
+            var collector = factory.Collector;
             ILogger logger = factory.CreateLogger("ConsumerCategory");
             logger.LogInformation("smoke");
 
@@ -65,9 +65,9 @@ internal sealed class ConsumerSurfaceSmokeTests
     [Test]
     public async Task ShorthandEntryPointHasLoggedOnceResolvesAndPassesAsync(CancellationToken cancellationToken)
     {
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using (factory)
+        using (var factory = LogCollectorBuilder.Create())
         {
+            var collector = factory.Collector;
             ILogger logger = factory.CreateLogger("ConsumerCategory");
             logger.LogWarning("retry");
 
@@ -81,14 +81,14 @@ internal sealed class ConsumerSurfaceSmokeTests
     /// <summary>
     /// Pins that the v0.3.0 value-returning terminator <c>GetMatch()</c> resolves and returns
     /// the matched <see cref="FakeLogRecord"/> for an external consumer. Catches accidental
-    /// internalisation of the new public API.
+    /// internalization of the new public API.
     /// </summary>
     [Test]
     public async Task ValueReturningTerminatorGetMatchResolvesAndReturnsRecordAsync(CancellationToken cancellationToken)
     {
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using (factory)
+        using (var factory = LogCollectorBuilder.Create())
         {
+            var collector = factory.Collector;
             ILogger logger = factory.CreateLogger("ConsumerCategory");
             logger.LogError(new InvalidOperationException("broken pipe"), "stream failed");
 
@@ -112,9 +112,9 @@ internal sealed class ConsumerSurfaceSmokeTests
     [Test]
     public async Task InspectionHelperDumpToTestOutputResolvesAndRunsAsync(CancellationToken cancellationToken)
     {
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using (factory)
+        using (var factory = LogCollectorBuilder.Create())
         {
+            var collector = factory.Collector;
             ILogger logger = factory.CreateLogger("ConsumerCategory");
             logger.LogInformation("dumped");
 
@@ -140,9 +140,9 @@ internal sealed class ConsumerSurfaceSmokeTests
     [Test]
     public async Task WaitForLogAndDiscardingFactoryResolveAndRunAsync(CancellationToken cancellationToken)
     {
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using (factory)
+        using (var factory = LogCollectorBuilder.Create())
         {
+            var collector = factory.Collector;
             ILogger logger = factory.CreateLogger("Worker");
             _ = Task.Run(
                 async () =>

@@ -26,7 +26,7 @@ internal sealed class LogAssertionsTests
     /// <summary>
     /// Builds a <see cref="FakeLogCollector"/> seeded with one record at every level
     /// (Trace / Debug / Information / Warning / Error) plus an exception-bearing entry.
-    /// Centralising the seed shape lets each test assert against a fixed, well-known set
+    /// Centralizing the seed shape lets each test assert against a fixed, well-known set
     /// of records: counts and substrings throughout the file are anchored to this seed.
     /// </summary>
     /// <returns>A populated collector with five sample log records.</returns>
@@ -798,7 +798,7 @@ internal sealed class LogAssertionsTests
     /// </summary>
     /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
     [Test]
-    public async Task ContainingHonoursStringComparisonOverloadAsync(CancellationToken cancellationToken)
+    public async Task ContainingHonorsStringComparisonOverloadAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         FakeLogCollector collector = CreateCollectorWithSampleRecords();
@@ -1121,8 +1121,8 @@ internal sealed class LogAssertionsTests
 
     /// <summary>
     /// Verifies <c>Containing</c> handles unicode correctly under both ordinal and
-    /// ordinal-ignore-case comparisons. Pins the contract that string-comparison behaviour
-    /// is delegated to the BCL without our code interposing surprising normalisation.
+    /// ordinal-ignore-case comparisons. Pins the contract that string-comparison behavior
+    /// is delegated to the BCL without our code interposing surprising normalization.
     /// </summary>
     /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
     [Test]
@@ -1198,7 +1198,7 @@ internal sealed class LogAssertionsTests
     /// <summary>
     /// Verifies a step with zero filters in <c>HasLoggedSequence</c> is silently skipped: the
     /// sequence walk advances to the next step without consuming a record. Pins the documented
-    /// behaviour: empty step never affects matching.
+    /// behavior: empty step never affects matching.
     /// </summary>
     /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
     [Test]
@@ -1623,7 +1623,7 @@ internal sealed class LogAssertionsTests
 
     /// <summary>
     /// Verifies <c>ContainingAll</c> requires every substring to appear and <c>ContainingAny</c>
-    /// requires at least one. Both honour the supplied <see cref="StringComparison"/>.
+    /// requires at least one. Both honor the supplied <see cref="StringComparison"/>.
     /// </summary>
     /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
     [Test]
@@ -1698,7 +1698,7 @@ internal sealed class LogAssertionsTests
 
     /// <summary>
     /// Verifies <c>WithLoggerName</c> is an alias for <see cref="LogAssertionBase{TSelf}.WithCategory"/>.
-    /// Same ordinal-string semantics, same matching behaviour.
+    /// Same ordinal-string semantics, same matching behavior.
     /// </summary>
     /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
     [Test]
@@ -1843,9 +1843,9 @@ internal sealed class LogAssertionsTests
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var (factory, collector) = LogCollectorBuilder.Create(LogLevel.Information);
-        using (factory)
+        using (var factory = LogCollectorBuilder.Create(LogLevel.Information))
         {
+            var collector = factory.Collector;
             ILogger logger = factory.CreateLogger("Test");
             TestLogMessages.TraceSample(logger);          // Trace: below minimum, dropped
             TestLogMessages.StartedProcessing(logger);    // Information: captured
@@ -1906,7 +1906,7 @@ internal sealed class LogAssertionsTests
 
     /// <summary>
     /// Verifies <c>When(condition, apply)</c> applies the configurator only when the condition
-    /// is true. Lets parameterised tests vary part of the assertion chain on a boolean without
+    /// is true. Lets parameterized tests vary part of the assertion chain on a boolean without
     /// branching the entire await.
     /// </summary>
     /// <param name="cancellationToken">TUnit-injected cancellation token.</param>

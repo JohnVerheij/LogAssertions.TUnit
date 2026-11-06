@@ -37,7 +37,7 @@ public static class FakeLogCollectorInspectionExtensions
 
     /// <summary>
     /// Counts the records that satisfy every supplied filter. Convenience over
-    /// <c>collector.Filter(...).Count</c> that avoids materialising the intermediate list.
+    /// <c>collector.Filter(...).Count</c> that avoids materializing the intermediate list.
     /// </summary>
     /// <param name="collector">The collector to query.</param>
     /// <param name="filters">The filters; AND-combined. Empty filter list counts every record.</param>

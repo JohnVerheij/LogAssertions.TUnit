@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 using TUnit.Assertions.Exceptions;
+using TUnit.Core;
 
 namespace LogAssertions.TUnit.Tests;
 
@@ -29,24 +30,23 @@ internal sealed class FakeLoggingBuilderExtensionsTests
         await Assert.That(exception!.Message).Contains("capture floor is Information");
     }
 
+    /// <summary>Another provider is chained on the builder (the documented replacement of the removed
+    /// <c>teeProvider</c> parameter): it receives the record, and so do the capture and the built-in tee.</summary>
     [Test]
-    public async Task AddTeedFakeLogging_WithSuppliedProvider_TeesToThatProvider(CancellationToken cancellationToken)
+    public async Task AddTeedFakeLogging_ChainedProvider_ReceivesTheRecordToo(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var captured = new FakeLogCollector();
-        var teed = new FakeLogCollector();
+        var chained = new FakeLogCollector();
 
-        // A second FakeLoggerProvider stands in for a custom display/correlation provider passed through
-        // the seam: if AddTeedFakeLogging routes to the supplied provider, the teed collector receives the
-        // same record the capture collector does (and the built-in TestOutputLoggerProvider is not used).
         using var factory = LoggerFactory.Create(b =>
-            b.AddTeedFakeLogging(captured, LogLevel.Trace, new FakeLoggerProvider(teed)));
+            b.AddTeedFakeLogging(captured).AddProvider(new FakeLoggerProvider(chained)));
         var logger = factory.CreateLogger("Category");
-
         TestLogMessages.TeedMessage(logger);
 
         await Assert.That(captured).HasLogged().Containing("teed message", StringComparison.Ordinal).Once();
-        await Assert.That(teed).HasLogged().Containing("teed message", StringComparison.Ordinal).Once();
+        await Assert.That(chained).HasLogged().Containing("teed message", StringComparison.Ordinal).Once();
+        await Assert.That(TestContext.Current!.GetStandardOutput()).Contains("Category: teed message", StringComparison.Ordinal);
     }
 
     [Test]

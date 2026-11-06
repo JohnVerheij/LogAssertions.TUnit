@@ -25,7 +25,8 @@ internal sealed class LogAssertionsFiltersV060Tests
     public async Task WithoutException_RecordWithNoException_Matches(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         TestLogMessages.ValidationFailed(logger); // Warning, no exception
 
@@ -37,7 +38,8 @@ internal sealed class LogAssertionsFiltersV060Tests
     public async Task WithoutException_RecordWithException_DoesNotMatch(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         TestLogMessages.OperationFailed(logger, new InvalidOperationException("boom")); // Error + exception
 
@@ -51,7 +53,8 @@ internal sealed class LogAssertionsFiltersV060Tests
     public async Task WithoutException_PartitionsRecords(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         TestLogMessages.ValidationFailed(logger);                                    // no exception
         TestLogMessages.OperationFailed(logger, new InvalidOperationException("x")); // exception
@@ -66,7 +69,8 @@ internal sealed class LogAssertionsFiltersV060Tests
     public async Task WithoutException_CoreFactory_Matches(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         TestLogMessages.ValidationFailed(logger);
         TestLogMessages.OperationFailed(logger, new InvalidOperationException("x"));
@@ -83,7 +87,8 @@ internal sealed class LogAssertionsFiltersV060Tests
     public async Task WithScopePropertyTyped_GuidValue_Matches(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         var messageId = Guid.NewGuid();
         using (logger.BeginScope(new[] { new KeyValuePair<string, object?>("MessageId", messageId) }))
@@ -99,7 +104,8 @@ internal sealed class LogAssertionsFiltersV060Tests
     public async Task WithScopePropertyTyped_WrongGuid_DoesNotMatch(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         using (logger.BeginScope(new[] { new KeyValuePair<string, object?>("MessageId", Guid.NewGuid()) }))
         {
@@ -115,7 +121,8 @@ internal sealed class LogAssertionsFiltersV060Tests
     public async Task WithScopePropertyTyped_IntPredicate_Matches(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         using (logger.BeginScope(new[] { new KeyValuePair<string, object?>("CallerLine", 17) }))
         {
@@ -133,7 +140,8 @@ internal sealed class LogAssertionsFiltersV060Tests
     public async Task WithScopePropertyKeyExistence_MatchesAndNegates(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         using (logger.BeginScope(new[] { new KeyValuePair<string, object?>("CallerMember", "Process") }))
         {
@@ -152,7 +160,8 @@ internal sealed class LogAssertionsFiltersV060Tests
     public async Task WithScopePropertyTyped_DifferentRuntimeType_DoesNotMatch(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         using (logger.BeginScope(new[] { new KeyValuePair<string, object?>("CallerLine", 17) }))
         {
@@ -170,7 +179,8 @@ internal sealed class LogAssertionsFiltersV060Tests
     public async Task WithScopeProperty_ObjectOverload_StillReachable(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         using (logger.BeginScope(new[] { new KeyValuePair<string, object?>("OrderId", 42) }))
         {
@@ -186,7 +196,8 @@ internal sealed class LogAssertionsFiltersV060Tests
     public async Task WithScopePropertyTyped_CoreFactory_MatchesAndDescribes(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         using (logger.BeginScope(new[] { new KeyValuePair<string, object?>("CallerLine", 17) }))
         {
@@ -207,7 +218,8 @@ internal sealed class LogAssertionsFiltersV060Tests
     public async Task WithPropertyTyped_IntValue_Matches(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         TestLogMessages.CycleStarted(logger, 7); // structured property CycleNumber = "7"
 
@@ -221,7 +233,8 @@ internal sealed class LogAssertionsFiltersV060Tests
     public async Task WithPropertyTyped_IntPredicate_Matches(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         TestLogMessages.CycleStarted(logger, 7);
 
@@ -234,7 +247,8 @@ internal sealed class LogAssertionsFiltersV060Tests
     public async Task WithPropertyTyped_NonParsableValue_DoesNotMatch(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         TestLogMessages.ItemFailed(logger, "not-a-number"); // ItemId = "not-a-number"
 
@@ -247,7 +261,8 @@ internal sealed class LogAssertionsFiltersV060Tests
     public async Task WithPropertyTyped_AbsentKey_DoesNotMatch(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         TestLogMessages.CycleStarted(logger, 7);
 
@@ -259,7 +274,8 @@ internal sealed class LogAssertionsFiltersV060Tests
     public async Task WithPropertyTyped_CoreFactory_MatchesAndDescribes(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         TestLogMessages.CycleStarted(logger, 7);
 
@@ -288,8 +304,8 @@ internal sealed class LogAssertionsFiltersV060Tests
     public async Task WithPropertyAndScopeTyped_ChainNullPredicate_Throws(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
 
         await Assert.That(async () =>
             await Assert.That(collector).HasLogged().WithProperty<int>("k", (Func<int, bool>)null!))
@@ -306,7 +322,8 @@ internal sealed class LogAssertionsFiltersV060Tests
     public async Task TypedScopeAndWithoutException_Compose(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         var messageId = Guid.NewGuid();
         using (logger.BeginScope(new[] { new KeyValuePair<string, object?>("MessageId", messageId) }))

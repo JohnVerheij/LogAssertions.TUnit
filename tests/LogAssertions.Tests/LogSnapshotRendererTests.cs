@@ -27,9 +27,9 @@ internal sealed class LogSnapshotRendererTests
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using (factory)
+        using (var factory = LogCollectorBuilder.Create())
         {
+            var collector = factory.Collector;
             await Assert.That(LogSnapshotRenderer.Render(collector)).IsEqualTo(string.Empty);
         }
     }
@@ -44,9 +44,9 @@ internal sealed class LogSnapshotRendererTests
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using (factory)
+        using (var factory = LogCollectorBuilder.Create())
         {
+            var collector = factory.Collector;
 #pragma warning disable CA1848, CA1873
             factory.CreateLogger("OrderService").LogInformation("order processed");
 #pragma warning restore CA1848, CA1873
@@ -66,9 +66,9 @@ internal sealed class LogSnapshotRendererTests
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using (factory)
+        using (var factory = LogCollectorBuilder.Create())
         {
+            var collector = factory.Collector;
             var logger = factory.CreateLogger("Svc");
 #pragma warning disable CA1848, CA1873
             logger.LogInformation("first");
@@ -90,9 +90,9 @@ internal sealed class LogSnapshotRendererTests
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using (factory)
+        using (var factory = LogCollectorBuilder.Create())
         {
+            var collector = factory.Collector;
 #pragma warning disable CA1848, CA1873
             factory.CreateLogger("Svc").LogWarning("careful");
 #pragma warning restore CA1848, CA1873
@@ -113,9 +113,9 @@ internal sealed class LogSnapshotRendererTests
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using (factory)
+        using (var factory = LogCollectorBuilder.Create())
         {
+            var collector = factory.Collector;
 #pragma warning disable CA1848, CA1873
             factory.CreateLogger("My.App.Services.OrderService").LogInformation("done");
 #pragma warning restore CA1848, CA1873
@@ -139,9 +139,9 @@ internal sealed class LogSnapshotRendererTests
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using (factory)
+        using (var factory = LogCollectorBuilder.Create())
         {
+            var collector = factory.Collector;
 #pragma warning disable CA1848, CA1873
             factory.CreateLogger("Svc").LogInformation("order {OrderId} for {Customer}", 42, "Acme");
 #pragma warning restore CA1848, CA1873
@@ -163,9 +163,9 @@ internal sealed class LogSnapshotRendererTests
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using (factory)
+        using (var factory = LogCollectorBuilder.Create())
         {
+            var collector = factory.Collector;
             var logger = factory.CreateLogger("Svc");
 #pragma warning disable CA1848, CA1873
             using (logger.BeginScope("request {RequestId}", "abc"))
@@ -194,9 +194,9 @@ internal sealed class LogSnapshotRendererTests
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using (factory)
+        using (var factory = LogCollectorBuilder.Create())
         {
+            var collector = factory.Collector;
 #pragma warning disable CA1848, CA1873
             factory.CreateLogger("Svc").LogError(new InvalidOperationException("boom"), "operation failed");
 #pragma warning restore CA1848, CA1873
@@ -217,9 +217,9 @@ internal sealed class LogSnapshotRendererTests
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using (factory)
+        using (var factory = LogCollectorBuilder.Create())
         {
+            var collector = factory.Collector;
 #pragma warning disable CA1848, CA1873
             factory.CreateLogger("Svc").LogError(new InvalidOperationException("boom"), "operation failed");
 #pragma warning restore CA1848, CA1873
@@ -240,9 +240,9 @@ internal sealed class LogSnapshotRendererTests
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using (factory)
+        using (var factory = LogCollectorBuilder.Create())
         {
+            var collector = factory.Collector;
 #pragma warning disable CA1848, CA1873
             factory.CreateLogger("Svc").LogError(new InvalidOperationException("boom"), "operation failed");
 #pragma warning restore CA1848, CA1873
@@ -264,9 +264,9 @@ internal sealed class LogSnapshotRendererTests
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using (factory)
+        using (var factory = LogCollectorBuilder.Create())
         {
+            var collector = factory.Collector;
             var logger = factory.CreateLogger("Svc");
 #pragma warning disable CA1848, CA1873
             using (logger.BeginScope("request {RequestId}", "abc"))

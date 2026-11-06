@@ -24,7 +24,8 @@ internal sealed class LogFilterTests
     /// <returns>A populated collector.</returns>
     private static FakeLogCollector SeededCollector()
     {
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
 #pragma warning disable CA1848 // LoggerMessage delegates: not worth the source-gen ceremony in tests
         logger.LogTrace("trace");
@@ -33,7 +34,6 @@ internal sealed class LogFilterTests
         logger.LogWarning("warn");
         logger.LogError("error");
 #pragma warning restore CA1848
-        factory.Dispose();
         return collector;
     }
 
@@ -202,13 +202,13 @@ internal sealed class LogFilterTests
     public async Task WithoutExceptionMatchesNullExceptionAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
 #pragma warning disable CA1848, CA1873
         logger.LogWarning("no-exception");
         logger.LogError(new InvalidOperationException("boom"), "with-exception");
 #pragma warning restore CA1848, CA1873
-        factory.Dispose();
 
         await Assert.That(collector.CountMatching(LogFilter.WithoutException())).IsEqualTo(1);
         await Assert.That(LogFilter.WithoutException().Description).IsEqualTo("Exception is null");
@@ -223,13 +223,13 @@ internal sealed class LogFilterTests
     public async Task WithPropertyTypedParsesStructuredStateAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
 #pragma warning disable CA1848, CA1873
         logger.LogInformation("Order {OrderId}", 1001);
         logger.LogInformation("Tag {Tag}", "not-a-number");
 #pragma warning restore CA1848, CA1873
-        factory.Dispose();
 
         await Assert.That(collector.CountMatching(LogFilter.WithProperty("OrderId", 1001))).IsEqualTo(1);
         await Assert.That(collector.CountMatching(LogFilter.WithProperty<int>("OrderId", n => n > 1000))).IsEqualTo(1);
@@ -247,7 +247,8 @@ internal sealed class LogFilterTests
     public async Task WithScopePropertyTypedComparesTypedScopeValueAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         var messageId = Guid.NewGuid();
         using (logger.BeginScope(new[]
@@ -260,7 +261,6 @@ internal sealed class LogFilterTests
             logger.LogInformation("scoped");
 #pragma warning restore CA1848
         }
-        factory.Dispose();
 
         await Assert.That(collector.CountMatching(LogFilter.WithScopeProperty("MessageId", messageId))).IsEqualTo(1);
         await Assert.That(collector.CountMatching(LogFilter.WithScopeProperty("MessageId", Guid.Empty))).IsEqualTo(0);
@@ -278,7 +278,8 @@ internal sealed class LogFilterTests
     public async Task WithScopePropertyKeyExistenceMatchesAnyValueAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         using (logger.BeginScope(new[]
         {
@@ -290,7 +291,6 @@ internal sealed class LogFilterTests
             logger.LogInformation("scoped");
 #pragma warning restore CA1848
         }
-        factory.Dispose();
 
         // The value is set internally and unknown to the test: only the key's presence is asserted.
         await Assert.That(collector.CountMatching(LogFilter.WithScopeProperty("CallerFile"))).IsEqualTo(1);
@@ -310,7 +310,8 @@ internal sealed class LogFilterTests
     public async Task WithScopePropertyObjectOverloadMatchesAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         using (logger.BeginScope(new[] { new KeyValuePair<string, object?>("OrderId", 42) }))
         {
@@ -318,7 +319,6 @@ internal sealed class LogFilterTests
             logger.LogInformation("scoped");
 #pragma warning restore CA1848
         }
-        factory.Dispose();
 
         object boxed = 42;
         await Assert.That(collector.CountMatching(LogFilter.WithScopeProperty("OrderId", boxed))).IsEqualTo(1);
@@ -340,7 +340,7 @@ internal sealed class LogFilterTests
         await Assert.That(() => LogFilter.WithScopeProperty<int>(key: null!, predicate: _ => true)).Throws<ArgumentNullException>();
     }
 
-    /// <summary>A scope object that doesn't implement the recognised
+    /// <summary>A scope object that doesn't implement the recognized
     /// <see cref="IEnumerable{T}"/>-of-<see cref="KeyValuePair{TKey, TValue}"/> shape (e.g. a
     /// raw string passed as scope state) yields no scope-property match. Pins the cast-failure
     /// branch of <see cref="LogFilter.TryMatchScope{TValue}"/>.</summary>
@@ -348,8 +348,8 @@ internal sealed class LogFilterTests
     public async Task WithScopeProperty_NonKvpScope_DoesNotMatchAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         using (logger.BeginScope("a-non-kvp-string-scope"))
         {

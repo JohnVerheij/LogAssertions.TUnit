@@ -47,7 +47,7 @@ namespace LogAssertions.Render;
 /// <para>
 /// <b>Deterministic line endings.</b> Lines are terminated with the literal LF byte
 /// (<c>'\n'</c>), never <see cref="Environment.NewLine"/>. The CRLF / LF split between Windows
-/// and Unix would otherwise serialise the same records differently per OS, breaking snapshot
+/// and Unix would otherwise serialize the same records differently per OS, breaking snapshot
 /// baselines on cross-platform CI. Hardcoding LF keeps a baseline committed on one platform
 /// valid for test runs on every other.
 /// </para>

@@ -38,7 +38,7 @@ internal sealed class FakeLogCollectorTUnitInspectionExtensionsTests
         TestLogMessages.ValidationFailed(logger);
 
         // Smoke test: invocation must not throw inside an active TUnit test context. The
-        // formatter behaviour itself is covered by the core DumpTo(TextWriter) tests; this
+        // formatter behavior itself is covered by the core DumpTo(TextWriter) tests; this
         // test pins that the TUnit-bound entry point reaches the test output writer cleanly.
         collector.DumpToTestOutput();
     }

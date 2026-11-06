@@ -27,8 +27,8 @@ internal sealed class DumpVerbosityTests
     public async Task Compact_OmitsPropsScopeAndExceptionDetail(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Compact");
         try
         { throw new InvalidOperationException("boom"); }
@@ -49,8 +49,8 @@ internal sealed class DumpVerbosityTests
     public async Task Default_IncludesPropsAndOneLineExceptionSummary(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Default");
         try
         { throw new InvalidOperationException("boom"); }
@@ -72,8 +72,8 @@ internal sealed class DumpVerbosityTests
     public async Task Verbose_IncludesFullExceptionToString(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Verbose");
         try
         { throw new InvalidOperationException("boom"); }
@@ -99,8 +99,8 @@ internal sealed class DumpVerbosityTests
     public async Task ScopeRendering_CompactSuppresses_DefaultIncludes(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Scope");
         using (logger.BeginScope(new Dictionary<string, object?>(StringComparer.Ordinal) { ["RequestId"] = "abc-123" }))
         {
@@ -126,8 +126,8 @@ internal sealed class DumpVerbosityTests
     public async Task NoArgOverload_IsDefaultVerbosity(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Default");
         logger.LogInformation("hello {Who}", "world");
 
@@ -143,8 +143,8 @@ internal sealed class DumpVerbosityTests
     public async Task EmptyCollector_StillRendersHeader(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
 
         using var sw = new StringWriter();
         collector.DumpTo(sw, DumpVerbosity.Compact);

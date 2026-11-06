@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
@@ -13,7 +14,7 @@ namespace LogAssertions;
 /// </summary>
 /// <remarks>
 /// The rendering format is documented as <b>not stable</b>; see the README "Stability
-/// promise" section. Tests should not pin exact failure-message text: pin filter
+/// intent (pre-1.0)" section. Tests should not pin exact failure-message text: pin filter
 /// match counts and broad markers (e.g. <c>"[warn]"</c>) only.
 /// </remarks>
 public static class LogAssertionRendering
@@ -23,6 +24,10 @@ public static class LogAssertionRendering
     /// message template in the structured-state list (e.g. <c>"Order {OrderId} processed"</c>).
     /// </summary>
     internal const string OriginalFormatKey = "{OriginalFormat}";
+
+    /// <summary>The most records a failure message shows: the latest ones, after a line that counts the earlier ones.
+    /// Explicit dumps are not capped.</summary>
+    internal const int FailureRecordLimit = 50;
 
     /// <summary>
     /// Appends the captured-records section to <paramref name="sb"/>: one summary line per
@@ -47,45 +52,104 @@ public static class LogAssertionRendering
     {
         ArgumentNullException.ThrowIfNull(sb);
         ArgumentNullException.ThrowIfNull(snapshot);
+        AppendRecords(sb, snapshot, 0, verbosity, withTimestamps: false);
+    }
 
-        if (snapshot.Count is 0)
+    /// <summary>
+    /// Appends the records section of a failure message: the last <see cref="FailureRecordLimit"/> records of
+    /// <paramref name="records"/>, in the format of
+    /// <see cref="AppendCapturedRecords(StringBuilder, IReadOnlyList{FakeLogRecord}, DumpVerbosity)"/>, after one line
+    /// <c>(N earlier record(s) not shown)</c> when there are more. A long run's collector can hold thousands of
+    /// records; the latest ones are the context of a failure.
+    /// </summary>
+    /// <param name="sb">The target string builder.</param>
+    /// <param name="records">The records, oldest first.</param>
+    internal static void AppendFailureRecords(StringBuilder sb, IReadOnlyList<FakeLogRecord> records)
+    {
+        var start = Math.Max(0, records.Count - FailureRecordLimit);
+        if (start > 0)
+        {
+            sb.Append("  (").Append(start).AppendLine(" earlier record(s) not shown)");
+        }
+
+        AppendRecords(sb, records, start, DumpVerbosity.Default, withTimestamps: false);
+    }
+
+    /// <summary>
+    /// Appends the records of <paramref name="records"/> from index <paramref name="start"/> on, in the format of
+    /// <see cref="AppendCapturedRecords(StringBuilder, IReadOnlyList{FakeLogRecord}, DumpVerbosity)"/>, optionally
+    /// with each record's timestamp (UTC, <c>HH:mm:ss.fff</c>) before its level. Writes <c>(no records)</c> when
+    /// there are none from <paramref name="start"/> on.
+    /// </summary>
+    /// <param name="sb">The target string builder.</param>
+    /// <param name="records">The captured records.</param>
+    /// <param name="start">The index of the first record to append.</param>
+    /// <param name="verbosity">How much detail to render per record.</param>
+    /// <param name="withTimestamps">Whether each record's line starts with its timestamp.</param>
+    internal static void AppendRecords(
+        StringBuilder sb, IReadOnlyList<FakeLogRecord> records, int start, DumpVerbosity verbosity, bool withTimestamps)
+    {
+        if (records.Count <= start)
         {
             sb.AppendLine("  (no records)");
             return;
         }
 
-        foreach (FakeLogRecord record in snapshot)
+        for (var i = start; i < records.Count; i++)
         {
-            sb.Append("  [").Append(LevelAbbreviation(record.Level)).Append("] ");
-            if (!string.IsNullOrEmpty(record.Category))
-                sb.Append(record.Category).Append(": ");
-            sb.Append(record.Message).AppendLine();
+            AppendRecord(sb, records[i], verbosity, withTimestamps);
+        }
+    }
 
-            if (verbosity is DumpVerbosity.Compact)
-                continue;
+    /// <summary>Appends one record: its headline, then, unless <paramref name="verbosity"/> is
+    /// <see cref="DumpVerbosity.Compact"/>, its properties, scopes, and exception.</summary>
+    /// <param name="sb">The target string builder.</param>
+    /// <param name="record">The record.</param>
+    /// <param name="verbosity">How much detail to render.</param>
+    /// <param name="withTimestamp">Whether the headline starts with the record's timestamp.</param>
+    private static void AppendRecord(StringBuilder sb, FakeLogRecord record, DumpVerbosity verbosity, bool withTimestamp)
+    {
+        sb.Append("  ");
+        if (withTimestamp)
+        {
+            sb.Append(record.Timestamp.UtcDateTime.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture)).Append(' ');
+        }
 
-            AppendStructuredState(sb, record);
-            AppendScopes(sb, record);
+        sb.Append('[').Append(LevelAbbreviation(record.Level)).Append("] ");
+        if (!string.IsNullOrEmpty(record.Category))
+            sb.Append(record.Category).Append(": ");
+        sb.Append(record.Message).AppendLine();
 
-            if (record.Exception is not null)
-            {
-                sb.Append("    exception: ")
-                    .Append(record.Exception.GetType().Name)
-                    .Append(": ")
-                    .Append(record.Exception.Message)
-                    .AppendLine();
+        if (verbosity is DumpVerbosity.Compact)
+            return;
 
-                if (verbosity is DumpVerbosity.Verbose)
-                {
-                    // Full ToString() carries the stack trace and inner-exception chain. Indented
-                    // by 6 spaces so it visually nests under the "exception:" line and survives
-                    // log-aggregator rendering.
-                    foreach (var line in record.Exception.ToString().Split('\n'))
-                    {
-                        sb.Append("      ").Append(line.TrimEnd('\r')).AppendLine();
-                    }
-                }
-            }
+        AppendStructuredState(sb, record);
+        AppendScopes(sb, record);
+        if (record.Exception is not null)
+            AppendException(sb, record.Exception, verbosity);
+    }
+
+    /// <summary>Appends the exception line and, at <see cref="DumpVerbosity.Verbose"/>, the full exception text.</summary>
+    /// <param name="sb">The target string builder.</param>
+    /// <param name="exception">The record's exception.</param>
+    /// <param name="verbosity">How much detail to render.</param>
+    private static void AppendException(StringBuilder sb, Exception exception, DumpVerbosity verbosity)
+    {
+        sb.Append("    exception: ")
+            .Append(exception.GetType().Name)
+            .Append(": ")
+            .Append(exception.Message)
+            .AppendLine();
+
+        if (verbosity is not DumpVerbosity.Verbose)
+            return;
+
+        // Full ToString() carries the stack trace and inner-exception chain. Indented
+        // by 6 spaces so it visually nests under the "exception:" line and survives
+        // log-aggregator rendering.
+        foreach (var line in exception.ToString().Split('\n'))
+        {
+            sb.Append("      ").Append(line.TrimEnd('\r')).AppendLine();
         }
     }
 
@@ -96,7 +160,8 @@ public static class LogAssertionRendering
     /// range falls back to the level's invariant <c>ToString()</c>.
     /// </summary>
     /// <param name="level">The log level to abbreviate.</param>
-    /// <returns>The 4-character abbreviation.</returns>
+    /// <returns>The 4-character abbreviation, or the level's <c>ToString()</c> for a level outside the standard
+    /// range.</returns>
     public static string LevelAbbreviation(LogLevel level) => level switch
     {
         LogLevel.Trace => "trce",

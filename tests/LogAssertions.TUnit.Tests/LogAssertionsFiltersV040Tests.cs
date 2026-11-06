@@ -132,7 +132,8 @@ internal sealed class LogAssertionsFiltersV040Tests
     public async Task WithScopeProperties_AllPairsInOneScope_Matches(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         using (logger.BeginScope(new[]
         {
@@ -156,7 +157,8 @@ internal sealed class LogAssertionsFiltersV040Tests
     public async Task WithScopeProperties_AcrossNestedScopes_Matches(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         using (logger.BeginScope(new[] { new KeyValuePair<string, object?>("CycleNumber", 7) }))
         using (logger.BeginScope(new[] { new KeyValuePair<string, object?>("Stage", "validate") }))
@@ -177,7 +179,8 @@ internal sealed class LogAssertionsFiltersV040Tests
     public async Task WithScopeProperties_MissingKey_Fails(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         using (logger.BeginScope(new[] { new KeyValuePair<string, object?>("CycleNumber", 7) }))
         {
@@ -199,7 +202,8 @@ internal sealed class LogAssertionsFiltersV040Tests
     public async Task WithScopeProperties_WrongValue_Fails(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         using (logger.BeginScope(new[] { new KeyValuePair<string, object?>("CycleNumber", 7) }))
         {
@@ -220,7 +224,8 @@ internal sealed class LogAssertionsFiltersV040Tests
     public async Task WithScopeProperties_EmptyRequired_MatchesEveryRecord(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         TestLogMessages.StartedProcessing(logger); // no scope at all
 
@@ -234,7 +239,8 @@ internal sealed class LogAssertionsFiltersV040Tests
     public async Task WithScopeProperties_MutatingInput_DoesNotAffectExistingFilter(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         using (logger.BeginScope(new[] { new KeyValuePair<string, object?>("CycleNumber", 7) }))
         {
@@ -257,7 +263,8 @@ internal sealed class LogAssertionsFiltersV040Tests
 
     private static FakeLogCollector CreateCollectorWithWrappedException(Exception outer)
     {
-        var (factory, collector) = LogCollectorBuilder.Create();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         TestLogMessages.OperationFailed(logger, outer);
         return collector;

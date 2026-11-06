@@ -18,6 +18,8 @@
          Microsoft.CodeCoverage's instrumentation pipeline and produces an empty
          cobertura report). -->
     <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="TUnit" />
   </ItemGroup>
 

@@ -24,7 +24,7 @@ public interface ILogRecordFilter
 
     /// <summary>
     /// A short human-readable description used in the expectation summary on failure
-    /// (for example <c>"Level = Warning"</c> or <c>"Message contains \"timeout\""</c>).
+    /// (for example <c>"Level = Warning"</c> or <c>"Message contains \"timeout\" (Ordinal)"</c>).
     /// </summary>
     string Description { get; }
 }
