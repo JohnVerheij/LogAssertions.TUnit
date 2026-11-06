@@ -22,7 +22,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Alphabetical per dpfa Proj0015 -->
+    <!-- Alphabetical per dpfa Proj0015. Microsoft.CodeAnalysis.CSharp compiles a snippet against the core in a test,
+         to pin the build error a deconstruction of LogCapture reports. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" />
     <PackageReference Include="TUnit" />
   </ItemGroup>

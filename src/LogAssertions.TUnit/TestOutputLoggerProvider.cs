@@ -1,71 +1,94 @@
 using System;
-using System.IO;
+using System.Globalization;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 using TUnit.Core;
 
 namespace LogAssertions.TUnit;
 
 /// <summary>
-/// An <see cref="ILoggerProvider"/> that mirrors every log record to a TUnit test's output writer as it
-/// is logged, so a unit test asserting on a captured collector still shows its logs inline in the per-test
-/// HTML report (which otherwise renders empty because nothing reached the test's standard output). Added
-/// alongside the capturing <c>FakeLoggerProvider</c> by <see cref="TestOutputLogCollectorBuilder.CreateTeed(LogLevel)"/>
-/// and <see cref="FakeLoggingBuilderExtensions.AddTeedFakeLogging"/>.
+/// An <see cref="ILoggerProvider"/> that mirrors every log record to a TUnit test's output as it is logged, so a test
+/// asserting on a captured collector still shows its logs inline in the per-test report. Added alongside the capturing
+/// <c>FakeLoggerProvider</c> by <see cref="TestOutputLogCollectorBuilder.CreateTeed(LogLevel)"/> and
+/// <see cref="FakeLoggingBuilderExtensions.AddTeedFakeLogging"/>, and on its own by
+/// <see cref="TestOutputLogCollectorBuilder.CreateTeedDiscarding(LogLevel)"/>.
 /// </summary>
 /// <remarks>
-/// The provider has two modes. When constructed with a captured output writer (the default for the per-test
-/// builder helpers, which run on the test's own thread and pass the active test's writer), each record is
-/// written to the test that is current at emit time, falling back to the captured writer only when no test is
-/// current (a background thread under a suppressed execution context) so the record is teed rather than
-/// dropped. Preferring the emit-time test keeps routing correct when one provider is reused across many tests;
-/// the captured writer is the per-test fallback, not an override. When constructed without one, it resolves
-/// <see cref="TestContext.Current"/> at emit time and skips the write where neither the AsyncLocal context nor
-/// the <c>Activity.Current</c> baggage resolves the owning test - the right behavior for a provider shared
-/// across many tests, which cannot bind to a single one.
+/// <para>
+/// Each record goes to the test chosen by <see cref="TestLifetimeTable.ResolveTeeTarget"/>: the test current at the log
+/// call, unless it has ended (then none); when no test is current, the owning test (current when the provider was
+/// built) while it runs; otherwise none. A record that
+/// reaches no test is counted, and when the provider is disposed with a count above zero it writes one line saying so
+/// to the test current at that moment.
+/// </para>
+/// <para>
+/// The provider must be registered so that the logging container disposes it (through a factory delegate, not as an
+/// instance), or the count line is never written.
+/// </para>
 /// </remarks>
 internal sealed class TestOutputLoggerProvider : ILoggerProvider
 {
-    private readonly TextWriter? _capturedWriter;
+    private readonly TestContext? _owner;
+    private readonly TestLifetimeTable _lifetimes;
+    private int _skippedRecordCount;
+    private int _disposed;
 
-    /// <summary>
-    /// Creates a provider that resolves the active test at emit time. A record logged where the owning test
-    /// does not resolve (a background thread with no flowed context and no <c>Activity</c> baggage) is not
-    /// teed. Use this when one provider serves many tests and cannot bind to a single one.
-    /// </summary>
-    public TestOutputLoggerProvider()
+    /// <summary>Creates a provider owned by <paramref name="owner"/>, routed by the shared lifetime table.</summary>
+    /// <param name="owner">The test current when the tee is built, or <see langword="null"/> when none is.</param>
+    public TestOutputLoggerProvider(TestContext? owner)
+        : this(owner, TestLifetimeTable.Shared)
     {
     }
 
-    /// <summary>
-    /// Creates a provider bound to <paramref name="capturedWriter"/>, the active test's output writer captured
-    /// once while the provider is built on the test's own thread. Each record is written to the test current at
-    /// emit time, falling back to this captured writer only when no test is current (a background thread under a
-    /// suppressed execution context), so background-thread logging is teed rather than dropped without
-    /// misrouting records when the provider is reused across tests.
-    /// </summary>
-    /// <param name="capturedWriter">The owning test's output writer captured at construction.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="capturedWriter"/> is null.</exception>
-    public TestOutputLoggerProvider(TextWriter capturedWriter)
-        => _capturedWriter = capturedWriter ?? throw new ArgumentNullException(nameof(capturedWriter));
+    /// <summary>Creates a provider owned by <paramref name="owner"/>, routed by <paramref name="lifetimes"/>.</summary>
+    /// <param name="owner">The test current when the tee is built, or <see langword="null"/> when none is.</param>
+    /// <param name="lifetimes">The table that knows which tests are running.</param>
+    internal TestOutputLoggerProvider(TestContext? owner, TestLifetimeTable lifetimes)
+    {
+        _owner = owner;
+        _lifetimes = lifetimes;
+    }
+
+    /// <summary>Gets the number of records that reached no test.</summary>
+    internal int SkippedRecordCount => Volatile.Read(ref _skippedRecordCount);
 
     /// <inheritdoc/>
-    public ILogger CreateLogger(string categoryName) => new TestOutputLogger(categoryName, _capturedWriter);
+    public ILogger CreateLogger(string categoryName) => new TestOutputLogger(categoryName, this);
 
-    /// <inheritdoc/>
+    /// <summary>Writes the count of records that reached no test, when there were any, to the test current now. A
+    /// second call does nothing.</summary>
     public void Dispose()
     {
-        // No unmanaged or per-provider state to release; the test output writer is owned by TUnit.
+        if (Interlocked.Exchange(ref _disposed, 1) is not 0)
+        {
+            return;
+        }
+
+        var skipped = SkippedRecordCount;
+        if (skipped > 0)
+        {
+            TestContext.Current?.Output.StandardOutput.WriteLine(string.Create(
+                CultureInfo.InvariantCulture,
+                $"{skipped} log record(s) were not teed to a test report: each was logged after its test had ended, or where no test was current."));
+        }
     }
+
+    /// <summary>Resolves the test the next record goes to. Allocation-free.</summary>
+    /// <returns>The test, or <see langword="null"/> when the record reaches no test.</returns>
+    internal TestContext? ResolveTarget() => _lifetimes.ResolveTeeTarget(TestContext.Current, _owner);
+
+    /// <summary>Counts a record that reached no test.</summary>
+    private void CountSkipped() => Interlocked.Increment(ref _skippedRecordCount);
 
     private sealed class TestOutputLogger : ILogger
     {
         private readonly string _category;
-        private readonly TextWriter? _capturedWriter;
+        private readonly TestOutputLoggerProvider _provider;
 
-        public TestOutputLogger(string category, TextWriter? capturedWriter)
+        public TestOutputLogger(string category, TestOutputLoggerProvider provider)
         {
             _category = category;
-            _capturedWriter = capturedWriter;
+            _provider = provider;
         }
 
         public IDisposable BeginScope<TState>(TState state)
@@ -78,13 +101,15 @@ internal sealed class TestOutputLoggerProvider : ILoggerProvider
         {
             ArgumentNullException.ThrowIfNull(formatter);
 
-            // Prefer the test current at emit time so a reused provider routes each test's records to its own
-            // output; fall back to the captured writer only when no test is current (a suppressed execution
-            // context on a background thread) so the record is teed rather than dropped.
-            var writer = TestContext.Current?.Output.StandardOutput ?? _capturedWriter;
-            if (writer is null)
+            var target = _provider.ResolveTarget();
+            if (target is null)
+            {
+                _provider.CountSkipped();
                 return;
+            }
 
+            // The writer is fetched only when a record is written: TUnit allocates on each access.
+            var writer = target.Output.StandardOutput;
             writer.WriteLine($"[{logLevel}] {_category}: {formatter(state, exception)}");
             if (exception is not null)
                 writer.WriteLine(exception.ToString());

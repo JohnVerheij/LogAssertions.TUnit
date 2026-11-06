@@ -18,18 +18,20 @@ namespace LogAssertions.TUnit;
 public static class AssertAllExtensions
 {
     /// <summary>
-    /// Runs every <paramref name="assertions"/> against the underlying collector. If any
-    /// throws, all failures are gathered and re-thrown as a single <see cref="AssertionException"/>
-    /// whose message lists each failure in order. Useful when several independent invariants
-    /// must all hold and the test author wants to see every violation in one CI run, not just
-    /// the first.
+    /// Runs every <paramref name="assertions"/> against the underlying collector. If two or more
+    /// throw, the failures are gathered and re-thrown as a single <see cref="AssertionException"/>
+    /// whose message lists each failure in order; if exactly one throws, its exception is re-thrown
+    /// as is. Useful when several independent invariants must all hold and the test author wants to
+    /// see every violation in one CI run, not just the first.
     /// </summary>
     /// <typeparam name="TActual">The actual type carried by the assertion source.</typeparam>
     /// <param name="source">The assertion source over a <see cref="FakeLogCollector"/>.</param>
     /// <param name="assertions">The assertion lambdas; each receives the source and returns a Task.</param>
     /// <returns>A task that completes when all assertions have run.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    /// <exception cref="AssertionException">One or more inner assertions failed; the message aggregates all failures.</exception>
+    /// <exception cref="ArgumentException">An entry of <paramref name="assertions"/> is <see langword="null"/>.</exception>
+    /// <exception cref="AssertionException">Two or more inner assertions failed; the message aggregates all failures.
+    /// A single failure is re-thrown with its own type.</exception>
     public static async Task AssertAllAsync<TActual>(
         this IAssertionSource<TActual> source,
         params Func<IAssertionSource<TActual>, Task>[] assertions)
@@ -85,7 +87,9 @@ public static class AssertAllExtensions
     /// <param name="assertions">The assertion configurators; each receives the source and returns the configured fluent assertion.</param>
     /// <returns>A task that completes when all assertions have run.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    /// <exception cref="AssertionException">One or more inner assertions failed; the message aggregates all failures.</exception>
+    /// <exception cref="ArgumentException">An entry of <paramref name="assertions"/> is <see langword="null"/>.</exception>
+    /// <exception cref="AssertionException">Two or more inner assertions failed; the message aggregates all failures.
+    /// A single failure is re-thrown with its own type.</exception>
     public static async Task AssertAllAsync<TActual>(
         this IAssertionSource<TActual> source,
         params Func<IAssertionSource<TActual>, Assertion<FakeLogCollector>>[] assertions)

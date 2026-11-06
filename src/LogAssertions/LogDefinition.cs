@@ -50,7 +50,7 @@ public sealed class LogDefinition
     /// <summary>The captured placeholder values, sorted by key then value (ordinal) for order-insensitive comparison.</summary>
     private readonly KeyValuePair<string, string?>[] _sortedProperties;
 
-    /// <summary>Initialises the captured shape. Only <see cref="Capture"/> creates instances.</summary>
+    /// <summary>Initializes the captured shape. Only <see cref="Capture"/> creates instances.</summary>
     /// <param name="id">The captured event ID (numeric ID plus name).</param>
     /// <param name="level">The captured log level.</param>
     /// <param name="template">The captured message template (the <c>{OriginalFormat}</c> value), when present.</param>
@@ -135,12 +135,12 @@ public sealed class LogDefinition
 
         var record = records[0];
         KeyValuePair<string, string?>[] properties =
-            [.. (record.StructuredState ?? []).Where(static kvp => !string.Equals(kvp.Key, OriginalFormatKey, StringComparison.Ordinal))];
+            [.. (RecordState.Pairs(record) ?? []).Where(static kvp => !string.Equals(kvp.Key, OriginalFormatKey, StringComparison.Ordinal))];
 
         return new LogDefinition(
             record.Id,
             record.Level,
-            record.GetStructuredStateValue(OriginalFormatKey),
+            RecordState.Value(record, OriginalFormatKey),
             properties,
             record.Exception);
     }
@@ -155,7 +155,7 @@ public sealed class LogDefinition
     internal bool MatchesIdentity(FakeLogRecord record)
         => record.Id.Id == Id.Id
         && string.Equals(record.Id.Name, Id.Name, StringComparison.Ordinal)
-        && string.Equals(record.GetStructuredStateValue(OriginalFormatKey), Template, StringComparison.Ordinal);
+        && string.Equals(RecordState.Value(record, OriginalFormatKey), Template, StringComparison.Ordinal);
 
     /// <summary>
     /// Returns <see langword="true"/> when <paramref name="record"/> matches this captured call
@@ -191,7 +191,7 @@ public sealed class LogDefinition
     private bool PropertiesMatch(FakeLogRecord record)
     {
         KeyValuePair<string, string?>[] actual =
-            [.. (record.StructuredState ?? []).Where(static kvp => !string.Equals(kvp.Key, OriginalFormatKey, StringComparison.Ordinal))];
+            [.. (RecordState.Pairs(record) ?? []).Where(static kvp => !string.Equals(kvp.Key, OriginalFormatKey, StringComparison.Ordinal))];
         if (actual.Length != _sortedProperties.Length)
             return false;
 

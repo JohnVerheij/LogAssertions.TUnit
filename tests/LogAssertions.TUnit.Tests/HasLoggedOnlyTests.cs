@@ -123,9 +123,9 @@ internal sealed class HasLoggedOnlyTests
     public async Task GateAboveCaptureFloorIsReportedAsVacuousAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create(LogLevel.Error);
-        using (factory)
+        using (var factory = LogCollectorBuilder.Create(LogLevel.Error))
         {
+            var collector = factory.Collector;
             var logger = factory.CreateLogger("Test");
             TestLogMessages.StartedProcessing(logger);
 
@@ -143,9 +143,9 @@ internal sealed class HasLoggedOnlyTests
     public async Task GateAtOrAboveCaptureFloorIsNotVacuousAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create(LogLevel.Warning);
-        using (factory)
+        using (var factory = LogCollectorBuilder.Create(LogLevel.Warning))
         {
+            var collector = factory.Collector;
             var logger = factory.CreateLogger("Test");
             TestLogMessages.StartedProcessing(logger); // Information: below the capture floor, dropped
 

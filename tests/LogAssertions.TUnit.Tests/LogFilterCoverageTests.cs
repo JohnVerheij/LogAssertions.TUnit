@@ -70,8 +70,8 @@ internal sealed class LogFilterCoverageTests
     public async Task WithScopeProperty_NoActiveScopes_ReturnsFalseAsync(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         logger.LogInformation("no-scope");
 
@@ -79,7 +79,7 @@ internal sealed class LogFilterCoverageTests
         await Assert.That(collector.CountMatching(LogFilter.WithScopeProperty("anything", _ => true))).IsEqualTo(0);
     }
 
-    /// <summary>A scope object that doesn't implement the recognised
+    /// <summary>A scope object that doesn't implement the recognized
     /// <see cref="IEnumerable{T}"/>-of-<see cref="KeyValuePair{TKey, TValue}"/> shape (e.g. a
     /// raw string passed as scope state) yields no scope-property match. Drives the
     /// cast-failure branch of <c>TryMatchScope</c>.</summary>
@@ -87,8 +87,8 @@ internal sealed class LogFilterCoverageTests
     public async Task WithScopeProperty_NonKvpScope_DoesNotMatchAsync(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         using (logger.BeginScope("a-non-kvp-string-scope"))
         {
@@ -117,8 +117,8 @@ internal sealed class LogFilterCoverageTests
     public async Task Matching_RegexAgainstRealRecord_MatchesAndNonMatchesAsync(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         logger.LogInformation("hello world");
         logger.LogInformation("goodbye world");
@@ -134,8 +134,8 @@ internal sealed class LogFilterCoverageTests
     public async Task WithScopeProperty_RealScopeMatch_FindsRecordAsync(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         using (logger.BeginScope(new Dictionary<string, object?>(StringComparer.Ordinal)
         {

@@ -44,7 +44,7 @@ public sealed class HasLoggedOnlyAssertion : Assertion<FakeLogCollector>
     private readonly LogLevel _floor;
     private readonly List<LogDefinition> _allowed = [];
 
-    /// <summary>Initialises the gate at <paramref name="floor"/>. Called by the TUnit source
+    /// <summary>Initializes the gate at <paramref name="floor"/>. Called by the TUnit source
     /// generator. With no <see cref="Allowing"/> call the gate asserts nothing was logged at or
     /// above the floor at all.</summary>
     /// <param name="context">The assertion context supplied by TUnit.</param>
@@ -164,7 +164,7 @@ public sealed class HasLoggedOnlyAssertion : Assertion<FakeLogCollector>
             .Append("Unexpected records:")
             .AppendLine();
 
-        LogAssertionRendering.AppendCapturedRecords(sb, offenders);
+        LogAssertionRendering.AppendFailureRecords(sb, offenders);
 
         sb.AppendLine();
         if (_allowed.Count is 0)

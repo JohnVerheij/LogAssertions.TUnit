@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Testing;
@@ -12,19 +13,23 @@ namespace LogAssertions.TUnit;
 /// <summary>
 /// TUnit assertion that verifies a <see cref="FakeLogCollector"/> contains matching log records.
 /// Inherits filter chaining from <see cref="LogAssertionBase{TSelf}"/>; adds count-expectation
-/// terminators (<c>Once</c>, <c>Exactly</c>, <c>AtLeast</c>, <c>AtMost</c>, <c>Never</c>) and the
-/// value-returning terminators <c>GetMatch</c> and <c>GetMatches</c> for handing the matched
-/// records to follow-up assertions.
+/// terminators (<c>Once</c>, <c>Exactly</c>, <c>AtLeast</c>, <c>AtMost</c>, <c>Between</c>, <c>Never</c>), the
+/// spacing constraint <c>AtMostOncePer</c>, and the value-returning terminators <c>GetMatch</c> and
+/// <c>GetMatches</c> for handing the matched records to follow-up assertions.
 /// </summary>
+/// <remarks>
+/// A chain whose count admits zero (<c>Never()</c>, <c>AtMost(n)</c>, <c>Exactly(0)</c>, <c>Between(0, n)</c>) is an
+/// absence check: when every level it could match sits below the collector's capture floor, it fails as vacuous, as
+/// <c>HasNotLogged()</c> does. A chain that needs a match names the floor in its failure for the same reason.
+/// </remarks>
 [AssertionExtension("HasLogged")]
 public sealed class HasLoggedAssertion : LogAssertionBase<HasLoggedAssertion>
 {
-    private int _minCount = 1;
-    private int _maxCount = int.MaxValue;
-    private string _terminatorDescription = "at least 1";
+    private readonly LogCountExpectation _count = new();
+    private TimeSpan? _minimumGap;
     private IReadOnlyList<FakeLogRecord>? _capturedMatches;
 
-    /// <summary>Initialises a positive log assertion. Called by the TUnit source generator.</summary>
+    /// <summary>Initializes a positive log assertion. Called by the TUnit source generator.</summary>
     /// <param name="context">The assertion context supplied by TUnit.</param>
     public HasLoggedAssertion(AssertionContext<FakeLogCollector> context) : base(context) { }
 
@@ -32,9 +37,7 @@ public sealed class HasLoggedAssertion : LogAssertionBase<HasLoggedAssertion>
     /// <returns>This assertion for chaining.</returns>
     public HasLoggedAssertion Once()
     {
-        _minCount = 1;
-        _maxCount = 1;
-        _terminatorDescription = "exactly 1";
+        _count.SetOnce();
         Context.ExpressionBuilder.Append(".Once()");
         return this;
     }
@@ -46,9 +49,7 @@ public sealed class HasLoggedAssertion : LogAssertionBase<HasLoggedAssertion>
     public HasLoggedAssertion Exactly(int count)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(count);
-        _minCount = count;
-        _maxCount = count;
-        _terminatorDescription = string.Format(CultureInfo.InvariantCulture, "exactly {0}", count);
+        _count.SetExactly(count);
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".Exactly({count})");
         return this;
     }
@@ -60,9 +61,7 @@ public sealed class HasLoggedAssertion : LogAssertionBase<HasLoggedAssertion>
     public HasLoggedAssertion AtLeast(int count)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(count);
-        _minCount = count;
-        _maxCount = int.MaxValue;
-        _terminatorDescription = string.Format(CultureInfo.InvariantCulture, "at least {0}", count);
+        _count.SetAtLeast(count);
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".AtLeast({count})");
         return this;
     }
@@ -74,20 +73,17 @@ public sealed class HasLoggedAssertion : LogAssertionBase<HasLoggedAssertion>
     public HasLoggedAssertion AtMost(int count)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(count);
-        _minCount = 0;
-        _maxCount = count;
-        _terminatorDescription = string.Format(CultureInfo.InvariantCulture, "at most {0}", count);
+        _count.SetAtMost(count);
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".AtMost({count})");
         return this;
     }
 
-    /// <summary>Expects zero matching records.</summary>
+    /// <summary>Expects zero matching records. Like <c>HasNotLogged()</c>, it fails as vacuous when every level the
+    /// chain could match sits below the collector's capture floor.</summary>
     /// <returns>This assertion for chaining.</returns>
     public HasLoggedAssertion Never()
     {
-        _minCount = 0;
-        _maxCount = 0;
-        _terminatorDescription = "exactly 0";
+        _count.SetNever();
         Context.ExpressionBuilder.Append(".Never()");
         return this;
     }
@@ -101,10 +97,31 @@ public sealed class HasLoggedAssertion : LogAssertionBase<HasLoggedAssertion>
     {
         ArgumentOutOfRangeException.ThrowIfNegative(min);
         ArgumentOutOfRangeException.ThrowIfLessThan(max, min);
-        _minCount = min;
-        _maxCount = max;
-        _terminatorDescription = string.Format(CultureInfo.InvariantCulture, "between {0} and {1}", min, max);
+        _count.SetBetween(min, max);
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".Between({min}, {max})");
+        return this;
+    }
+
+    /// <summary>
+    /// Expects every two consecutive matching records, ordered by <see cref="FakeLogRecord.Timestamp"/>, to be at least
+    /// <paramref name="interval"/> apart: a rate-limited record is logged at most once per interval. Two records
+    /// exactly <paramref name="interval"/> apart pass; one tick less fails. It constrains the spacing only; the count
+    /// expectation still applies, so the chain keeps needing at least one match unless a count terminator that admits
+    /// zero is set (<c>.AtMost(n)</c>, <c>.Between(0, n)</c>).
+    /// </summary>
+    /// <remarks>
+    /// Clock: the records' <see cref="FakeLogRecord.Timestamp"/>, that is, the collector's clock
+    /// (<c>FakeLogCollectorOptions.TimeProvider</c>). <c>LogCollectorBuilder.Create(timeProvider)</c> and
+    /// <c>TestOutputLogCollectorBuilder.CreateTeed(timeProvider)</c> set it; without one it is the system clock.
+    /// </remarks>
+    /// <param name="interval">The shortest allowed gap. Must be positive.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="interval"/> is zero or negative.</exception>
+    public HasLoggedAssertion AtMostOncePer(TimeSpan interval)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(interval, TimeSpan.Zero);
+        _minimumGap = interval;
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".AtMostOncePer({interval})");
         return this;
     }
 
@@ -115,6 +132,9 @@ public sealed class HasLoggedAssertion : LogAssertionBase<HasLoggedAssertion>
     /// assertions without a duplicate <c>collector.Filter(...)</c> call.
     /// </summary>
     /// <returns>The matched records in original order; the list is a snapshot, not bound to the live collector.</returns>
+    /// <exception cref="InvalidOperationException">The assertion failed inside <c>Assert.Multiple()</c>, which records
+    /// the failure instead of throwing it, so there are no matches to return; the message names the failure, and the
+    /// scope still reports it.</exception>
     public Task<IReadOnlyList<FakeLogRecord>> GetMatches()
     {
         Context.ExpressionBuilder.Append(".GetMatches()");
@@ -131,10 +151,13 @@ public sealed class HasLoggedAssertion : LogAssertionBase<HasLoggedAssertion>
     /// that allows N matches.
     /// </summary>
     /// <returns>The single matched record.</returns>
-    /// <exception cref="InvalidOperationException">The chain's count expectation does not constrain the match count to exactly one.</exception>
+    /// <exception cref="InvalidOperationException">The chain's count expectation does not constrain the match count to
+    /// exactly one; or the assertion failed inside <c>Assert.Multiple()</c>, which records the failure instead of
+    /// throwing it, so there is no match to return (the message names the failure, and the scope still reports
+    /// it).</exception>
     public Task<FakeLogRecord> GetMatch()
     {
-        if (_minCount is not 1 || _maxCount is not 1)
+        if (!_count.IsExactlyOne)
         {
             throw new InvalidOperationException(
                 "GetMatch() requires the chain to constrain the match count to exactly one: " +
@@ -149,46 +172,110 @@ public sealed class HasLoggedAssertion : LogAssertionBase<HasLoggedAssertion>
     private async Task<IReadOnlyList<FakeLogRecord>> ExecuteAndReturnMatchesAsync()
     {
         await AssertAsync();
-        return _capturedMatches ?? [];
+        return _capturedMatches ?? throw NoMatchAfterRecordedFailure("GetMatches()");
     }
 
     private async Task<FakeLogRecord> ExecuteAndReturnSingleMatchAsync()
     {
         await AssertAsync();
-        return _capturedMatches![0];
+        return _capturedMatches is { } matches ? matches[0] : throw NoMatchAfterRecordedFailure("GetMatch()");
     }
 
     /// <inheritdoc/>
     protected override Task<AssertionResult> CheckAsync(EvaluationMetadata<FakeLogCollector> metadata)
     {
+        // The same instance can be evaluated again (each GetMatch() or await runs the check), so an earlier check's
+        // matches must never answer for this one.
+        _capturedMatches = null;
+        return Task.FromResult(RememberFailure(Decide(metadata)));
+    }
+
+    /// <summary>Checks the source, then evaluates the collector.</summary>
+    /// <param name="metadata">The evaluation of the assertion source.</param>
+    /// <returns>The outcome.</returns>
+    private AssertionResult Decide(EvaluationMetadata<FakeLogCollector> metadata)
+    {
         if (metadata.Exception is not null)
-        {
-            return Task.FromResult(AssertionResult.Failed(
-                $"threw {metadata.Exception.GetType().Name}", metadata.Exception));
-        }
+            return AssertionResult.Failed($"threw {metadata.Exception.GetType().Name}", metadata.Exception);
 
-        var collector = metadata.Value;
-        if (collector is null)
-            return Task.FromResult(AssertionResult.Failed("collector was null"));
+        return metadata.Value is { } collector ? Evaluate(collector) : AssertionResult.Failed("collector was null");
+    }
 
+    /// <summary>Evaluates the count, the capture floor, and the spacing against the collector's records. The matches
+    /// are kept for <see cref="GetMatch"/> and <see cref="GetMatches"/> only when the assertion passes.</summary>
+    /// <param name="collector">The collector under assertion.</param>
+    /// <returns>The outcome.</returns>
+    private AssertionResult Evaluate(FakeLogCollector collector)
+    {
         var snapshot = collector.GetSnapshot();
         var matches = GetMatches(snapshot);
+
+        if (!_count.IsSatisfiedBy(matches.Count))
+        {
+            var headline = string.Create(CultureInfo.InvariantCulture, $"{matches.Count} record(s) matched");
+            if (matches.Count < _count.Min && TryDescribeUncapturedFloor(collector, out var floorNote))
+                headline += ": " + floorNote;
+            return AssertionResult.Failed(BuildFailureMessage(headline, snapshot));
+        }
+
+        // A count that admits zero is an absence check, vacuous when the floor filtered out every level it targets.
+        if (matches.Count is 0 && TryDescribeVacuousFloor(collector, out var vacuous))
+            return AssertionResult.Failed(vacuous);
+
+        if (_minimumGap is { } interval && DescribeTooClose(matches, interval) is { } tooClose)
+            return AssertionResult.Failed(BuildFailureMessage(tooClose, snapshot));
+
         _capturedMatches = matches;
-        var matchCount = matches.Count;
+        return AssertionResult.Passed;
+    }
 
-        if (matchCount >= _minCount && matchCount <= _maxCount)
-            return Task.FromResult(AssertionResult.Passed);
+    /// <summary>Finds the first two consecutive matching records (by timestamp) that are less than
+    /// <paramref name="interval"/> apart, and describes them.</summary>
+    /// <param name="matches">The matching records.</param>
+    /// <param name="interval">The shortest allowed gap.</param>
+    /// <returns>The description, or <see langword="null"/> when every gap is long enough.</returns>
+    private static string? DescribeTooClose(IReadOnlyList<FakeLogRecord> matches, TimeSpan interval)
+    {
+        var ordered = matches.OrderBy(static record => record.Timestamp).ToArray();
+        var first = -1;
+        var tooShort = 0;
+        for (var i = 1; i < ordered.Length; i++)
+        {
+            if (ordered[i].Timestamp - ordered[i - 1].Timestamp < interval)
+            {
+                tooShort++;
+                if (first < 0)
+                    first = i;
+            }
+        }
 
-        return Task.FromResult(AssertionResult.Failed(BuildFailureMessage(matchCount, snapshot)));
+        if (tooShort is 0)
+            return null;
+
+        StringBuilder sb = new();
+        sb.Append(CultureInfo.InvariantCulture,
+            $"two matching records were {ordered[first].Timestamp - ordered[first - 1].Timestamp:c} apart, less than {interval:c} ({tooShort} of {ordered.Length - 1} gaps too short):")
+            .AppendLine();
+        LogAssertionRendering.AppendRecords(sb, [ordered[first - 1], ordered[first]], 0, DumpVerbosity.Compact, withTimestamps: true);
+        return sb.ToString().TrimEnd();
     }
 
     /// <inheritdoc/>
     protected override string GetExpectation()
     {
+        StringBuilder filters = new();
+        AppendFilterSummary(filters);
+
         StringBuilder sb = new();
-        sb.Append(_terminatorDescription)
+        sb.Append(_count.Description)
             .Append(" log record(s) to have been logged");
-        AppendFilterSummary(sb);
-        return sb.ToString();
+        if (_minimumGap is { } interval)
+        {
+            sb.Append(CultureInfo.InvariantCulture, $", at most once per {interval:c}");
+            if (filters.Length > 0)
+                sb.Append(',');
+        }
+
+        return sb.Append(filters).ToString();
     }
 }

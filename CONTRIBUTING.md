@@ -29,7 +29,7 @@ For larger ideas (new entry points, breaking changes, cross-cutting refactors), 
 - **XML documentation:** required on every public type, member, and parameter.
 - **Argument validation:** public methods that take reference-type arguments use `ArgumentNullException.ThrowIfNull(...)` at the top of the body. Methods taking numeric arguments validate ranges with `ArgumentOutOfRangeException.ThrowIfNegative(...)` (or similar).
 - **Spelling:** American English in code, identifiers, and prose. (TUnit upstream uses British; this project does not. Don't take this as a stylistic preference, just a project rule.)
-- **Globalisation:** explicit `CultureInfo.InvariantCulture` on all `string.Format`, numeric `ToString`, and similar calls. Meziantou.Analyzer enforces this via MA0011.
+- **Globalization:** explicit `CultureInfo.InvariantCulture` on all `string.Format`, numeric `ToString`, and similar calls. Meziantou.Analyzer enforces this via MA0011.
 - **String comparison:** explicit `StringComparison.Ordinal` (or `OrdinalIgnoreCase` where appropriate). Meziantou.Analyzer enforces this via MA0006.
 
 ## Tests

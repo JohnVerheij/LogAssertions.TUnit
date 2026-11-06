@@ -21,9 +21,9 @@ namespace LogAssertions.TUnit;
 /// <example>
 /// <code>
 /// await Assert.That(collector).HasLoggedSequence()
-///     .AtLevel(LogLevel.Information).Containing("Started")
-///     .Then().AtLevel(LogLevel.Warning).Containing("validation failed")
-///     .Then().AtLevel(LogLevel.Information).Containing("Stopped");
+///     .AtLevel(LogLevel.Information).Containing("Started", StringComparison.Ordinal)
+///     .Then().AtLevel(LogLevel.Warning).Containing("validation failed", StringComparison.Ordinal)
+///     .Then().AtLevel(LogLevel.Information).Containing("Stopped", StringComparison.Ordinal);
 /// </code>
 /// Each step matches the first subsequent record satisfying its filters; records between
 /// matches are skipped (sequence is order-preserving but not contiguous).
@@ -35,7 +35,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
     private List<ILogRecordFilter> _currentFilters;
     private bool _isCapturingSubStep;
 
-    /// <summary>Initialises a sequence assertion. Called by the TUnit source generator.</summary>
+    /// <summary>Initializes a sequence assertion. Called by the TUnit source generator.</summary>
     /// <param name="context">The assertion context supplied by TUnit.</param>
     public HasLoggedSequenceAssertion(AssertionContext<FakeLogCollector> context) : base(context)
     {

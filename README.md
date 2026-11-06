@@ -23,11 +23,16 @@ A TUnit-native fluent log-assertion DSL on top of `Microsoft.Extensions.Logging.
 
 - [Why this package](#why-this-package)
 - [Install](#install)
+  - [Setup: the test lifetime attribute (v0.14.0+)](#setup-the-test-lifetime-attribute-v0140)
+  - [Upgrading to v0.14.0](#upgrading-to-v0140)
 - [Package layout](#package-layout)
 - [Namespaces (and a `GlobalUsings.cs` recommendation)](#namespaces-and-a-globalusingscs-recommendation)
 - [Quick start](#quick-start)
 - [Migrating from manual assertions](#migrating-from-manual-assertions)
 - [Entry points](#entry-points)
+  - [Waiting for background work: `WillLog` (v0.14.0+)](#waiting-for-background-work-willlog-v0140)
+    - [`WillLog` with a fake clock](#willlog-with-a-fake-clock)
+  - [Clocks (v0.14.0+)](#clocks-v0140)
   - [The log gate: `HasLoggedOnly` (v0.12.0+)](#the-log-gate-hasloggedonly-v0120)
   - [Shorthand entry points](#shorthand-entry-points)
 - [Filter reference](#filter-reference)
@@ -43,16 +48,17 @@ A TUnit-native fluent log-assertion DSL on top of `Microsoft.Extensions.Logging.
   - [Combinator chain methods (`MatchingAny`, `MatchingAll`, `Not`, `WithFilter`)](#combinator-chain-methods-matchingany-matchingall-not-withfilter)
   - [Conditional configuration (`When`)](#conditional-configuration-when)
 - [Terminators (`HasLogged` only)](#terminators-haslogged-only)
+  - [Rate-limited records: `AtMostOncePer` (v0.14.0+)](#rate-limited-records-atmostonceper-v0140)
   - [Value-returning terminators (`GetMatch` / `GetMatches`)](#value-returning-terminators-getmatch--getmatches)
-- [Sequence assertions: `HasLoggedSequence`](#sequence-assertions--hasloggedsequence)
-  - [Concurrent steps: `ThenAnyOrder` (v0.4.0+)](#concurrent-steps--thenanyorder-v040)
+- [Sequence assertions: `HasLoggedSequence`](#sequence-assertions-hasloggedsequence)
+  - [Concurrent steps: `ThenAnyOrder` (v0.4.0+)](#concurrent-steps-thenanyorder-v040)
 - [Combining assertions with `.And` / `.Or`](#combining-assertions-with-and--or)
-- [Batch assertions: `AssertAllAsync` and `Assert.Multiple` interop](#batch-assertions--assertallasync-and-assertmultiple-interop)
+- [Batch assertions: `AssertAllAsync` and `Assert.Multiple` interop](#batch-assertions-assertallasync-and-assertmultiple-interop)
 - [TUnit-native conveniences (`Because`, parallelism, Should)](#tunit-native-conveniences-because-parallelism-should)
 - [Non-asserting inspection](#non-asserting-inspection)
   - [Dump verbosity (v0.4.0+)](#dump-verbosity-v040)
 - [Failure diagnostics](#failure-diagnostics)
-- [Cookbook: common patterns](#cookbook--common-patterns)
+- [Cookbook: common patterns](#cookbook-common-patterns)
 - [Troubleshooting](#troubleshooting)
 - [Design notes](#design-notes)
 - [Stability intent (pre-1.0)](#stability-intent-pre-10)
@@ -72,7 +78,7 @@ Asserting on log output during tests typically devolves into either:
 - Manual `collector.GetSnapshot().Where(...).Count()` plumbing in every test, or
 - Adding temporary `Console.WriteLine` calls during debugging because the assertion failure says "expected 1, got 3" without showing what was actually logged.
 
-This library replaces both with a fluent DSL that integrates with TUnit's assertion pipeline and shows every captured record (including structured properties and scope content) in failure messages.
+This library replaces both with a fluent DSL that integrates with TUnit's assertion pipeline and shows the captured records (including structured properties and scope content) in failure messages.
 
 ## Install
 
@@ -82,16 +88,43 @@ dotnet add package LogAssertions.TUnit
 
 **Requirements:** TUnit 1.80.0 or later, .NET 10. The package is AOT-compatible, trimmable, and uses no reflection in the assertion path.
 
+### Setup: the test lifetime attribute (v0.14.0+)
+
+Add one line to the test project, for example in `GlobalUsings.cs`:
+
+```csharp
+[assembly: LogAssertions.TUnit.LogAssertionsTestLifetime]
+```
+
+TUnit gives code inside a test no way to observe that test's end, so the package needs this opt-in. The attribute receives TUnit's start of each test (before its `[Before(Test)]` hooks) and end (after its `[After(Test)]` hooks), once per attempt of a retried test. It enables two things:
+
+- [`DumpToTestOutputOnFailure()`](#write-the-logs-of-a-test-that-did-not-pass), which throws without it, with a message that names this line.
+- Exact routing for the [test-output tee](#mirror-logs-into-the-test-report-createteed): a record is never written into a test that has ended. Without the attribute, the tee uses a coarser fallback (described there).
+
+Everything else works without it. Without it, the first tee built in a test run writes one note to that test's output, naming this line.
+
+### Upgrading to v0.14.0
+
+v0.14.0 has three breaking changes. The first two fail at compile time, the third with a clear assertion failure. The tee also changes what it writes into the test report, without changing any outcome, and projects that run Meziantou's `TimeProvider` rules see a new diagnostic:
+
+| Change | Migration |
+|---|---|
+| `LogCollectorBuilder.Create()` and `TestOutputLogCollectorBuilder.CreateTeed()` return a `LogCapture` instead of a `(Factory, Collector)` tuple. `var (factory, collector) = LogCollectorBuilder.Create();` fails with the build error `LogCollectorBuilder.Create() and TestOutputLogCollectorBuilder.CreateTeed() return a LogCapture: use 'await using var logs = ...;' ('using var' in synchronous code), then logs.Collector.` | `using var logs = LogCollectorBuilder.Create();`, then use `logs` as the `ILoggerFactory` and `logs.Collector` for assertions. `LogCapture` is also `IAsyncDisposable`: in async code write `await using var logs = ...` (analyzers such as Roslynator RCS1261 and Meziantou MA0042 report a plain `using` or an explicit `Dispose()` there). A field that holds the capture can be typed `LogCapture` (CA1859 asks for it) |
+| A project with Meziantou MA0166 / MA0167 enabled (MA0167 is on in `all-warnings` mode) reports every `Create()` / `CreateTeed()` without a clock, since the `TimeProvider` overloads exist | pass the clock: the fake clock in scope (records then follow it), else `TimeProvider.System` |
+| `AddTeedFakeLogging(builder, collector, level, teeProvider)` lost its `teeProvider` parameter | chain the provider: `.AddTeedFakeLogging(collector, level).AddProvider(provider)`; for TUnit's correlated output, `.AddFakeLogging(collector, level).AddCorrelatedTUnit(level)` |
+| `HasLogged()...Never()`, `AtMost(n)`, `Exactly(0)` and `Between(0, n)` fail as vacuous when every level the chain targets sits below the collector's capture floor, as `HasNotLogged()` already did | assert at a captured level, or lower the floor (`LogCollectorBuilder.Create(minimumLevel)`) |
+| The built-in tee no longer writes a record that no running test claims into a test that has ended; such a record is skipped and counted. See [where each record goes](#where-each-record-goes) | none; add the [lifetime attribute](#setup-the-test-lifetime-attribute-v0140) for exact routing |
+
 ## Package layout
 
 This repo ships **two** NuGet packages:
 
 | Package | Purpose | Depends on |
 |---|---|---|
-| [`LogAssertions`](https://www.nuget.org/packages/LogAssertions/) | Framework-agnostic core: `ILogRecordFilter` + `LogFilter` + rendering + collector inspection extensions + event-driven waits (`WaitForLogAsync`) + `LogCollectorBuilder` | `Microsoft.Extensions.Diagnostics.Testing` |
-| [`LogAssertions.TUnit`](https://www.nuget.org/packages/LogAssertions.TUnit/) | TUnit-specific entry points: `HasLogged()`, `HasNotLogged()`, `HasLoggedSequence()` and shorthands | `LogAssertions` + `TUnit.Assertions` |
+| [`LogAssertions`](https://www.nuget.org/packages/LogAssertions/) | Framework-agnostic core: `ILogRecordFilter` + `LogFilter` + rendering (`LogSnapshotRenderer`, `LogContractRenderer`) + collector inspection extensions + event-driven waits (`WaitForLogAsync`) + `LogCollectorBuilder` and `LogCapture` | `Microsoft.Extensions.Diagnostics.Testing` |
+| [`LogAssertions.TUnit`](https://www.nuget.org/packages/LogAssertions.TUnit/) | TUnit-specific entry points: `HasLogged()`, `HasNotLogged()`, `HasLoggedSequence()`, `HasLoggedOnly()`, `WillLog()` and shorthands; the test-output tee and the failure dump | `LogAssertions` + `TUnit.Assertions` + `TUnit.Core` |
 
-You install `LogAssertions.TUnit`; `LogAssertions` comes transitively. Both are safe to reference from a shared test-support library (for example one that wires `AddTeedFakeLogging` for several test projects): `LogAssertions.TUnit` depends on `TUnit.Assertions` and `TUnit.Core`, not on the `TUnit` meta-package, so the library does not turn into a test project. Adapters for other test frameworks (NUnit, xUnit, MSTest) are *not* shipped today: they'd reuse the `LogAssertions` core. If you'd find one useful, [open a feature request](https://github.com/JohnVerheij/LogAssertions.TUnit/issues/new?template=feature_request.yml).
+You install `LogAssertions.TUnit`; `LogAssertions` comes transitively. Both are safe to reference from a shared test-support library (for example one that wires `AddTeedFakeLogging` for several test projects): `LogAssertions.TUnit` depends on `TUnit.Assertions` and `TUnit.Core`, not on the `TUnit` meta-package, so the library does not turn into a test project. Adapters for other test frameworks (NUnit, xUnit, MSTest) are not planned; the family targets TUnit.
 
 ## Namespaces (and a `GlobalUsings.cs` recommendation)
 
@@ -99,13 +132,14 @@ The two packages place types in two namespaces with deliberately-different scope
 
 | Type / member | Namespace | Auto-imported? |
 |---|---|---|
-| `HasLogged()`, `HasNotLogged()`, `HasLoggedSequence()` (the source-generated entry points) | `TUnit.Assertions.Extensions` | **Yes**: TUnit auto-imports this namespace |
+| `HasLogged()`, `HasNotLogged()`, `HasLoggedSequence()`, `HasLoggedOnly()`, `WillLog()` (the source-generated entry points) | `TUnit.Assertions.Extensions` | **Yes**: TUnit auto-imports this namespace |
 | `HasLoggedOnce()`, `HasLoggedExactly()`, ... (shorthand entry points, since 0.2.2) | `TUnit.Assertions.Extensions` | **Yes**: same auto-import path |
-| `LogCollectorBuilder.Create(...)` (the `(factory, collector)` factory) | `LogAssertions` | **No**: needs `using LogAssertions;` |
-| `LogFilter.AtLevel(...)`, `ILogRecordFilter`, `Filter`/`CountMatching`/`DumpTo` extensions | `LogAssertions` | **No**: needs `using LogAssertions;` |
-| `AssertAllAsync(...)` batch terminator | `TUnit.Assertions.Extensions` | **Yes**: same auto-import path |
+| `LogCollectorBuilder.Create(...)` (returns a `LogCapture`), `LogCollectorBuilder.CreateDiscarding(...)` | `LogAssertions` | **No**: needs `using LogAssertions;` |
+| `LogFilter.AtLevel(...)`, `ILogRecordFilter`, `Filter`/`CountMatching`/`DumpTo`/`WaitForLogAsync` extensions | `LogAssertions` | **No**: needs `using LogAssertions;` |
+| `LogSnapshotRenderer`, `LogContractRenderer` | `LogAssertions.Render` | **No**: needs `using LogAssertions.Render;` |
+| `TestOutputLogCollectorBuilder`, `AddFakeLogging`/`AddTeedFakeLogging`, `DumpToTestOutput`/`DumpToTestOutputOnFailure`, `AssertAllAsync(...)`, `LogAssertionsTestLifetimeAttribute` | `LogAssertions.TUnit` | **No**: needs `using LogAssertions.TUnit;` (the attribute line spells the namespace out) |
 
-**Practical consequence:** test files that *only* call assertion entry points need no `using` from this package. Files that use `LogCollectorBuilder` or build composable filters via `LogFilter` need `using LogAssertions;`.
+**Practical consequence:** test files that *only* call assertion entry points need no `using` from this package. Files that use `LogCollectorBuilder` or build composable filters via `LogFilter` need `using LogAssertions;`; files that use the TUnit helpers (the tee builders, `DumpToTestOutput*`, `AssertAllAsync`) also need `using LogAssertions.TUnit;`.
 
 **Recommended:** put all four into a single `GlobalUsings.cs` in your test project so every test file sees them without ceremony:
 
@@ -131,25 +165,22 @@ using Microsoft.Extensions.Logging.Testing;
 [Test]
 public async Task Validation_failure_is_logged()
 {
-    var (factory, collector) = LogCollectorBuilder.Create();
-    using (factory)
-    {
-        var logger = factory.CreateLogger<MyValidator>();
-        new MyValidator(logger).Validate(invalidInput);
+    await using var logs = LogCollectorBuilder.Create();
+    var logger = logs.CreateLogger<MyValidator>();
+    new MyValidator(logger).Validate(invalidInput);
 
-        await Assert.That(collector)
-            .HasLogged()
-            .AtLevel(LogLevel.Warning)
-            .Containing("validation failed", StringComparison.Ordinal)
-            .WithCategory("MyApp.MyValidator")
-            .Once();
+    await Assert.That(logs.Collector)
+        .HasLogged()
+        .AtLevel(LogLevel.Warning)
+        .Containing("validation failed", StringComparison.Ordinal)
+        .WithCategory("MyApp.MyValidator")
+        .Once();
 
-        await Assert.That(collector).HasNotLogged().AtLevel(LogLevel.Error);
-    }
+    await Assert.That(logs.Collector).HasNotLogged().AtLevel(LogLevel.Error);
 }
 ```
 
-**Lifetime / disposal:** the `IDisposable` returned from `LogCollectorBuilder.Create()` (the `factory`) owns the underlying `FakeLoggerProvider`. Disposing it stops new log records from being captured but the records already gathered into the `collector` snapshot remain valid: you can continue to query the `collector` after the `using` block exits. Both block-form (`using (factory) { ... }`) and declaration-form (`using ILoggerFactory factory = ...`) work; pick whichever fits your test layout.
+**Lifetime / disposal:** `LogCollectorBuilder.Create()` returns a `LogCapture` (v0.14.0+): the logger factory itself, so you can pass it wherever an `ILoggerFactory` is expected, plus its `Collector` for assertions. One `using` disposes the factory and its providers; in async code use `await using`, since it is also `IAsyncDisposable` and analyzers that prefer asynchronous disposal (Roslynator RCS1261, Meziantou MA0042) report a plain `using` there. Disposal does not stop capture: a logger created before keeps writing into the collector, so dispose at the end of the test, which `await using var` does. The collector keeps its records after disposal, so assertions can still run.
 
 ---
 
@@ -165,7 +196,7 @@ await Assert.That(warnings).HasCount().EqualTo(1);
 await Assert.That(warnings[0].Message).Contains("timeout", StringComparison.Ordinal);
 ```
 
-The "after" with `LogAssertions.TUnit` is one fluent chain that reads as a single intent and produces a failure message with every captured record (including structured state and scope content) when the chain doesn't match:
+The "after" with `LogAssertions.TUnit` is one fluent chain that reads as a single intent and produces a failure message with the captured records (including structured state and scope content) when the chain doesn't match:
 
 ```csharp
 // After: LogAssertions.TUnit:
@@ -181,7 +212,7 @@ Two practical wins on top of the readability:
 - **Failure diagnostics.** The "before" snippet's failure says *"expected 1, got 3"* (or *"expected to contain 'timeout'"*). The "after" snippet's failure renders the full captured-records snapshot: level, category, message, structured state, scope: so you can see *which* three records came through and why none matched, without adding `Console.WriteLine` calls.
 - **Composability.** The same chain extends to scopes (`WithScopeProperty("RequestId", id)`), structured properties (`WithProperty("UserId", 42)`), exception types (`WithException<TimeoutException>()`), and combinator nodes (`MatchingAny(...)`, `Not(...)`) without restructuring the test.
 
-See the [Cookbook](#cookbook--common-patterns) for the patterns this replaces in practice.
+See the [Cookbook](#cookbook-common-patterns) for the patterns this replaces in practice.
 
 ### Prefer structured matchers over substring matching
 
@@ -203,20 +234,69 @@ See the [Cookbook](#cookbook--common-patterns) for the patterns this replaces in
 
 ## Entry points
 
-Four core entry points are emitted by TUnit's source generator and surface as extension methods on `Assert.That(FakeLogCollector)`.
+Five core entry points are emitted by TUnit's source generator and surface as extension methods on `Assert.That(FakeLogCollector)`.
 
 | Entry point | Default expectation | Terminators allowed |
 |---|---|---|
-| `HasLogged()` | At least 1 matching record | All count terminators (see below) |
+| `HasLogged()` | At least 1 matching record | All count terminators and `AtMostOncePer` (see below) |
 | `HasNotLogged()` | Zero matching records | None: fixed at zero |
 | `HasLoggedSequence()` | An ordered series of matches; `Then()` separates steps, or `Step(definition)` *(v0.12.0+)* adds a typed step | None: each step's match is implicit |
 | `HasLoggedOnly(floor)` *(v0.12.0+)* | Nothing at or above `floor` other than the definitions passed to `Allowing(...)` | None: `Allowing(...)` sets the allowlist |
+| `WillLog(timeout, cancellationToken)` *(v0.14.0+)* | At least 1 matching record, waiting until it arrives | `Once()`, `Exactly(n)`, `AtLeast(n)`, `Between(min, max)` (counts of at least 1), `GetMatch()`, `GetMatches()` |
 
-The first three accept the full filter chain. `HasLogged()` is the workhorse; `HasNotLogged()` is its inverse with cleaner failure semantics; `HasLoggedSequence()` is for multi-step traces (e.g. *"Started -> Validation failed -> Stopped"*).
+All but `HasLoggedOnly` accept the full filter chain. `HasLogged()` is the workhorse; `HasNotLogged()` is its inverse with cleaner failure semantics; `HasLoggedSequence()` is for multi-step traces (e.g. *"Started -> Validation failed -> Stopped"*); `WillLog()` waits for a record that background work logs later.
+
+### Waiting for background work: `WillLog` (v0.14.0+)
+
+```csharp
+await Assert.That(collector).WillLog(TimeSpan.FromSeconds(5), cancellationToken)
+    .AtLevel(LogLevel.Warning)
+    .Containing("would collide", StringComparison.Ordinal)
+    .Once();
+```
+
+`WillLog` is the event-driven form of `HasLogged()`: it waits on `FakeLogCollector.GetLogsAsync`, the stream `WaitForLogAsync` uses (no polling, no real-time delay). The count is read from the collector right after the minimum number of matching records has been captured. Records captured by then count, including ones logged before the assertion ran. A record that arrives after the assertion has passed isn't checked: to pin "no more than one", assert `HasLogged()...Once()` after the work has settled. The assertion fails when that count is above the maximum, and when `timeout` or the token ends the wait it fails with the same diagnostics as `HasLogged()`: the expectation, the count, and the captured records. A chain whose levels all sit below the collector's capture floor fails at once, since no such record can arrive.
+
+- The `timeout` is required and is the bound; the token is optional. It is real time, and it starts when the assertion runs (at `await`), not when the chain is built. Choose a timeout below the test's own `[Timeout]`, so the wait fails with its own diagnostics first.
+- A wait proves that records arrived, not that no more follow, so there is no `Never()` or `AtMost(n)`. For absence, use `HasNotLogged()` after the work has finished.
+- `GetMatch()` / `GetMatches()` run the assertion and return the matches, as on `HasLogged()`.
+
+#### `WillLog` with a fake clock
+
+When the background work waits on a fake clock, the wait must already run while the test advances the clock. Start the assertion, advance, then await it. With `AdvanceOnEachTimerUntilAsync` from [TimeAssertions](#pair-with) 0.11.0 or later, which awaits the task it is given, one line does it:
+
+```csharp
+await clock.AdvanceOnEachTimerUntilAsync(WaitForCollisionAsync(), step, cancellationToken);
+
+async Task WaitForCollisionAsync() =>
+    await Assert.That(logs.Collector).WillLog(TimeSpan.FromSeconds(5), cancellationToken)
+        .AtLevel(LogLevel.Warning).Containing("would collide", StringComparison.Ordinal).Once();
+```
+
+Before TimeAssertions 0.11.0, `AdvanceOnEachTimerUntilAsync` advances until the task completes but does not observe its outcome, so a failed `WillLog` would be dropped and the test would pass. Await the task again:
+
+```csharp
+var logged = WaitForCollisionAsync();
+await clock.AdvanceOnEachTimerUntilAsync(logged, step, cancellationToken);
+await logged; // rethrows WillLog's failure message if the record did not come
+```
+
+- The chain sits in a local function that awaits it, because TUnit's analyzer (`TUnitAssertions0002`, an error) requires every `Assert.That(...)` to be awaited; storing the task of `.AssertAsync()` or `.GetMatch()` in a variable does not compile under it. For the record itself, make the local function return `Task<FakeLogRecord>` with `.Once().GetMatch()`.
+- With a plain `FakeTimeProvider`, start the task, call `clock.Advance(...)`, then await the task.
+- The `timeout` stays real time: it bounds how long the test waits, not how much fake time passes.
+
+### Clocks (v0.14.0+)
+
+Two clocks are involved, and each member says which one it reads. **Record timestamps** (`FakeLogRecord.Timestamp`) come from the collector's clock: the system clock, unless the capture is built with one, `LogCollectorBuilder.Create(timeProvider)` or `TestOutputLogCollectorBuilder.CreateTeed(timeProvider)` (or a `FakeLogCollector` created with `FakeLogCollectorOptions.TimeProvider` and passed to `AddFakeLogging`). `AtMostOncePer` and the times in `DumpToTestOutputOnFailure` read these timestamps, so they follow a fake clock. **`WillLog`'s `timeout`** is real time (`TimeProvider.System`) whatever the collector's clock: it bounds how long the test waits for real background work.
+
+```csharp
+var clock = new FakeTimeProvider();
+await using var logs = LogCollectorBuilder.Create(clock);   // record timestamps follow the fake clock
+```
 
 ### The log gate: `HasLoggedOnly` (v0.12.0+)
 
-The other three assert that an *expected* record is present. The gate asserts that no **unexpected**
+The other entry points assert that an *expected* record is present. The gate asserts that no **unexpected**
 one is, which is the check most suites are missing:
 
 ```csharp
@@ -382,7 +462,7 @@ Scopes are values pushed via `logger.BeginScope(...)`. They surround any log rec
 | `WithScopeProperty(string key)` *(v0.7.0+)* | A scope contains a property `key`, regardless of its value (a `null` value still counts as present). For scope values set internally and unknown to the test, such as caller-info scopes. Pairs with `HasNotLogged().WithScopeProperty(key)`. |
 | `WithScopeProperty<T>(string key, T value)` *(v0.6.0+)* | Typed match: the scope value is a `T` equal to `value` (compared via `EqualityComparer<T>.Default`). A scope value of a different runtime type never matches. |
 | `WithScopeProperty<T>(string key, Func<T, bool> predicate)` *(v0.6.0+)* | Typed predicate: the scope value is a `T` satisfying the predicate. |
-| `WithScopeProperties(IDictionary<string, object?> required)` *(v0.4.0+)* | Subset match across all active scopes: every key/value pair in `required` must match in some scope, but different pairs may match in different scopes. Empty dictionary matches every record (vacuous truth). |
+| `WithScopeProperties(IReadOnlyDictionary<string, object?> required)` *(v0.4.0+)* | Subset match across all active scopes: every key/value pair in `required` must match in some scope, but different pairs may match in different scopes. Empty dictionary matches every record (vacuous truth). |
 
 Chaining `WithScopeProperty` calls matches each key independently across all active scopes: `.WithScopeProperty("a", 1).WithScopeProperty("b", 2)` accepts a record where `a=1` is in some scope **and** `b=2` is in some scope, not necessarily the same one. To require both on a single scope, push them in one `BeginScope(dictionary)`; to require a set of pairs as a subset across scopes, use `WithScopeProperties(dictionary)`.
 
@@ -568,14 +648,18 @@ What this buys:
   `log => MyHost<int>.Started(log, ...)`; identity is shared across closings), but a non-generic
   holder is the better shape: see [Where your definitions must live](#where-your-loggermessage-definitions-must-live).
 - Plain `logger.LogInformation("template {X}", x)` calls capture too, keyed on the template
-  with event ID zero.
+  with event ID zero. A call with a custom state object (not a key/value list) captures with no
+  template and no properties *(v0.14.0+; it used to throw `InvalidCastException`)*.
 
 Practical notes:
 
-- A definition declared `private` in production code is not invocable from the test project;
-  promote it to `internal` and expose it via `[InternalsVisibleTo]` (production code never
-  references this package: the capture executes the production logging method in the test
-  process only).
+- A definition declared `private` in production code is not invocable from the test project, so
+  `LogDefinition.Capture` cannot call it. Either match its records without the definition, by
+  `WithEventId(int)` and `WithEventName(string)` on `HasLogged()` / `HasNotLogged()` (both are
+  set by the `[LoggerMessage]` attribute and the method name), or promote it to `internal` and
+  expose it via `[InternalsVisibleTo]` (production code never references this package: the
+  capture executes the production logging method in the test process only). The
+  `HasLoggedOnly` gate allows definitions, so a method you allow there must be `internal`.
 - Identity matching is broader than a substring pinned to one specific value: on a collector
   shared across tests, correlate with `WithProperty(...)` or clear the collector between tests.
 - Two definitions with the same method name and template (in different classes, both with
@@ -624,7 +708,7 @@ await Assert.That(collector).HasLogged().WithFilter(CriticalDbError).AtLeast(1);
 ### Conditional configuration (`When`)
 
 ```csharp
-// In a parameterised test, fold a boolean branch into the chain
+// In a parameterized test, fold a boolean branch into the chain
 // instead of duplicating the entire await:
 await Assert.That(collector).HasLogged()
     .AtLevel(LogLevel.Warning)
@@ -636,7 +720,7 @@ await Assert.That(collector).HasLogged()
 
 ## Terminators (`HasLogged` only)
 
-Terminators express the count expectation. Pick exactly one: chain it after all filters. `HasNotLogged` has no terminators (the expectation is fixed at zero matches).
+Terminators express the count expectation. Pick exactly one: chain it after all filters. `HasNotLogged` has no terminators (the expectation is fixed at zero matches). `WillLog` takes the counts of at least 1 ([see above](#waiting-for-background-work-willlog-v0140)).
 
 | Terminator | Match count expectation |
 |---|---|
@@ -645,14 +729,26 @@ Terminators express the count expectation. Pick exactly one: chain it after all 
 | `AtLeast(int count)` | At least N (inclusive) |
 | `AtMost(int count)` | At most N (inclusive) |
 | `Between(int min, int max)` | Inclusive range `[min, max]` |
-| `Never()` | Exactly 0 (semantic synonym for `HasNotLogged()`) |
+| `Never()` | Exactly 0 (the same check as `HasNotLogged()`) |
 
 ```csharp
 await Assert.That(collector).HasLogged().AtLevel(LogLevel.Warning).Between(1, 5);
 await Assert.That(collector).HasLogged().WithEventId(42).Never();
 ```
 
-**`Never()` vs `HasNotLogged()`: when to use which.** They produce identical assertions; the only difference is reading order. **Prefer `HasNotLogged()`** when "this should not happen" is the primary intent of the test (the negative is the headline). **Use `.Never()`** when you've already started building a positive filter chain and only at the end realize you expect zero matches: saves rewriting the prefix. Don't agonize over the choice; either reads clearly to a future maintainer.
+**`Never()` vs `HasNotLogged()`: when to use which.** They check the same thing, including the capture-floor guard below; the only difference is reading order. **Prefer `HasNotLogged()`** when "this should not happen" is the primary intent of the test (the negative is the headline). **Use `.Never()`** when you've already started building a positive filter chain and only at the end realize you expect zero matches: saves rewriting the prefix. Don't agonize over the choice; either reads clearly to a future maintainer.
+
+**Counts and the capture floor (v0.14.0+).** A count that admits zero (`Never()`, `AtMost(n)`, `Exactly(0)`, `Between(0, n)`) is an absence check. When every level the chain targets sits below the collector's capture floor, nothing at those levels was ever captured, so the check fails as vacuous instead of passing for the wrong reason, as `HasNotLogged()` does. A chain that needs a match names the floor in its failure for the same reason.
+
+### Rate-limited records: `AtMostOncePer` (v0.14.0+)
+
+A service that logs a recurring condition at most once per interval (a full queue once per minute) is checked from the records' timestamps, that is, the collector's [clock](#clocks-v0140) (a fake one when the capture is built with `LogCollectorBuilder.Create(timeProvider)`):
+
+```csharp
+await Assert.That(collector).HasLogged().Matching(QueueFull).AtMostOncePer(TimeSpan.FromMinutes(1));
+```
+
+Every gap between consecutive matching records, ordered by `FakeLogRecord.Timestamp`, must be at least the interval: two records exactly the interval apart pass, one tick less fails. The failure names the first pair that was too close, with both timestamps, the gap, and how many gaps were too short. `AtMostOncePer` constrains the spacing only: `HasLogged()` still needs at least one match, so combine it with a count that admits zero (`.AtMost(10).AtMostOncePer(...)`) when none is fine, or with any other count (`.AtLeast(2).AtMostOncePer(...)`), in either order.
 
 ### Value-returning terminators (`GetMatch` / `GetMatches`)
 
@@ -688,6 +784,8 @@ await Assert.That(retries).Count().IsEqualTo(3);
 
 The returned list from `.GetMatches()` is a defensive snapshot captured at evaluation time; it isn't bound to the live collector.
 
+Inside `Assert.Multiple()`, TUnit records a failed assertion instead of throwing it, so there is no match to return. `.GetMatch()` and `.GetMatches()` (also on `WillLog`) then throw `InvalidOperationException`, whose message names the failure; the scope still reports the original failure when it ends.
+
 ---
 
 ## Sequence assertions: `HasLoggedSequence`
@@ -708,7 +806,7 @@ Semantics:
 - The walk is **order-preserving but not contiguous**: records between matches are skipped.
 - `Then()` commits the current step's filters and starts a new step.
 - Each step's filters AND-combine, exactly like the single-match assertions.
-- A step with no filters always matches the next available record (use sparingly).
+- A step with no filters is a no-op: it neither matches nor consumes a record, so `.Then().Then()` acts as one separator.
 - Failure diagnostics indicate which step failed and dump the full captured-records list (see [Failure diagnostics](#failure-diagnostics)).
 
 ### Concurrent steps: `ThenAnyOrder` (v0.4.0+)
@@ -749,7 +847,7 @@ await Assert.That(collector)
     .And.HasNotLogged().AtLevel(LogLevel.Error);
 ```
 
-For three-or-more conditions, prefer the dedicated [`AssertAllAsync`](#batch-assertions--assertallasync-and-assertmultiple-interop) batch terminator: it aggregates failures into a single message rather than failing fast on the first.
+For three-or-more conditions, prefer the dedicated [`AssertAllAsync`](#batch-assertions-assertallasync-and-assertmultiple-interop) batch terminator: it aggregates failures into a single message rather than failing fast on the first.
 
 **`.Or` is rarely useful for log assertions.** "Either no errors were logged OR a specific recovery was logged" is a contrived shape; in practice tests want both, not either. The mechanism is available via TUnit if you need it, but the cookbook below shows no examples because the use case is genuinely uncommon. If you find yourself reaching for `.Or`, consider whether `MatchingAny(...)` (an OR of *filters*, not whole assertions) expresses the intent more clearly.
 
@@ -770,9 +868,9 @@ await Assert.That(collector).AssertAllAsync(
         .Then().Containing("Stopped", StringComparison.Ordinal));
 ```
 
-If two of three fail, the thrown exception's message lists both: not just the first.
+If two of three fail, the thrown exception's message lists both: not just the first. When exactly one fails, its own exception is rethrown as is.
 
-A second overload (added in 0.2.1) accepts the more verbose `async c => await c.HasLogged()...` form for cases where the lambda needs to mix in non-assertion async work between checks. Pick whichever is clearer for the case at hand; both have identical failure-aggregation semantics.
+The original overload (0.2.0) accepts the more verbose `async c => await c.HasLogged()...` form for cases where the lambda needs to mix in non-assertion async work between checks; the form shown above uses the overload added in 0.2.1. Pick whichever is clearer for the case at hand; both have identical failure-aggregation semantics.
 
 **`Assert.Multiple`: TUnit's general-purpose batch.** Works cleanly with our chains too. Useful when a test mixes log assertions with non-log assertions (e.g. assert on the return value of the system-under-test AND on what it logged):
 
@@ -814,16 +912,17 @@ A failure renders both the captured-records snapshot AND the reason, so the next
 
 ## Non-asserting inspection
 
-Sometimes a test wants to inspect what was logged without asserting: for further calculations, debugging output, or cross-checking. The core package adds three extensions on `FakeLogCollector`; the TUnit adapter package adds one more bound to TUnit's per-test output writer.
+Sometimes a test wants to inspect what was logged without asserting: for further calculations, debugging output, or cross-checking. The core package adds three extensions on `FakeLogCollector`; the TUnit adapter package adds two more bound to TUnit's per-test output writer.
 
 | Method | Package | Returns |
 |---|---|---|
 | `Filter(params ILogRecordFilter[] filters)` | `LogAssertions` | The matching records as a defensive `IReadOnlyList<FakeLogRecord>` |
-| `CountMatching(params ILogRecordFilter[] filters)` | `LogAssertions` | Just the match count (no list materialisation) |
+| `CountMatching(params ILogRecordFilter[] filters)` | `LogAssertions` | Just the match count (no list materialization) |
 | `DumpTo(TextWriter writer)` | `LogAssertions` | Writes every captured record in the failure-message format (Default verbosity) |
 | `DumpTo(TextWriter writer, DumpVerbosity verbosity)` *(v0.4.0+)* | `LogAssertions` | Verbosity-controlled dump. See [Dump verbosity](#dump-verbosity-v040). |
 | `DumpToTestOutput()` | `LogAssertions.TUnit` | Same as `DumpTo`, targeting `TestContext.Current.Output.StandardOutput` |
 | `DumpToTestOutput(DumpVerbosity verbosity)` *(v0.4.0+)* | `LogAssertions.TUnit` | Verbosity-controlled variant. |
+| `DumpToTestOutputOnFailure()`, `DumpToTestOutputOnFailure(DumpVerbosity verbosity)` *(v0.14.0+)* | `LogAssertions.TUnit` | Writes the records captured since the call to the test's output, with timestamps, only when the test does not pass. Needs the [lifetime attribute](#setup-the-test-lifetime-attribute-v0140). See [the cookbook](#write-the-logs-of-a-test-that-did-not-pass). |
 
 ```csharp
 // Inspect without asserting
@@ -870,18 +969,19 @@ The exact text produced by each level is documented as **not stable** (consisten
 
 ## Failure diagnostics
 
-On a failed assertion the `AssertionException` message includes:
+On a failed count assertion (`HasLogged()`, `HasNotLogged()`, `WillLog()`) the `AssertionException` message includes:
 
 1. The expectation (terminator + filter summary)
 2. The actual match count
-3. A snapshot of every captured record, with **4-character level abbreviation** (matching the `Microsoft.Extensions.Logging` console formatter), category, message, structured properties, active scopes, and exception details
+3. A snapshot of the captured records, with **4-character level abbreviation** (matching the `Microsoft.Extensions.Logging` console formatter), category, message, structured properties, active scopes, and exception details. Since v0.14.0 the snapshot shows the last 50 records, after one line `(N earlier record(s) not shown)` when there are more; a long run's collector can hold thousands, and the latest ones are the context of the failure. The explicit dumps (`DumpTo`, `DumpToTestOutput`, `DumpToTestOutputOnFailure`) write every record.
 
-Example failure output:
+A sequence failure names the step that did not match instead of a count; a `HasLoggedOnly` failure lists the records that escaped the allowlist (capped the same way) and the allowlist; a capture-floor failure explains the floor instead of showing a snapshot.
+
+Example failure output (the shape is real; the records are illustrative):
 
 ```
-Expected: exactly 1 log record(s) to have been logged matching: Level = Warning, Message contains "timeout"
-
-3 record(s) matched
+Expected exactly 1 log record(s) to have been logged matching: Level = Warning, Message contains "timeout" (Ordinal)
+but 3 record(s) matched
 
 Captured records (5 total):
   [info] MyApp.Worker: Started cycle 1
@@ -899,6 +999,8 @@ Captured records (5 total):
   [info] MyApp.Worker: Cycle batch finished
     scope: RequestId=abc-123
     exception: TimeoutException: Connection timed out
+
+at Assert.That(collector).HasLogged().AtLevel(Warning).Containing("timeout", Ordinal).Once()
 ```
 
 Level abbreviations: `trce`, `dbug`, `info`, `warn`, `fail`, `crit` (matching MEL's console formatter; `none` for `LogLevel.None`).
@@ -917,21 +1019,28 @@ await Assert.That(collector).HasNotLogged().AtLevelOrAbove(LogLevel.Error);
 
 ### Wait for a log produced by background work
 
-Background- or pump-driven logs (a `BackgroundService`, a timer, a fire-and-forget handler) can land after the call that triggered them returns, so a synchronous `HasLogged()` races the producer and flakes. Wait for the record itself (v0.13.0+):
+Background- or pump-driven logs (a `BackgroundService`, a timer, a fire-and-forget handler) can land after the call that triggered them returns, so a synchronous `HasLogged()` races the producer and flakes. Assert that the record **will** be logged (v0.14.0+):
 
 ```csharp
-// Returns the moment a matching record is logged; already-logged records count.
+// Passes once a matching record is captured; already-logged records count.
+await Assert.That(collector).WillLog(TimeSpan.FromSeconds(5), cancellationToken)
+    .Containing("dead-lettered", StringComparison.OrdinalIgnoreCase)
+    .Once();
+```
+
+`WillLog` takes the same filters as `HasLogged()` and fails with the same diagnostics when the wait ends ([details](#waiting-for-background-work-willlog-v0140)). It replaces polling the collector with TUnit's `Eventually`, and the `TimeSpan` bound of such a poll carries over: `Assert.That(() => collector).Eventually(c => c.HasLogged()...Once(), TimeSpan.FromSeconds(5), cancellationToken)` becomes `Assert.That(collector).WillLog(TimeSpan.FromSeconds(5), cancellationToken)...Once()`.
+
+When the code needs the record rather than an assertion (to hand it to the next step, or as the condition of a fake-clock helper), wait for it with the core extension (v0.13.0+):
+
+```csharp
 var record = await collector.WaitForLogAsync(
     LogFilter.Containing("dead-lettered", StringComparison.OrdinalIgnoreCase),
     cancellationToken);
-
-// Then assert as usual: the record is there now.
-await Assert.That(collector).HasLogged().Containing("dead-lettered", StringComparison.OrdinalIgnoreCase).Once();
 ```
 
-`WaitForLogAsync` takes any `ILogRecordFilter` (compose them with `LogFilter.All` / `Any` / `Not`) or a `Func<FakeLogRecord, bool>`, and `WaitForLogsAsync(filter, count, cancellationToken)` waits for several. They are built on `FakeLogCollector.GetLogsAsync`, so they wake on each new record: no polling interval, no real-time delay, and no cost when the record is already there. The token is the only bound and is required; pass the test's token, or a linked source with a timeout. On cancellation the `OperationCanceledException` says how many records arrived and how many matched.
+`WaitForLogAsync` takes any `ILogRecordFilter` (compose them with `LogFilter.All` / `Any` / `Not`) or a `Func<FakeLogRecord, bool>`, and `WaitForLogsAsync(filter, count, cancellationToken)` waits for several. Both waits are built on `FakeLogCollector.GetLogsAsync`, so they wake on each new record: no polling interval, no real-time delay, and no cost when the record is already there. Here the token is the only bound and is required; pass the test's token, or a linked source with a timeout. On cancellation the `OperationCanceledException` says how many records arrived and how many matched.
 
-A wait proves that a record arrived; it cannot prove that one did not. For "has not logged", let the work finish first (await its completion, or wait for the log that marks the end of the step) and then assert `HasNotLogged()`. For an arbitrary condition on the collector that no single record signals, TUnit's `Eventually` / `WaitsFor` still polls an assertion chain.
+A wait proves that a record arrived; it cannot prove that one did not. For "has not logged", let the work finish first (await its completion, or wait for the log that marks the end of the step) and then assert `HasNotLogged()`.
 
 ### Assert a specific call site was hit
 
@@ -989,33 +1098,56 @@ await Assert.That(collector).HasLogged()
 ### Set up the collector in one line
 
 ```csharp
-var (factory, collector) = LogCollectorBuilder.Create();
-using (factory)
-{
-    var logger = factory.CreateLogger("MyService");
-    new MyService(logger).DoWork();
-    await Assert.That(collector).HasLoggedOnce().Containing("done", StringComparison.Ordinal);
-}
+await using var logs = LogCollectorBuilder.Create();
+new MyService(logs.CreateLogger("MyService")).DoWork();
+await Assert.That(logs.Collector).HasLoggedOnce().Containing("done", StringComparison.Ordinal);
 ```
 
-`Create(minimumLevel)` sets a capture floor. A `HasNotLogged()` whose level filters target only levels below that floor is rejected as vacuous (it would otherwise pass for the wrong reason, since nothing at that level was ever captured): the failure says so and names the floor. Assert at a captured level, or lower the floor.
+`Create(minimumLevel)` sets a capture floor. An absence check (`HasNotLogged()`, or a `HasLogged()` count that admits zero) whose level filters target only levels below that floor is rejected as vacuous (it would otherwise pass for the wrong reason, since nothing at that level was ever captured): the failure says so and names the floor. Assert at a captured level, or lower the floor.
 
 ### Mirror logs into the test report (`CreateTeed`)
 
-`LogCollectorBuilder.Create()` captures into the collector but writes nothing to the test's output, so a passing unit test shows an empty log panel in the TUnit HTML report. `TestOutputLogCollectorBuilder.CreateTeed()` (in `LogAssertions.TUnit`) adds a provider that mirrors each record to `TestContext.Current.Output` as it is logged, while still capturing for assertions:
+`LogCollectorBuilder.Create()` captures into the collector but writes nothing to the test's output, so a passing unit test shows an empty log panel in the TUnit HTML report. `TestOutputLogCollectorBuilder.CreateTeed()` (in `LogAssertions.TUnit`) adds a tee that mirrors each record to the test's output as it is logged, while still capturing for assertions:
 
 ```csharp
-var (factory, collector) = TestOutputLogCollectorBuilder.CreateTeed();
-using (factory)
-{
-    var logger = factory.CreateLogger("MyService");
-    new MyService(logger).DoWork();
-    await Assert.That(collector).HasLoggedOnce().Containing("done", StringComparison.Ordinal);
-    // The "done" line also appears inline in this test's report output.
-}
+await using var logs = TestOutputLogCollectorBuilder.CreateTeed();
+new MyService(logs.CreateLogger("MyService")).DoWork();
+await Assert.That(logs.Collector).HasLoggedOnce().Containing("done", StringComparison.Ordinal);
+// The "done" line also appears inline in this test's report output.
 ```
 
-Records logged on a background thread are teed too: the owning test's output writer is captured when `CreateTeed()` runs (on the test's own thread), so off-context records reach the report rather than being dropped (v0.10.0+). Keep the plain `Create()` for log-heavy soak tests where buffering every record in the per-test output is undesirable.
+The tee picks the test for each record when it is logged:
+
+1. the test current at the log call (its own flow, including the thread-pool work it starts);
+2. otherwise the test that was current when the tee was built (its *owner*), while that test runs, so a record logged on a thread with no test context still reaches the report;
+3. otherwise no test: the record is not teed, and when the factory is disposed the tee writes one line, to the test current at that moment (if any), saying how many records it skipped.
+
+With the [lifetime attribute](#setup-the-test-lifetime-attribute-v0140) (v0.14.0+) a test counts as running until its `[After(Test)]` hooks have finished, and a record logged on the flow of a test that has ended is not teed (it does not fall back to the owner). Without it, rule 2 ends when the owner has a result, and rule 1 has no end check. Keep the plain `Create()` for log-heavy soak tests where writing every record to the per-test output is undesirable.
+
+#### Where each record goes
+
+The tee picks the test from the logging code's own context: it cannot know that a record "belongs to" test 2 unless test 2's context is there. With the attribute, for a logger or host shared across tests:
+
+| Record logged | Goes to |
+|---|---|
+| on test 2's own flow (test 2 calls the service, or awaits a task it started; also requests it makes) | test 2 (already so since 0.10.1) |
+| by a loop or `BackgroundService` started inside test 1 | test 1 while test 1 runs; after test 1 has ended it is not teed, and the "N log record(s) were not teed" line counts it. **Never test 2.** |
+| on a thread with no test context (timer, suppressed flow) | the test that built the tee, while it runs; after that not teed, counted |
+| by a host started outside any test (inside `ExecutionContext.SuppressFlow()`) | its own loop records: not teed, counted; records from requests a test makes: that test |
+
+So start a host shared across tests outside any test, and every record a test causes lands in that test. TUnit (1.80) runs the `[Before(Assembly)]`, `[Before(Class)]` and other hooks, and the initialization of shared fixtures, on the flow of the first test that needs them, so a host built and started there counts as started inside that test (the second row). Build and start it inside `ExecutionContext.SuppressFlow()` instead:
+
+```csharp
+Task started;
+using (ExecutionContext.SuppressFlow())
+{
+    host = BuildHost();                              // its tee has no owning test
+    started = host.StartAsync(cancellationToken);    // its loops carry no test context
+}
+await started;
+```
+
+Requests a test makes reach that test when they run on the test's flow, as with an in-memory test server.
 
 #### Wiring into a builder you already own
 
@@ -1028,14 +1160,35 @@ var collector = new FakeLogCollector();
 using var factory = LoggerFactory.Create(b => b.AddTeedFakeLogging(collector, LogLevel.Trace));
 ```
 
-`AddTeedFakeLogging` takes an optional tee `ILoggerProvider`. Configured on the test's own thread the built-in tee binds to that test's output writer, so background-thread records are teed (v0.10.0+). For a logging host shared across many tests - where no single owning test can be captured at configuration time - pass your own provider to correlate each record back to its test, without this package taking a dependency on it:
+`AddTeedFakeLogging` adds the built-in tee with the routing above, owned by the test current when it runs. To add another provider, chain it on the builder; for TUnit's own correlated console output, use `AddCorrelatedTUnit` from the `TUnit.Logging.Microsoft` package (referenced by your test project), which creates its provider itself:
 
 ```csharp
-// CorrelatedTUnitLoggerProvider ships in TUnit.Logging.Microsoft, referenced by your test project.
-b.AddTeedFakeLogging(collector, LogLevel.Trace, new CorrelatedTUnitLoggerProvider(LogLevel.Trace));
+b.AddTeedFakeLogging(collector).AddProvider(myProvider);
+b.AddFakeLogging(collector, LogLevel.Trace).AddCorrelatedTUnit(LogLevel.Trace);
 ```
 
-`AddFakeLogging` is the capture-only variant (no tee). Both set the builder's minimum level and register the capture floor, so the vacuous-`HasNotLogged()` guard applies the same as with `CreateTeed`.
+`AddFakeLogging` is the capture-only variant (no tee). Both set the builder's minimum level and register the capture floor, so the vacuous-absence guard applies the same as with `CreateTeed`.
+
+### Write the logs of a test that did not pass
+
+A soak test or a test against a real broker logs too much to tee every record, but when it fails, its logs are what you need. Arm a dump once, in the test or in a `[Before(Test)]` hook (v0.14.0+; needs the [lifetime attribute](#setup-the-test-lifetime-attribute-v0140)):
+
+```csharp
+private static LogCapture Logs = null!;   // shared by the class, built in [Before(Class)]
+
+[Before(Test)]
+public void ArmLogDump() => Logs.Collector.DumpToTestOutputOnFailure();
+```
+
+When the test ends without passing (it failed, timed out, or was canceled; a skipped test does not count), the records captured since the call are written to the test's output, one timestamp (UTC) per record:
+
+```
+Captured records since the dump was armed (3 of 120 total, times in UTC):
+  08:47:12.345 [warn] Broker: connection lost
+  ...
+```
+
+A test that passes writes nothing. The time on each line is the record's timestamp, from the collector's [clock](#clocks-v0140). The start point is the collector's latest record at the time of the call, not a clock reading, so it is right whatever clock the collector uses; when the collector is cleared after the call, every record is written. The dump is not capped. A retried test arms again in each attempt, and the heading names the attempt (`Captured records of attempt 1 since ...`). Without the attribute the call throws, with a message that names the line to add.
 
 ### Don't use `NullLogger` for code under coverage
 
@@ -1051,6 +1204,12 @@ using var quieter = LogCollectorBuilder.CreateDiscarding(LogLevel.Information);
 ```
 
 `BeginScope` on these loggers returns a shared scope whose disposal does nothing, as `NullLogger` does, so code that requires a scope instance behaves as it does under a production logger. In v0.13.0 it returned `null`, which made such code throw (fixed in v0.13.1).
+
+To keep nothing but still see the logs in the report, `TestOutputLogCollectorBuilder.CreateTeedDiscarding(minimumLevel)` (v0.14.0+, in `LogAssertions.TUnit`) returns the same enabled factory with the [test-output tee](#mirror-logs-into-the-test-report-createteed): the right shape for a fixture or a long-lived host whose logs nobody asserts on.
+
+```csharp
+using var loggerFactory = TestOutputLogCollectorBuilder.CreateTeedDiscarding();
+```
 
 The `FakeLogCollector` itself grows without bound as records accumulate. Scope it per test (the `Create()` / `CreateTeed()` helpers return a fresh one each call); never hold one in a `static readonly` field shared across a reused host.
 
@@ -1138,11 +1297,42 @@ var options = LogSnapshotOptions.Default with
 await Assert.That(LogSnapshotRenderer.Render(collector, options)).MatchesSnapshot();
 ```
 
+### Pin the log contract
+
+When dashboards, log parsers, or analysis scripts read a service's structured log, its contract is the set of event IDs, names, levels, message templates, and placeholder names. Renaming a placeholder breaks every reader without failing a test. `LogContractRenderer.Render(definitions)` (v0.14.0+, in `LogAssertions.Render`) writes one deterministic line per [captured definition](#typed-definition-filters-matching-matchingcall-v0110); composed with `MatchesSnapshot()`, the contract becomes a reviewed baseline, and a renamed placeholder or a reworded template shows as a diff:
+
+```csharp
+var contract = LogContractRenderer.Render([OrderProcessed, OrderShipped, PaymentFailed]);
+await Assert.That(contract).MatchesSnapshot();
+```
+
+```text
+1201 OrderProcessed Information "Order {OrderId} processed in {DurationMs} ms" OrderId,DurationMs
+1202 OrderShipped Information "Order {OrderId} shipped to {City}" OrderId,City
+1300 PaymentFailed Warning "Payment for order {OrderId} failed" OrderId
+```
+
+Each line is the event ID, the event name (`?` when there is none), the level, the template in quotes (`<no template>` when the call carried none), and the placeholder names in template order. Lines are ordered by event ID, then name, template, and level, whatever the input order, and end in LF; there is no header line. In a template, `\`, `"`, CR, LF, and tab are escaped so each definition stays on one line. The renderer reads only the definitions' `Id`, `Level`, `Template`, and `Properties`: no reflection.
+
 ---
 
 ## Troubleshooting
 
-Three issues that surface during early adoption. If you hit something not listed here, please open an issue on the GitHub repo: the FAQ is built from real adoption signal, not from speculation.
+Issues that surface during adoption and upgrades. If you hit something not listed here, please open an issue on the GitHub repo: the FAQ is built from real adoption signal, not from speculation.
+
+### "`var (factory, collector) = LogCollectorBuilder.Create();` no longer compiles"
+
+**Symptom:** `error CS0619: ... LogCollectorBuilder.Create() and TestOutputLogCollectorBuilder.CreateTeed() return a LogCapture: use 'await using var logs = ...;' ('using var' in synchronous code), then logs.Collector.`
+
+**Cause:** since v0.14.0, `Create()` and `CreateTeed()` return a `LogCapture`, not a tuple.
+
+**Fix:** `using var logs = LogCollectorBuilder.Create();` (`await using var` in async code), then `logs` is the factory and `logs.Collector` the collector. See [Upgrading to v0.14.0](#upgrading-to-v0140).
+
+### "`DumpToTestOutputOnFailure()` throws `InvalidOperationException`"
+
+**Cause:** the test project does not apply the lifetime attribute, so the package cannot see the test end; the call ran after the test had ended (for example from a background loop); or it ran where no test is current (`TestContext.Current` was `null`). Each case has its own message.
+
+**Fix:** add `[assembly: LogAssertions.TUnit.LogAssertionsTestLifetime]` once to the test project (the exception message names the line), and call the method in the test or a `[Before(Test)]` hook. See [Setup](#setup-the-test-lifetime-attribute-v0140).
 
 ### "Shorthands like `HasLoggedOnce()` don't resolve in my test file"
 
@@ -1158,7 +1348,7 @@ Three issues that surface during early adoption. If you hit something not listed
 
 **Cause:** these types live in the framework-agnostic `LogAssertions` namespace (the core package). Unlike the assertion entry points, they do NOT auto-import: they need an explicit `using LogAssertions;`.
 
-**Fix:** add `using LogAssertions;` at the top of the file, or: if many test files use them: add `global using LogAssertions;` to a `GlobalUsings.cs` per the [Namespaces](#namespaces-and-a-globalusingscs-recommendation) section. The recommended GlobalUsings snippet there covers every namespace the test project will need.
+**Fix:** add `using LogAssertions;` at the top of the file, or: if many test files use them: add `global using LogAssertions;` to a `GlobalUsings.cs` per the [Namespaces](#namespaces-and-a-globalusingscs-recommendation) section. The recommended GlobalUsings snippet there covers the core namespaces; add `LogAssertions.TUnit` (the tee builders, `DumpToTestOutput*`, `AssertAllAsync`) and `LogAssertions.Render` (the renderers) where you use them.
 
 ### "`IDE0005: Using directive is unnecessary` on `using LogAssertions;` in some test files"
 
@@ -1172,8 +1362,8 @@ Three issues that surface during early adoption. If you hit something not listed
 
 ## Design notes
 
-- **Built on `[AssertionExtension]`** ([thomhurst/TUnit#5785](https://github.com/thomhurst/TUnit/pull/5785)): the entry-point methods are emitted by TUnit's source generator. No extension-method wrappers needed.
-- **No cross-package coupling.** This package depends on `TUnit.Assertions` and `Microsoft.Extensions.Diagnostics.Testing`. Neither of those depends on the other; this library is the bridge.
+- **Built on `[AssertionExtension]`** ([thomhurst/TUnit#5785](https://github.com/thomhurst/TUnit/pull/5785)): the entry-point methods are emitted by TUnit's source generator; the shorthands are thin hand-written wrappers over them.
+- **No cross-package coupling.** This package depends on `TUnit.Assertions`, `TUnit.Core`, and (through the core) `Microsoft.Extensions.Diagnostics.Testing`. Neither TUnit nor the Microsoft testing package depends on the other; this library is the bridge.
 - **AOT-compatible / trimmable.** `IsAotCompatible=true`, `IsTrimmable=true`, `EnableTrimAnalyzer=true`. No reflection in the assertion path. Scope-property matching uses interface casts only, never reflection.
 - **TFM: current LTS.** Targets `net10.0` today, multi-targeting the current STS while one exists (never long historical tails). A test project may target a higher TFM than the production code it references. See `CONVENTIONS.md` for the schedule.
 - **Explicit `StringComparison`.** Every string-matching API requires the caller to pass a `StringComparison` (or uses `Ordinal` internally where unambiguous). No silent culture defaults.
@@ -1187,29 +1377,32 @@ Per [SemVer](https://semver.org/), the `0.x` series is initial development: anyt
 
 **Intended-stable (we will not break these without a CHANGELOG-flagged reason and a clear migration path):**
 
-- The three entry-point methods on `IAssertionSource<FakeLogCollector>`: `HasLogged()`, `HasNotLogged()`, `HasLoggedSequence()`.
-- The top-level shorthand entry points (`HasLoggedOnce`, `HasLoggedExactly`, `HasLoggedNothing`, `HasLoggedWarningOrAbove`, etc.).
-- The fluent chain methods on `HasLoggedAssertion`, `HasNotLoggedAssertion`, `HasLoggedSequenceAssertion`: every named filter (`AtLevel`, `Containing`, `WithCategory`, `WithException`, `WithInnerException`, `WithInnerExceptionMessage`, `WithScopeProperty`, `WithScopeProperties`, etc.), every terminator (`Once`, `Exactly`, `Between`, `GetMatch`, `GetMatches`, etc.), the sequence-step combinators (`Then`, `ThenAnyOrder`), and the combinator methods (`WithFilter`, `MatchingAny`, `MatchingAll`, `Not`, `When`).
-- The `ILogRecordFilter` interface and the `LogFilter` static factory's public methods.
-- The `LogCollectorBuilder.Create` factory.
-- The `FakeLogCollector` extension methods: `Filter`, `CountMatching`, `DumpTo`, `AssertAllAsync`.
+- The five entry-point methods on `IAssertionSource<FakeLogCollector>`: `HasLogged()`, `HasNotLogged()`, `HasLoggedSequence()`, `HasLoggedOnly(floor)`, and `WillLog(timeout, cancellationToken)`.
+- The top-level shorthand entry points (`HasLoggedOnce`, `HasLoggedExactly`, `HasLoggedNothing`, `HasLoggedWarningOrAbove`, etc.) and `AssertAllAsync`.
+- The fluent chain methods on `HasLoggedAssertion`, `HasNotLoggedAssertion`, `HasLoggedSequenceAssertion`, `HasLoggedOnlyAssertion`, and `WillLogAssertion`: every named filter (`AtLevel`, `Containing`, `WithCategory`, `WithException`, `WithInnerException`, `WithInnerExceptionMessage`, `WithScopeProperty`, `WithScopeProperties`, etc.), every terminator (`Once`, `Exactly`, `Between`, `AtMostOncePer`, `GetMatch`, `GetMatches`, etc.), the sequence-step combinators (`Then`, `ThenAnyOrder`, `Step`), and the combinator methods (`WithFilter`, `MatchingAny`, `MatchingAll`, `Not`, `When`).
+- The `ILogRecordFilter` interface, the `LogFilter` static factory's public methods, and `LogDefinition`.
+- `LogCapture` and the factories: `LogCollectorBuilder.Create` (with and without a `TimeProvider`) / `CreateDiscarding`, `TestOutputLogCollectorBuilder.CreateTeed` (with and without a `TimeProvider`) / `CreateTeedDiscarding`, and the `AddFakeLogging` / `AddTeedFakeLogging` builder extensions.
+- The `LogAssertionsTestLifetime` attribute.
+- The `FakeLogCollector` extension methods: `Filter`, `CountMatching`, `DumpTo`, `WaitForLogAsync`, `WaitForLogsAsync`, `DumpToTestOutput`, `DumpToTestOutputOnFailure`.
+- The rendering types and their members: `LogSnapshotRenderer`, `LogContractRenderer`, `LogSnapshotOptions` and its style enums, `DumpVerbosity`, and the public methods of `LogAssertionRendering` (their names and signatures; the text that `LogAssertionRendering` writes is covered below).
+- The output of `LogSnapshotRenderer` and `LogContractRenderer`: committed baselines depend on it, so any change to it is listed as breaking in the CHANGELOG.
 
 **Explicitly unstable (will change without notice, do not depend on):**
 
-- `LogAssertionBase<TSelf>` and its protected/internal members. The type is `public` only because the CRTP pattern requires it (C# does not allow public classes to inherit from internal); it is annotated `[EditorBrowsable(Never)]` and is **not** a supported derivation point. Treat it as a sealed implementation detail of the three public assertion classes.
+- `LogAssertionBase<TSelf>` and its protected/internal members. The type is `public` only because the CRTP pattern requires it (C# does not allow public classes to inherit from internal); it is annotated `[EditorBrowsable(Never)]` and is **not** a supported derivation point. Treat it as a sealed implementation detail of the public assertion classes.
 - The internal filter classes (`PredicateFilter`, `AndFilter`, `OrFilter`, `NotFilter`). These live behind `ILogRecordFilter` and the `LogFilter` factory.
-- The exact format of failure-message snapshot text rendered by `LogAssertionRendering` and exposed via `DumpTo`. The rendering may gain extra detail or change formatting in any release. **Do not pin exact failure-message text in tests**: pin filter match counts and broad markers (e.g. `Contains("[warn]")`) only.
+- The exact format of failure-message snapshot text rendered by `LogAssertionRendering` and exposed via `DumpTo`, including how many records a failure message shows. The rendering may gain extra detail or change formatting in any release. **Do not pin exact failure-message text in tests**: pin filter match counts and broad markers (e.g. `Contains("[warn]")`) only.
 - The `CompatibilitySuppressions.xml` file is a build artifact tracking baseline acceptance, not part of the API contract.
 
 ---
 
 ## Limitations and future work
 
-The current surface covers the common cases: composable filters, count terminators, sequence assertions (strict and concurrent), scope-property matching, batch assertions, and the `LogSnapshotRenderer` for pinning a full log sequence. Everything below is a demand-driven backlog; nothing is committed.
+The current surface covers the common cases: composable filters, count terminators, rate limits (`AtMostOncePer`), sequence assertions (strict and concurrent), scope-property matching, batch assertions, waits for background work (`WillLog`, `WaitForLogAsync`), and the `LogSnapshotRenderer` and `LogContractRenderer` for pinning a full log sequence or a log contract. Everything below is a demand-driven backlog; nothing is committed.
 
-- **Filters:** time-based (`WithElapsedTime`, `WithTimestamp`, sequence gaps), `DescribedAs` labels. (Waiting for background work is covered by `WaitForLogAsync`.)
+- **Filters:** time-based (`WithElapsedTime`, `WithTimestamp`, gaps between sequence steps), `DescribedAs` labels.
 - **Sequence:** `ThenImmediately`, `NotInterleaved`, `InOrder`, `HasNotLoggedSequence`, cursor control (`FromNewest` / `SinceLastAssert`).
-- **Bigger pieces:** a `[LoggerMessage]`-derived typed-assertion source generator, `ToVerifyString()` golden files, and `LogAssertions.NUnit` / `.xUnit` / `.MSTest` adapters (the core already supports them; built on request).
+- **Bigger pieces:** a `[LoggerMessage]`-derived typed-assertion source generator and `ToVerifyString()` golden files. Adapters for other test frameworks are not planned; the family targets TUnit.
 
 Declined by design: an analyzer policing our own API, and silently injecting global usings via a package `.props` file. Out of scope for AOT: anonymous-object scope inspection and JSON matching.
 
@@ -1232,13 +1425,13 @@ For per-package release notes:
 
 ## Pair with
 
-- **[`TimeAssertions.TUnit`](https://www.nuget.org/packages/TimeAssertions.TUnit/)**: `FakeTimeProvider` state assertions, `TimeProvider`-aware `DateTimeOffset` recency / past / future checks, and the cross-cutting `.And.WithinTimeBudget(TimeSpan)` chain extension. Compose with `HasLogged()` to add a timing budget to log assertions.
-- **[`SnapshotAssertions.TUnit`](https://www.nuget.org/packages/SnapshotAssertions.TUnit/)**: text-snapshot assertions for API-surface tests and similar deterministic-string scenarios. Use `MatchesSnapshot()` to pin the rendered output of `LogAssertionRendering` (e.g. `DumpTo` output) in integration tests.
+- **[`TimeAssertions.TUnit`](https://www.nuget.org/packages/TimeAssertions.TUnit/)**: `FakeTimeProvider` state assertions, `TimeProvider`-aware `DateTimeOffset` recency / past / future checks, and the cross-cutting `.And.WithinTimeBudget(TimeSpan)` chain extension. Compose with `HasLogged()` to add a timing budget to log assertions. Its `AdvanceOnEachTimerUntilAsync` drives a fake clock while a `WillLog` assertion waits ([`WillLog` with a fake clock](#willlog-with-a-fake-clock)); neither package depends on the other.
+- **[`SnapshotAssertions.TUnit`](https://www.nuget.org/packages/SnapshotAssertions.TUnit/)**: text-snapshot assertions for API-surface tests and similar deterministic-string scenarios. Use `MatchesSnapshot()` to pin the output of `LogSnapshotRenderer` (a log sequence) or `LogContractRenderer` (a log contract); the failure-message format of `DumpTo` is not stable, so don't pin it.
 - **[`MathAssertions.TUnit`](https://www.nuget.org/packages/MathAssertions.TUnit/)**: tolerance-aware fluent assertions over numeric and geometric types (vectors, quaternions, matrices, planes, complex numbers, arrays).
 - **[`JsonAssertions.TUnit`](https://www.nuget.org/packages/JsonAssertions.TUnit/)**: fluent JSON assertions over `System.Text.Json`, HTTP response bodies (including RFC 7807 ProblemDetails), and source-generated `JsonSerializerContext` registration.
 - **[`SseAssertions.TUnit`](https://www.nuget.org/packages/SseAssertions.TUnit/)**: Server-Sent Events (SSE) wire-format assertions: event-count, field shape (`event:`, `data:`, `id:`, `retry:`), and stream content validation.
 - **[`GrpcAssertions.TUnit`](https://www.nuget.org/packages/GrpcAssertions.TUnit/)**: fluent gRPC outcome assertions (`ThrowsGrpcException` with `StatusCode` shorthands and detail refinements) plus the `GrpcCallBuilder` test-double helper.
-- **[`TracingAssertions.TUnit`](https://www.nuget.org/packages/TracingAssertions.TUnit/)**: fluent OpenTelemetry distributed-tracing (`Activity` / span) assertions: operation name, tags, status, and parent/child and same-trace relationships, captured via a raw `ActivityListener` with no OpenTelemetry SDK dependency.
+- **[`TracingAssertions.TUnit`](https://www.nuget.org/packages/TracingAssertions.TUnit/)**: fluent OpenTelemetry distributed-tracing (`Activity` / span) assertions: operation name, tags, status, kind, events, and parent/child, root and same-trace relationships, captured via a raw `ActivityListener` with no OpenTelemetry SDK dependency.
 - **[`MetricsAssertions.TUnit`](https://www.nuget.org/packages/MetricsAssertions.TUnit/)**: fluent assertions over `System.Diagnostics.Metrics` instruments (counters, histograms, gauges), built on `MetricCollector`.
 
 **Not a sibling, but often compared:** [`TUnit.Mocks.Logging`](https://tunit.dev/docs/writing-tests/mocking/logging/) gives you a `MockLogger` to inject and verify calls on, mock-style. This package asserts on what real loggers wrote into a `FakeLogCollector`, including structured state, scopes, and exceptions, across every category the code under test creates. Use the mock when the logger is a collaborator you inject by hand; use the collector when you test a service wired through `ILoggerFactory` or a host.
@@ -1248,7 +1441,6 @@ For per-package release notes:
 ## Background
 
 The TUnit feature request that motivated this package was [thomhurst/TUnit#5627](https://github.com/thomhurst/TUnit/issues/5627), declined on architectural grounds (no cross-package coupling between `TUnit.Logging.Microsoft` and `TUnit.Assertions`). The user-space pattern was unblocked when [thomhurst/TUnit#5785](https://github.com/thomhurst/TUnit/pull/5785) shipped `[AssertionExtension]` infrastructure. This package implements the user-space pattern.
-- **[`MetricsAssertions.TUnit`](https://www.nuget.org/packages/MetricsAssertions.TUnit/)**: fluent assertions over `System.Diagnostics.Metrics` instruments (counters, histograms, gauges), built on `MetricCollector`.
 
 ## Contributing
 
@@ -1260,7 +1452,7 @@ Issues and pull requests welcome. Before opening a PR:
 
 For larger ideas (new entry points, breaking changes, cross-cutting refactors), open a [Discussion](https://github.com/JohnVerheij/LogAssertions.TUnit/discussions) first to align on direction before investing implementation time.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the full PR review checklist and API design principles, and [CONVENTIONS.md](CONVENTIONS.md) for the family-wide code conventions shared across `LogAssertions.TUnit`, `SnapshotAssertions.TUnit`, `TimeAssertions.TUnit`, `MathAssertions.TUnit`, `JsonAssertions.TUnit`, `SseAssertions.TUnit`, and `GrpcAssertions.TUnit`.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full PR review checklist and API design principles, and [CONVENTIONS.md](CONVENTIONS.md) for the family-wide code conventions shared across `LogAssertions.TUnit`, `SnapshotAssertions.TUnit`, `TimeAssertions.TUnit`, `MathAssertions.TUnit`, `JsonAssertions.TUnit`, `SseAssertions.TUnit`, `GrpcAssertions.TUnit`, `TracingAssertions.TUnit`, and `MetricsAssertions.TUnit`.
 
 ## License
 

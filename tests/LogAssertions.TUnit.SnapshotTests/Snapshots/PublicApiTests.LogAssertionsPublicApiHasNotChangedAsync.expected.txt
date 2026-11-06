@@ -35,12 +35,22 @@ namespace LogAssertions
         public static void AppendCapturedRecords(System.Text.StringBuilder sb, System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord> snapshot, LogAssertions.DumpVerbosity verbosity) { }
         public static string LevelAbbreviation(Microsoft.Extensions.Logging.LogLevel level) { }
     }
+    public sealed class LogCapture : Microsoft.Extensions.Logging.ILoggerFactory, System.IAsyncDisposable, System.IDisposable
+    {
+        public Microsoft.Extensions.Logging.Testing.FakeLogCollector Collector { get; }
+        public void AddProvider(Microsoft.Extensions.Logging.ILoggerProvider provider) { }
+        public Microsoft.Extensions.Logging.ILogger CreateLogger(string categoryName) { }
+        [System.Obsolete("LogCollectorBuilder.Create() and TestOutputLogCollectorBuilder.CreateTeed() retur" +
+            "n a LogCapture: use \'await using var logs = ...;\' (\'using var\' in synchronous co" +
+            "de), then logs.Collector.", true)]
+        public void Deconstruct(out Microsoft.Extensions.Logging.ILoggerFactory factory, out Microsoft.Extensions.Logging.Testing.FakeLogCollector collector) { }
+        public void Dispose() { }
+        public System.Threading.Tasks.ValueTask DisposeAsync() { }
+    }
     public static class LogCollectorBuilder
     {
-        [return: System.Runtime.CompilerServices.TupleElementNames(new string[] {
-                "Factory",
-                "Collector"})]
-        public static System.ValueTuple<Microsoft.Extensions.Logging.ILoggerFactory, Microsoft.Extensions.Logging.Testing.FakeLogCollector> Create(Microsoft.Extensions.Logging.LogLevel minimumLevel = 0) { }
+        public static LogAssertions.LogCapture Create(Microsoft.Extensions.Logging.LogLevel minimumLevel = 0) { }
+        public static LogAssertions.LogCapture Create(System.TimeProvider timeProvider, Microsoft.Extensions.Logging.LogLevel minimumLevel = 0) { }
         public static Microsoft.Extensions.Logging.ILoggerFactory CreateDiscarding(Microsoft.Extensions.Logging.LogLevel minimumLevel = 0) { }
     }
     public sealed class LogDefinition
@@ -112,6 +122,10 @@ namespace LogAssertions.Render
         TypeAndMessage = 0,
         StackTracePlaceholder = 1,
         Full = 2,
+    }
+    public static class LogContractRenderer
+    {
+        public static string Render(System.Collections.Generic.IEnumerable<LogAssertions.LogDefinition> definitions) { }
     }
     public enum LogLevelStyle
     {

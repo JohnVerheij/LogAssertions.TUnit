@@ -22,8 +22,8 @@ internal sealed class HasLoggedSequenceAnyOrderTests
     public async Task ThenAnyOrder_TwoSubsteps_MatchInDeclaredOrder(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         TestLogMessages.First(logger);
         TestLogMessages.Second(logger);
@@ -41,8 +41,8 @@ internal sealed class HasLoggedSequenceAnyOrderTests
     public async Task ThenAnyOrder_TwoSubsteps_MatchInReversedOrder(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         TestLogMessages.First(logger);
         TestLogMessages.Second(logger);
@@ -60,8 +60,8 @@ internal sealed class HasLoggedSequenceAnyOrderTests
     public async Task ThenAnyOrder_OneSubstepUnmatched_Fails(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         TestLogMessages.First(logger);
         TestLogMessages.Second(logger);
@@ -79,8 +79,8 @@ internal sealed class HasLoggedSequenceAnyOrderTests
     public async Task ThenAnyOrder_InterveningUnrelatedRecords_StillMatches(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         TestLogMessages.First(logger);
         TestLogMessages.Second(logger);
@@ -98,8 +98,8 @@ internal sealed class HasLoggedSequenceAnyOrderTests
     public async Task ThenAnyOrder_FollowedByThen_Composes(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         TestLogMessages.First(logger);
         TestLogMessages.Second(logger);
@@ -118,8 +118,8 @@ internal sealed class HasLoggedSequenceAnyOrderTests
     public async Task ThenAnyOrder_ThreeSubsteps_ReversedDeclarationOrder_StillMatches(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         // Three records that come in declared order: first, second, third.
         // Three sub-steps declared in the OPPOSITE order: third, second, first.
@@ -139,8 +139,8 @@ internal sealed class HasLoggedSequenceAnyOrderTests
     public async Task ThenAnyOrder_NullSubStep_ThrowsArgumentNull(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
 
         await Assert.That(async () =>
             await Assert.That(collector).HasLoggedSequence()
@@ -152,8 +152,8 @@ internal sealed class HasLoggedSequenceAnyOrderTests
     public async Task ThenAnyOrder_NullFuncArray_ThrowsArgumentNull(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
 
         await Assert.That(async () =>
             await Assert.That(collector).HasLoggedSequence()
@@ -165,8 +165,8 @@ internal sealed class HasLoggedSequenceAnyOrderTests
     public async Task ThenAnyOrder_NullFuncElement_ThrowsArgumentNull(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
 
         await Assert.That(async () =>
             await Assert.That(collector).HasLoggedSequence()
@@ -183,8 +183,8 @@ internal sealed class HasLoggedSequenceAnyOrderTests
     public async Task ThenAnyOrder_StatementLambdaConfigurators_MatchInAnyOrder(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         TestLogMessages.First(logger);
         TestLogMessages.Second(logger);
@@ -207,8 +207,8 @@ internal sealed class HasLoggedSequenceAnyOrderTests
     public async Task ThenAnyOrder_ConfiguratorCallsThen_ThrowsInvalidOperation(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         TestLogMessages.First(logger);
 
@@ -227,8 +227,8 @@ internal sealed class HasLoggedSequenceAnyOrderTests
     public async Task ThenAnyOrder_ConfiguratorCallsThenAnyOrder_ThrowsInvalidOperation(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         TestLogMessages.First(logger);
 
@@ -251,8 +251,8 @@ internal sealed class HasLoggedSequenceAnyOrderTests
     public async Task ThenAnyOrder_ConfiguratorCallsStep_ThrowsInvalidOperation(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         TestLogMessages.First(logger);
 
@@ -271,8 +271,8 @@ internal sealed class HasLoggedSequenceAnyOrderTests
     public async Task ThenAnyOrder_ConfiguratorCallsStepAfterFilter_ThrowsInvalidOperation(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         TestLogMessages.First(logger);
 
@@ -291,8 +291,8 @@ internal sealed class HasLoggedSequenceAnyOrderTests
     public async Task ThenAnyOrder_BacktrackingFailure_NoValidAssignment(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         TestLogMessages.First(logger);  // single record: both sub-steps target it
 
@@ -315,8 +315,8 @@ internal sealed class HasLoggedSequenceAnyOrderTests
     public async Task ThenAnyOrder_BacktrackingReassigns_OverlappingFilters(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var (factory, collector) = LogCollectorBuilder.Create();
-        using var __ = factory;
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
         var logger = factory.CreateLogger("Test");
         // Record 0 matches both sub-step filters (contains "info" and "specific").
         // Record 1 matches only the broad sub-step (contains "info" but not "specific").

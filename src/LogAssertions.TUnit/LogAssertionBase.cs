@@ -13,7 +13,7 @@ namespace LogAssertions.TUnit;
 
 /// <summary>
 /// Shared base class for <see cref="HasLoggedAssertion"/>, <see cref="HasNotLoggedAssertion"/>,
-/// and <see cref="HasLoggedSequenceAssertion"/>. Implements the filter chain (level, message,
+/// <see cref="HasLoggedSequenceAssertion"/>, and <see cref="WillLogAssertion"/>. Implements the filter chain (level, message,
 /// exception, structured-state, scope, event, and arbitrary-predicate filters) and the
 /// failure-message snapshot rendering. Derived classes own count-expectation semantics and
 /// the <c>[AssertionExtension]</c> attribute that registers the entry-point name.
@@ -31,7 +31,7 @@ namespace LogAssertions.TUnit;
 /// <typeparamref name="TSelf"/>.
 /// </para>
 /// <para>
-/// See the README "Stability promise" section for the full surface-stability contract.
+/// See the README "Stability intent (pre-1.0)" section for the full surface-stability contract.
 /// </para>
 /// </remarks>
 [EditorBrowsable(EditorBrowsableState.Never)]
@@ -53,7 +53,12 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     private readonly HashSet<LogLevel> _matchableLevels =
         [LogLevel.Trace, LogLevel.Debug, LogLevel.Information, LogLevel.Warning, LogLevel.Error, LogLevel.Critical];
 
-    /// <summary>Initialises the base assertion with the supplied TUnit context.</summary>
+    /// <summary>The failure of the last check that did not pass, as TUnit reports it. Read by the value-returning
+    /// terminators: inside <c>Assert.Multiple()</c> TUnit records a failure instead of throwing it, so they have no
+    /// match to return and name this failure instead.</summary>
+    private string? _failure;
+
+    /// <summary>Initializes the base assertion with the supplied TUnit context.</summary>
     /// <param name="context">The assertion context supplied by TUnit.</param>
     protected LogAssertionBase(AssertionContext<FakeLogCollector> context) : base(context) { }
 
@@ -74,21 +79,14 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     private protected bool TryDescribeVacuousFloor(
         FakeLogCollector collector, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? message)
     {
-        // Only blame the floor when the matchable set is non-empty (the level filters are not
-        // contradictory) and its highest level still sits below the floor, so every level the chain
-        // could match was filtered out by the floor. An empty set is empty for its own reason
-        // (contradictory or exclusionary filters), so reporting a below-floor vacuity there would be
-        // the wrong explanation.
-        if (LogCaptureFloorRegistry.TryGetFloor(collector, out var floor)
-            && _matchableLevels.Count > 0
-            && _matchableLevels.Max() < floor)
+        if (TryGetUncapturedLevels(collector, out var highest, out var floor))
         {
             message = string.Format(
                 CultureInfo.InvariantCulture,
                 "this assertion only matches records at level {0} or below, but the collector's capture floor is {1}, "
                 + "so records below {1} were never captured and the check is vacuously true. "
                 + "Lower the floor (LogCollectorBuilder.Create with a lower minimumLevel) or assert at a captured level.",
-                _matchableLevels.Max(),
+                highest,
                 floor);
             return true;
         }
@@ -96,6 +94,81 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
         message = null;
         return false;
     }
+
+    /// <summary>
+    /// Detects a chain that needs a matching record its levels can never produce, because every level it could match
+    /// sits below the collector's capture floor. Returns the explanation when so; a waiting assertion fails at once
+    /// with it, and a counting one adds it to its failure.
+    /// </summary>
+    /// <param name="collector">The collector under assertion.</param>
+    /// <param name="message">The explanation when this returns <see langword="true"/>.</param>
+    /// <returns><see langword="true"/> when no record the chain matches can have been captured.</returns>
+    private protected bool TryDescribeUncapturedFloor(
+        FakeLogCollector collector, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? message)
+    {
+        if (TryGetUncapturedLevels(collector, out var highest, out var floor))
+        {
+            message = string.Format(
+                CultureInfo.InvariantCulture,
+                "this assertion only matches records at level {0} or below, but the collector's capture floor is {1}, "
+                + "so no such record was captured. "
+                + "Lower the floor (LogCollectorBuilder.Create with a lower minimumLevel) or assert at a captured level.",
+                highest,
+                floor);
+            return true;
+        }
+
+        message = null;
+        return false;
+    }
+
+    /// <summary>Returns <see langword="true"/> when every level the chain could match sits below the collector's
+    /// registered capture floor.</summary>
+    /// <param name="collector">The collector under assertion.</param>
+    /// <param name="highest">The highest level the chain could match, when this returns <see langword="true"/>.</param>
+    /// <param name="floor">The registered capture floor.</param>
+    /// <returns><see langword="true"/> when no level the chain could match was captured.</returns>
+    private bool TryGetUncapturedLevels(FakeLogCollector collector, out LogLevel highest, out LogLevel floor)
+    {
+        // Only blame the floor when the matchable set is non-empty (the level filters are not
+        // contradictory) and its highest level still sits below the floor, so every level the chain
+        // could match was filtered out by the floor. An empty set is empty for its own reason
+        // (contradictory or exclusionary filters), so reporting a below-floor vacuity there would be
+        // the wrong explanation.
+        if (LogCaptureFloorRegistry.TryGetFloor(collector, out floor)
+            && _matchableLevels.Count > 0
+            && _matchableLevels.Max() < floor)
+        {
+            highest = _matchableLevels.Max();
+            return true;
+        }
+
+        highest = LogLevel.None;
+        return false;
+    }
+
+    /// <summary>Keeps the failure message of <paramref name="result"/>, as TUnit reports it, when the check did not
+    /// pass.</summary>
+    /// <param name="result">The outcome of the check.</param>
+    /// <returns><paramref name="result"/>, unchanged.</returns>
+    private protected AssertionResult RememberFailure(AssertionResult result)
+    {
+        if (!result.IsPassed)
+            _failure = CreateException(result).Message;
+        return result;
+    }
+
+    /// <summary>Creates the exception a value-returning terminator throws when the assertion did not pass and did not
+    /// throw either: inside <c>Assert.Multiple()</c>, TUnit records the failure, lets the test go on, and reports the
+    /// failure when the scope ends.</summary>
+    /// <param name="terminator">The terminator, for example <c>GetMatch()</c>.</param>
+    /// <returns>The exception; its message names the recorded failure.</returns>
+    private protected InvalidOperationException NoMatchAfterRecordedFailure(string terminator) => new(
+        $"{terminator} has no match to return: the assertion failed inside Assert.Multiple(), which records the failure instead of throwing it. The failure:{Environment.NewLine}{_failure}");
+
+    /// <summary>The chain's filters as one filter (a conjunction; with no filters it matches every record).</summary>
+    /// <returns>The combined filter.</returns>
+    private protected ILogRecordFilter CombinedFilter() => LogFilter.All([.. _filters]);
 
     /// <summary>
     /// Returns <see langword="this"/> typed as <typeparamref name="TSelf"/> for fluent
@@ -384,7 +457,8 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     /// formatted value).
     /// </summary>
     /// <param name="key">The structured-state key. Must be non-null.</param>
-    /// <param name="value">The expected string value (ordinal comparison); may be <see langword="null"/>.</param>
+    /// <param name="value">The expected string value (ordinal comparison); may be <see langword="null"/>, which also
+    /// matches a record that has no entry for <paramref name="key"/>.</param>
     /// <returns>This assertion for chaining.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
     public TSelf WithProperty(string key, string? value)
@@ -770,7 +844,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     /// Conditionally applies <paramref name="apply"/> to this assertion. When
     /// <paramref name="condition"/> is <see langword="true"/>, runs the configurator and
     /// returns this for chaining; when <see langword="false"/>, returns this unchanged.
-    /// Useful in parameterised tests to avoid branching the entire assertion chain on a
+    /// Useful in parameterized tests to avoid branching the entire assertion chain on a
     /// boolean: <c>.HasLogged().AtLevel(Warning).When(expectRetry, b =&gt; b.Containing("retry", Ordinal)).AtLeast(1)</c>.
     /// </summary>
     /// <param name="condition">When <see langword="true"/>, applies the configurator.</param>
@@ -829,7 +903,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     }
 
     /// <summary>
-    /// Appends the human-readable filter chain (e.g. <c> matching: Level = Warning, Message contains "x"</c>)
+    /// Appends the human-readable filter chain (e.g. <c> matching: Level = Warning, Message contains "x" (Ordinal)</c>)
     /// to <paramref name="sb"/>. Emits nothing if no filters have been added.
     /// </summary>
     /// <param name="sb">The target string builder for the expectation message.</param>
@@ -845,8 +919,8 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     }
 
     /// <summary>
-    /// Renders the matching summary plus a snapshot of every captured record (level, category,
-    /// message, structured properties, scopes, exception) for use in failure messages.
+    /// Renders the matching summary plus the captured records (level, category, message, structured properties,
+    /// scopes, exception) for use in failure messages: the last 50, after a line that counts the earlier ones.
     /// </summary>
     /// <param name="matchCount">The number of matching records.</param>
     /// <param name="snapshot">All captured records.</param>
@@ -855,9 +929,20 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     protected static string BuildFailureMessage(int matchCount, IReadOnlyList<FakeLogRecord> snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
+        return BuildFailureMessage(string.Create(CultureInfo.InvariantCulture, $"{matchCount} record(s) matched"), snapshot);
+    }
 
+    /// <summary>
+    /// Renders <paramref name="headline"/>, a blank line, the total count, and the captured records (the last 50, as
+    /// <see cref="AppendCapturedRecords"/> writes them), for use in failure messages.
+    /// </summary>
+    /// <param name="headline">The first line of the failure, for example <c>0 record(s) matched</c>.</param>
+    /// <param name="snapshot">All captured records.</param>
+    /// <returns>The multi-line failure message body.</returns>
+    private protected static string BuildFailureMessage(string headline, IReadOnlyList<FakeLogRecord> snapshot)
+    {
         StringBuilder sb = new();
-        sb.Append(CultureInfo.InvariantCulture, $"{matchCount} record(s) matched")
+        sb.Append(headline)
             .AppendLine()
             .AppendLine()
             .Append(CultureInfo.InvariantCulture, $"Captured records ({snapshot.Count} total):")
@@ -868,13 +953,18 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     }
 
     /// <summary>
-    /// Appends the captured-records section to <paramref name="sb"/>; delegates to
-    /// <c>LogAssertionRendering.AppendCapturedRecords</c> so the same rendering is
-    /// available to the public <c>FakeLogCollector.DumpTo(...)</c> extension.
+    /// Appends the captured-records section of a failure message to <paramref name="sb"/>, in the format of
+    /// <c>LogAssertionRendering.AppendCapturedRecords</c> (and so of <c>FakeLogCollector.DumpTo(...)</c>), but only the
+    /// last 50 records, after one line <c>(N earlier record(s) not shown)</c> when there are more. Explicit dumps
+    /// write every record.
     /// </summary>
     /// <param name="sb">The target string builder.</param>
     /// <param name="snapshot">All captured records.</param>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     protected static void AppendCapturedRecords(StringBuilder sb, IReadOnlyList<FakeLogRecord> snapshot)
-        => LogAssertionRendering.AppendCapturedRecords(sb, snapshot);
+    {
+        ArgumentNullException.ThrowIfNull(sb);
+        ArgumentNullException.ThrowIfNull(snapshot);
+        LogAssertionRendering.AppendFailureRecords(sb, snapshot);
+    }
 }

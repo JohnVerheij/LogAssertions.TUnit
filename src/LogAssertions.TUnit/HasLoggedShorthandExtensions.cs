@@ -1,3 +1,4 @@
+using System;
 using LogAssertions.TUnit;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
@@ -19,9 +20,10 @@ namespace TUnit.Assertions.Extensions;
 /// <c>Assert.That(collector).HasLoggedOnce()</c> there: same auto-import path.
 /// </para>
 /// <para>
-/// All shorthands return a <see cref="HasLoggedAssertion"/>, so additional filters can still
-/// be chained after the shorthand: <c>HasLoggedExactly(3).AtLevel(LogLevel.Warning)</c>
-/// asserts "exactly 3 records, all matching the supplied filter set".
+/// All shorthands except <c>HasLoggedNothing</c> (which returns a <see cref="HasNotLoggedAssertion"/>) return a
+/// <see cref="HasLoggedAssertion"/>, so additional filters can still be chained after the shorthand:
+/// <c>HasLoggedExactly(3).AtLevel(LogLevel.Warning)</c> asserts "exactly 3 records match the filter set" (other
+/// records may exist).
 /// </para>
 /// </remarks>
 public static class HasLoggedShorthandExtensions
@@ -39,6 +41,7 @@ public static class HasLoggedShorthandExtensions
     /// <param name="source">The assertion source over a <see cref="FakeLogCollector"/>.</param>
     /// <param name="count">The required match count. Must be non-negative.</param>
     /// <returns>The assertion, configured for the exact count.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="count"/> is negative.</exception>
     public static HasLoggedAssertion HasLoggedExactly<TActual>(this IAssertionSource<TActual> source, int count)
         where TActual : FakeLogCollector
         => source.HasLogged().Exactly(count);
@@ -48,6 +51,7 @@ public static class HasLoggedShorthandExtensions
     /// <param name="source">The assertion source over a <see cref="FakeLogCollector"/>.</param>
     /// <param name="count">The minimum match count. Must be non-negative.</param>
     /// <returns>The assertion, configured for the minimum count.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="count"/> is negative.</exception>
     public static HasLoggedAssertion HasLoggedAtLeast<TActual>(this IAssertionSource<TActual> source, int count)
         where TActual : FakeLogCollector
         => source.HasLogged().AtLeast(count);
@@ -57,6 +61,7 @@ public static class HasLoggedShorthandExtensions
     /// <param name="source">The assertion source over a <see cref="FakeLogCollector"/>.</param>
     /// <param name="count">The maximum match count. Must be non-negative.</param>
     /// <returns>The assertion, configured for the maximum count.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="count"/> is negative.</exception>
     public static HasLoggedAssertion HasLoggedAtMost<TActual>(this IAssertionSource<TActual> source, int count)
         where TActual : FakeLogCollector
         => source.HasLogged().AtMost(count);
@@ -70,6 +75,8 @@ public static class HasLoggedShorthandExtensions
     /// <param name="min">The minimum match count (inclusive). Must be non-negative.</param>
     /// <param name="max">The maximum match count (inclusive). Must be greater than or equal to <paramref name="min"/>.</param>
     /// <returns>The assertion, configured for the range.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="min"/> is negative, or <paramref name="max"/> is
+    /// less than <paramref name="min"/>.</exception>
     public static HasLoggedAssertion HasLoggedBetween<TActual>(this IAssertionSource<TActual> source, int min, int max)
         where TActual : FakeLogCollector
         => source.HasLogged().Between(min, max);
