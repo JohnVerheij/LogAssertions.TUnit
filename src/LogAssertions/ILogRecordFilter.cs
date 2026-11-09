@@ -10,10 +10,12 @@ namespace LogAssertions;
 /// <c>All</c>, <c>Any</c>, and <c>Not</c>.
 /// </summary>
 /// <remarks>
-/// Implementations should be inexpensive to evaluate: they are invoked once per captured
-/// record per assertion. The <see cref="Description"/> is rendered into the expectation line
-/// of failure messages and should be terse and human-readable (e.g. <c>"Level = Warning"</c>,
-/// not a full sentence).
+/// Implementations should be inexpensive to evaluate and free of side effects: they are invoked
+/// for every captured record, and may be invoked more than once for the same record within one
+/// assertion or wait (a waiting assertion checks each record as it arrives and again when it
+/// decides; a canceled wait checks the collector's records again). The <see cref="Description"/>
+/// is rendered into the expectation line of failure messages and should be terse and
+/// human-readable (e.g. <c>"Level = Warning"</c>, not a full sentence).
 /// </remarks>
 public interface ILogRecordFilter
 {

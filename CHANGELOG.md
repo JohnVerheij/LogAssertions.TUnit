@@ -15,6 +15,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-11-09: tee, failure dump, and waits fixed at their edges
+
+Patch release, no API change. The test-output tee keeps each record with its exception text and never writes into a test that ended while the record was being formatted; a dump armed or a tee built before TUnit starts the test no longer claims the lifetime attribute is missing; a failure dump ends with its summary; a wait whose token or timeout ends it returns the matching records the collector already holds.
+
+### Changed
+
+- **`TUnit.Assertions`** and **`TUnit.Core`** minimum versions raised from 1.80.0 to 1.81.10.
+- **README:** a record logged in a test class's `DisposeAsync` is not teed, since TUnit disposes the class after the test has ended (log in the test or an `[After(Test)]` hook); a retried test keeps one output across its attempts; a capture shared by tests that run at the same time puts each test's records in the others' dumps; the dump section describes how much of a test's output TUnit keeps.
+
+### Fixed
+
+- **The built-in test-output tee** (`CreateTeed`, `CreateTeedDiscarding`, `AddTeedFakeLogging`) wrote a record into a test that ended while the record was being formatted, and did not count it. A record that races the end of its test is now skipped and counted, never written into the ended test.
+- **The built-in test-output tee** wrote a record and its exception text as two writes, so a record logged on another thread at the same moment could land between them and the stack trace showed under the wrong record. Each record is now written together with its exception text.
+- **`DumpToTestOutputOnFailure()`** in a `[Before(Class)]` hook, a test class's constructor, or a fixture's initialization threw "needs the LogAssertionsTestLifetime attribute" in a project that applies it, because TUnit runs these before it starts the test. It now throws a message that says the call came before TUnit started the test. A tee built there no longer writes the "this test project does not apply the LogAssertionsTestLifetime attribute" note into the report.
+- **`DumpToTestOutputOnFailure()`**: TUnit keeps only the last ~786,000 characters of a test's output, so the report of a very large dump lost its heading. The dump now ends with a line that repeats the summary (`End of dump: 3 of 120 records.`), and every record is still written.
+- **`WillLog(...)`** failed when its timeout fired just after the matching record was captured, or when its token was already canceled while the matching records were there, with a contradictory message such as "the wait was canceled with 1 record(s) matched" under `Once()`. The records the collector holds when the wait ends now decide.
+- **`FakeLogCollector.WaitForLogAsync`** and **`WaitForLogsAsync`** threw `OperationCanceledException` when the token was canceled while the collector already held the matching records, and the message counted none. They now return those records, and the message of a canceled wait counts the records the collector holds and the matching ones among them. To decide, a canceled wait runs the filter again over the collector's records, so a filter may run more than once for the same record; the README and the `ILogRecordFilter` docs now say so (keep custom filters free of side effects).
+
 ## [0.14.0] - 2026-11-06: one log capture, a wait with diagnostics, failure dumps, and a tee that respects the test's lifetime
 
 Minor release with breaking changes. `LogCollectorBuilder.Create()` returns a `LogCapture`; `WillLog(...)` waits for background work and fails with the standard diagnostics; an opt-in assembly attribute lets the package see each test's end, which enables a dump of the captured records when a test does not pass and keeps the test-output tee out of finished tests. Also: a rate-limit terminator, a log contract renderer, a teed factory that keeps nothing, and a fix for records with custom state.
@@ -397,7 +415,8 @@ Documentation-only release. No API or behavior change.
 - **Failure-message snapshot rendering** with 4-character level abbreviations matching the `Microsoft.Extensions.Logging` console formatter (`trce`, `dbug`, `info`, `warn`, `fail`, `crit`, `none`), indented `props:` line listing each record's structured properties (excluding the `{OriginalFormat}` entry, already implied by the message line), indented `scope:` line rendering each active scope's content as `key=value` pairs (or `ToString()` for opaque scopes), and indented `exception:` line with type name and message.
 - **`.And` / `.Or`** chaining via TUnit's `Assertion<T>` base class.
 
-[unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.14.0...HEAD
+[unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.14.1...HEAD
+[0.14.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.13.1...v0.14.0
 [0.13.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.12.0...v0.13.0

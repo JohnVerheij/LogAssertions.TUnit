@@ -21,6 +21,9 @@ internal sealed class TestLifetimeEntry
     /// <summary>Gets a value indicating whether an attempt of the test is running.</summary>
     internal bool IsRunning => _running;
 
+    /// <summary>Gets the lock that the start, the end, arming a dump, and a teed write take.</summary>
+    internal Lock Gate => _gate;
+
     /// <summary>Starts an attempt: it runs, and the dumps armed in an earlier attempt are dropped.</summary>
     internal void Start()
     {
@@ -58,11 +61,33 @@ internal sealed class TestLifetimeEntry
         }
     }
 
+    /// <summary>Writes <paramref name="text"/> as one line to the output of <paramref name="context"/> while an attempt
+    /// runs. The check and the write are one step under the lock <see cref="EndAsync"/> takes to mark the test ended,
+    /// so a record whose test ends while it is being formatted is refused, never written into the ended test.</summary>
+    /// <param name="context">The test.</param>
+    /// <param name="text">The formatted record.</param>
+    /// <returns><see langword="false"/> when no attempt is running.</returns>
+    internal bool TryWriteLine(TestContext context, string text)
+    {
+        lock (_gate)
+        {
+            if (!_running)
+            {
+                return false;
+            }
+
+            // The writer is fetched only when a record is written: TUnit allocates on each access.
+            context.Output.StandardOutput.WriteLine(text);
+            return true;
+        }
+    }
+
     /// <summary>Ends the running attempt: marks the test ended, then writes the attempt's armed dumps to the test's
     /// output when it did not pass (it failed, timed out, or was canceled; a skipped test does not count).</summary>
     /// <param name="context">The test.</param>
+    /// <param name="state">The state of the attempt's result, or <see langword="null"/> when it has none.</param>
     /// <returns>A task that completes when the dumps are written.</returns>
-    internal async ValueTask EndAsync(TestContext context)
+    internal async ValueTask EndAsync(TestContext context, TestState? state)
     {
         ArmedFailureDump[] armed;
         int attempt;
@@ -74,7 +99,7 @@ internal sealed class TestLifetimeEntry
             attempt = _attempt;
         }
 
-        if (armed.Length > 0 && context.Execution.Result?.State is not (TestState.Passed or TestState.Skipped))
+        if (armed.Length > 0 && state is not (TestState.Passed or TestState.Skipped))
         {
             var withAttempt = context.Metadata.TestDetails.RetryLimit > 0;
             var writer = context.Output.StandardOutput;

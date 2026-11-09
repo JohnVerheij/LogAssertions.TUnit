@@ -26,6 +26,13 @@ internal sealed class TestLifetimeTable
         "DumpToTestOutputOnFailure() was called after the current test had ended. "
         + "Call it in the test or in a [Before(Test)] hook.";
 
+    /// <summary>The message of the exception thrown when a dump is armed in a project that applies the attribute, before
+    /// TUnit has started the test.</summary>
+    internal const string NotStartedMessage =
+        "DumpToTestOutputOnFailure() was called before TUnit started the current test: in a [Before(Class)] hook, the "
+        + "test class's constructor, or while a fixture or data source was initialized. "
+        + "Call it in the test or in a [Before(Test)] hook.";
+
     /// <summary>The note written once per run when a built-in tee is built in a test the attribute did not start.</summary>
     internal const string MissingAttributeNote =
         "LogAssertions: this test project does not apply the LogAssertionsTestLifetime attribute, so the test-output tee "
@@ -34,7 +41,20 @@ internal sealed class TestLifetimeTable
         + "[assembly: LogAssertions.TUnit.LogAssertionsTestLifetime]";
 
     private readonly ConditionalWeakTable<TestContext, TestLifetimeEntry> _entries = new();
+    private readonly Func<TestContext, bool> _appliesAttribute;
     private int _missingAttributeNoted;
+
+    /// <summary>Creates a table that asks TUnit whether a test's project applies the attribute.</summary>
+    internal TestLifetimeTable()
+        : this(static test => test.Metadata.TestDetails.HasAttribute<LogAssertionsTestLifetimeAttribute>())
+    {
+    }
+
+    /// <summary>Creates a table with its own answer to whether a test's project applies the attribute.</summary>
+    /// <param name="appliesAttribute">Whether the project of a test applies the attribute. TUnit lists the assembly's
+    /// attributes on each test already before the test starts, so this holds where the table has not seen the start
+    /// yet: in a <c>[Before(Class)]</c> hook, the test class's constructor, or a fixture's initialization.</param>
+    internal TestLifetimeTable(Func<TestContext, bool> appliesAttribute) => _appliesAttribute = appliesAttribute;
 
     /// <summary>Gets the table that the attribute, the failure dumps, and the built-in tee share.</summary>
     internal static TestLifetimeTable Shared { get; } = new();
@@ -49,18 +69,21 @@ internal sealed class TestLifetimeTable
     /// <param name="context">The test.</param>
     /// <returns>A task that completes when the test is marked ended and the dumps are written.</returns>
     internal ValueTask MarkEndedAsync(TestContext context)
-        => _entries.TryGetValue(context, out var entry) ? entry.EndAsync(context) : ValueTask.CompletedTask;
+        => _entries.TryGetValue(context, out var entry)
+            ? entry.EndAsync(context, context.Execution.Result?.State)
+            : ValueTask.CompletedTask;
 
     /// <summary>Arms a failure dump of <paramref name="collector"/> for the running attempt of the test.</summary>
     /// <param name="context">The current test.</param>
     /// <param name="collector">The collector to dump.</param>
     /// <param name="verbosity">How much detail to write per record.</param>
-    /// <exception cref="InvalidOperationException">The attribute did not start the test, or the test has ended.</exception>
+    /// <exception cref="InvalidOperationException">The project does not apply the attribute, TUnit has not started the
+    /// test yet, or the test has ended; each with its own message.</exception>
     internal void Arm(TestContext context, FakeLogCollector collector, DumpVerbosity verbosity)
     {
         if (!_entries.TryGetValue(context, out var entry))
         {
-            throw new InvalidOperationException(MissingAttributeMessage);
+            throw new InvalidOperationException(_appliesAttribute(context) ? NotStartedMessage : MissingAttributeMessage);
         }
 
         if (!entry.TryArm(collector, verbosity))
@@ -70,12 +93,13 @@ internal sealed class TestLifetimeTable
     }
 
     /// <summary>Writes <see cref="MissingAttributeNote"/> to the output of <paramref name="test"/>, where a built-in tee
-    /// is being built, when the attribute did not start that test: once per table, so once per run for
-    /// <see cref="Shared"/>. Runs when a tee is built, never per record.</summary>
+    /// is being built, when the attribute did not start that test and its project does not apply the attribute: once
+    /// per table, so once per run for <see cref="Shared"/>. Runs when a tee is built, never per record.</summary>
     /// <param name="test">The test current where the tee is built, or <see langword="null"/>.</param>
     internal void NoteIfUntracked(TestContext? test)
     {
-        if (test is null || TryGetEntry(test, out _) || Interlocked.Exchange(ref _missingAttributeNoted, 1) is not 0)
+        if (test is null || TryGetEntry(test, out _) || _appliesAttribute(test)
+            || Interlocked.Exchange(ref _missingAttributeNoted, 1) is not 0)
         {
             return;
         }
@@ -123,6 +147,6 @@ internal sealed class TestLifetimeTable
     /// <param name="context">The test.</param>
     /// <param name="entry">The entry when this returns <see langword="true"/>.</param>
     /// <returns><see langword="true"/> when the attribute started the test at least once.</returns>
-    private bool TryGetEntry(TestContext context, [NotNullWhen(true)] out TestLifetimeEntry? entry)
+    internal bool TryGetEntry(TestContext context, [NotNullWhen(true)] out TestLifetimeEntry? entry)
         => _entries.TryGetValue(context, out entry);
 }

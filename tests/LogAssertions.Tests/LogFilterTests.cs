@@ -131,6 +131,22 @@ internal sealed class LogFilterTests
         await Assert.That(LogFilter.Not(LogFilter.AtLevel(LogLevel.Warning)).Description).IsEqualTo("NOT Level = Warning");
     }
 
+    /// <summary>The inner-exception filters do not match a record without any exception (the seeded collector logs
+    /// none), and a <see langword="null"/> value in <see cref="LogFilter.WithScopeProperties"/> is named "null" in
+    /// the description.</summary>
+    /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
+    [Test]
+    public async Task InnerExceptionFiltersWithoutAnException_AndNullScopeValueDescriptionAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var collector = SeededCollector();
+        var required = new Dictionary<string, object?>(StringComparer.Ordinal) { ["Tenant"] = null, ["Id"] = 7 };
+
+        await Assert.That(collector.CountMatching(LogFilter.WithInnerException<Exception>())).IsEqualTo(0);
+        await Assert.That(collector.CountMatching(LogFilter.WithInnerExceptionMessage("x", StringComparison.Ordinal))).IsEqualTo(0);
+        await Assert.That(LogFilter.WithScopeProperties(required).Description).IsEqualTo("All scope properties: {Tenant=null, Id=7}");
+    }
+
     /// <summary>Verifies <see cref="LogFilter.WithEventIdInRange"/> rejects negative-width ranges.</summary>
     /// <param name="cancellationToken">TUnit-injected cancellation token.</param>
     [Test]

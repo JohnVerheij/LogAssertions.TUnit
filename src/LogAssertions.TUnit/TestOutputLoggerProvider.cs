@@ -17,9 +17,10 @@ namespace LogAssertions.TUnit;
 /// <para>
 /// Each record goes to the test chosen by <see cref="TestLifetimeTable.ResolveTeeTarget"/>: the test current at the log
 /// call, unless it has ended (then none); when no test is current, the owning test (current when the provider was
-/// built) while it runs; otherwise none. A record that
-/// reaches no test is counted, and when the provider is disposed with a count above zero it writes one line saying so
-/// to the test current at that moment.
+/// built) while it runs; otherwise none. The record and its exception text are written as one string, and the check
+/// that the test still runs and the write are one step, so a test that ends while its record is formatted gets
+/// nothing. A record that reaches no test is counted, and when the provider is disposed with a count above zero it
+/// writes one line saying so to the test current at that moment.
 /// </para>
 /// <para>
 /// The provider must be registered so that the logging container disposes it (through a factory delegate, not as an
@@ -101,6 +102,7 @@ internal sealed class TestOutputLoggerProvider : ILoggerProvider
         {
             ArgumentNullException.ThrowIfNull(formatter);
 
+            // Decided before formatting, so a record that reaches no test costs nothing.
             var target = _provider.ResolveTarget();
             if (target is null)
             {
@@ -108,11 +110,20 @@ internal sealed class TestOutputLoggerProvider : ILoggerProvider
                 return;
             }
 
-            // The writer is fetched only when a record is written: TUnit allocates on each access.
-            var writer = target.Output.StandardOutput;
-            writer.WriteLine($"[{logLevel}] {_category}: {formatter(state, exception)}");
-            if (exception is not null)
-                writer.WriteLine(exception.ToString());
+            // One string, one write: a record logged on another thread meanwhile cannot land between a record and
+            // its exception text.
+            var line = $"[{logLevel}] {_category}: {formatter(state, exception)}";
+            var text = exception is null ? line : line + Environment.NewLine + exception.ToString();
+            if (!_provider._lifetimes.TryGetEntry(target, out var entry))
+            {
+                // Without the attribute nothing marks the test ended, so there is no end to race.
+                target.Output.StandardOutput.WriteLine(text);
+            }
+            else if (!entry.TryWriteLine(target, text))
+            {
+                // The test ended while the record was formatted.
+                _provider.CountSkipped();
+            }
         }
     }
 

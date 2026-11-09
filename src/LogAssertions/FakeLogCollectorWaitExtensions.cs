@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Testing;
@@ -21,8 +22,10 @@ namespace LogAssertions;
 /// </para>
 /// <para>
 /// The token is the only bound, so it is required: pass the test's own token, or a linked source with a timeout. When
-/// it is canceled, the wait throws <see cref="OperationCanceledException"/> with a message that says how many records
-/// arrived and how many matched.
+/// it is canceled, the collector decides: if it holds enough matching records (also ones captured just before the
+/// cancellation, or before the call with a token that was already canceled), the wait returns them; otherwise it throws
+/// <see cref="OperationCanceledException"/> with a message that says how many records the collector holds and how many
+/// of them match.
 /// </para>
 /// <para>
 /// A wait proves that a record arrived; it cannot prove that one did not. For "has not logged", let the work finish
@@ -104,31 +107,60 @@ public static class FakeLogCollectorWaitExtensions
         ArgumentNullException.ThrowIfNull(filter);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
 
-        var matches = new List<FakeLogRecord>(Math.Min(count, MaxInitialCapacity));
-        var seen = 0;
         try
         {
-            await foreach (var record in collector.GetLogsAsync(cancellationToken).ConfigureAwait(false))
-            {
-                seen++;
-                if (filter.Matches(record))
-                {
-                    matches.Add(record);
-                    if (matches.Count == count)
-                    {
-                        return matches;
-                    }
-                }
-            }
+            return await ReadMatchesAsync(collector.GetLogsAsync(cancellationToken), filter, count, cancellationToken)
+                .ConfigureAwait(false);
         }
         catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
         {
+            // The stream checks its token before it reads the records it holds, so records captured before the
+            // cancellation can be unread here: the collector, not the stream, decides.
+            var collected = collector.GetSnapshot();
+            var held = FirstMatches(collected, filter, count);
+            if (held.Count == count)
+            {
+                return held;
+            }
+
             throw new OperationCanceledException(
                 string.Create(
                     CultureInfo.InvariantCulture,
-                    $"Waiting for {count} log record(s) where {filter.Description}: {matches.Count} matched among the {seen} record(s) collected before the wait was canceled."),
+                    $"Waiting for {count} log record(s) where {filter.Description}: {held.Count} matched among the {collected.Count} record(s) collected before the wait was canceled."),
                 exception,
                 cancellationToken);
+        }
+    }
+
+    /// <summary>Reads <paramref name="records"/> until <paramref name="count"/> of them match <paramref name="filter"/>,
+    /// and returns those in the order they came.</summary>
+    /// <param name="records">The record stream: the collector's yields the records already collected and then waits for
+    /// each new one until <paramref name="cancellationToken"/> is canceled.</param>
+    /// <param name="filter">The filter the records must match.</param>
+    /// <param name="count">The number of matching records to read, positive.</param>
+    /// <param name="cancellationToken">Ends the reading.</param>
+    /// <returns>The first <paramref name="count"/> matching records.</returns>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was canceled first.</exception>
+    /// <exception cref="InvalidOperationException">The stream ended first.</exception>
+    internal static async Task<IReadOnlyList<FakeLogRecord>> ReadMatchesAsync(
+        IAsyncEnumerable<FakeLogRecord> records,
+        ILogRecordFilter filter,
+        int count,
+        CancellationToken cancellationToken)
+    {
+        var matches = new List<FakeLogRecord>(Math.Min(count, MaxInitialCapacity));
+        var seen = 0;
+        await foreach (var record in records.WithCancellation(cancellationToken).ConfigureAwait(false))
+        {
+            seen++;
+            if (filter.Matches(record))
+            {
+                matches.Add(record);
+                if (matches.Count == count)
+                {
+                    return matches;
+                }
+            }
         }
 
         // GetLogsAsync documents no completion: it waits for new records until it is canceled. Should a later version
@@ -136,5 +168,26 @@ public static class FakeLogCollectorWaitExtensions
         throw new InvalidOperationException(string.Create(
             CultureInfo.InvariantCulture,
             $"The collector's record stream ended after {seen} record(s), {matches.Count} of {count} matching."));
+    }
+
+    /// <summary>Returns the first <paramref name="count"/> records of <paramref name="records"/> that match
+    /// <paramref name="filter"/>, or all the matching ones when there are fewer.</summary>
+    /// <param name="records">The records, in the order they were logged.</param>
+    /// <param name="filter">The filter.</param>
+    /// <param name="count">The most to return.</param>
+    /// <returns>The matching records.</returns>
+    private static List<FakeLogRecord> FirstMatches(IReadOnlyList<FakeLogRecord> records, ILogRecordFilter filter, int count)
+    {
+        var matches = new List<FakeLogRecord>(Math.Min(count, MaxInitialCapacity));
+        foreach (var record in records.Where(filter.Matches))
+        {
+            matches.Add(record);
+            if (matches.Count == count)
+            {
+                break;
+            }
+        }
+
+        return matches;
     }
 }

@@ -57,6 +57,29 @@ internal sealed class FakeClockTests
         await Assert.That(vacuous!.Message).Contains("the collector's capture floor is Information", StringComparison.Ordinal);
     }
 
+    /// <summary>A fake clock that never advances stamps every record with the same time: two matching records are
+    /// zero apart, too close for any interval; one record, or none under a count that admits zero, has no gap to
+    /// check.</summary>
+    [Test]
+    public async Task FrozenClock_RecordsShareOneTime_AtMostOncePerSeesNoGap(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var clock = new FakeTimeProvider(Noon);
+        using var logs = LogCollectorBuilder.Create(clock);
+        var logger = logs.CreateLogger("Frozen");
+
+        await Assert.That(logs.Collector).HasLogged().Containing("frozen", StringComparison.Ordinal).AtMost(1).AtMostOncePer(TimeSpan.FromTicks(1));
+        DirectLog.Write(logger, "frozen line");
+        await Assert.That(logs.Collector).HasLogged().Containing("frozen", StringComparison.Ordinal).Once().AtMostOncePer(TimeSpan.FromHours(1));
+        DirectLog.Write(logger, "frozen line");
+        var tooClose = await CatchAsync(async () =>
+            await Assert.That(logs.Collector).HasLogged().Containing("frozen", StringComparison.Ordinal).AtMostOncePer(TimeSpan.FromTicks(1)));
+
+        await Assert.That(logs.Collector.GetSnapshot()[0].Timestamp).IsEqualTo(logs.Collector.LatestRecord.Timestamp);
+        await Assert.That(tooClose!.Message).Contains(
+            "two matching records were 00:00:00 apart, less than 00:00:00.0000001 (1 of 1 gaps too short):", StringComparison.Ordinal);
+    }
+
     /// <summary>The on-failure dump writes each record's time from the collector's clock (through a table of this
     /// test's own, where the running test counts as not passed).</summary>
     [Test]

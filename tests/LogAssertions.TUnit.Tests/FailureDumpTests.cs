@@ -58,7 +58,9 @@ internal sealed class FailureDumpTests
         var output = TestContext.Current!.GetStandardOutput();
         await Assert.That(output).Contains(Heading + " (2 of 3 total, times in UTC):", StringComparison.Ordinal);
         await Assert.That(output).Contains("  12:34:56.789 [warn] Dump: after the call 1", StringComparison.Ordinal);
-        await Assert.That(output).Contains("  12:34:56.789 [info] Dump: after the call 2", StringComparison.Ordinal);
+        await Assert.That(output).Contains(
+            "  12:34:56.789 [info] Dump: after the call 2" + Environment.NewLine + "End of dump: 2 of 3 records." + Environment.NewLine,
+            StringComparison.Ordinal);
         await Assert.That(output).DoesNotContain("before the call", StringComparison.Ordinal);
     }
 
@@ -180,6 +182,7 @@ internal sealed class FailureDumpTests
         var output = TestContext.Current!.GetStandardOutput();
         await Assert.That(output).Contains("Captured records of attempt 1 since the dump was armed (1 of 1 total, times in UTC):", StringComparison.Ordinal);
         await Assert.That(output).Contains("Retry: record of attempt 1", StringComparison.Ordinal);
+        await Assert.That(output).Contains("End of dump of attempt 1: 1 of 1 records.", StringComparison.Ordinal);
     }
 
     /// <summary>A test that skips itself after arming a dump writes no dump: skipping is not a failure.</summary>
@@ -207,18 +210,25 @@ internal sealed class FailureDumpTests
         await Assert.That(skipped[0].GetStandardOutput()).DoesNotContain(Heading, StringComparison.Ordinal);
     }
 
-    /// <summary>Without the attribute (a table that never saw the test start) the call throws with the line to add;
-    /// after the test has ended it throws too.</summary>
+    /// <summary>In a project without the attribute (a table that never saw the test start and is told the project does
+    /// not apply it) the call throws with the line to add; in a project with it, before the start, it says so; after the
+    /// test has ended it throws too.</summary>
     [Test]
-    public async Task Arm_WithoutTheAttribute_OrAfterTheEnd_Throws(CancellationToken cancellationToken)
+    public async Task Arm_WithoutTheAttribute_BeforeTheStart_OrAfterTheEnd_Throws(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        var withoutAttribute = new TestLifetimeTable(static _ => false);
         var table = new TestLifetimeTable();
         var test = TestContext.Current!;
         var collector = new FakeLogCollector();
 
-        var missing = await Assert.That(() => table.Arm(test, collector, DumpVerbosity.Default)).Throws<InvalidOperationException>();
-        await Assert.That(missing!.Message).Contains("[assembly: LogAssertions.TUnit.LogAssertionsTestLifetime]", StringComparison.Ordinal);
+        var missing = await Assert.That(() => withoutAttribute.Arm(test, collector, DumpVerbosity.Default)).Throws<InvalidOperationException>();
+        await Assert.That(missing!.Message).IsEqualTo(TestLifetimeTable.MissingAttributeMessage);
+        await Assert.That(missing.Message).Contains("[assembly: LogAssertions.TUnit.LogAssertionsTestLifetime]", StringComparison.Ordinal);
+
+        var early = await Assert.That(() => table.Arm(test, collector, DumpVerbosity.Default)).Throws<InvalidOperationException>();
+        await Assert.That(early!.Message).IsEqualTo(TestLifetimeTable.NotStartedMessage);
+        await Assert.That(early.Message).Contains("before TUnit started the current test", StringComparison.Ordinal);
 
         table.MarkStarted(test);
         await table.MarkEndedAsync(test);

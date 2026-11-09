@@ -172,6 +172,61 @@ internal sealed class FakeLogCollectorWaitTests
             .Throws<OperationCanceledException>();
     }
 
+    /// <summary>Records already collected count, also when the token is already canceled: the collector holds the
+    /// matching record, so the wait returns it instead of throwing.</summary>
+    [Test]
+    public async Task WaitForLogAsync_PreCanceledToken_RecordAlreadyCollected_ReturnsIt(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var collector = new FakeLogCollector();
+        Write(new FakeLogger(collector, "Test"), "service ready");
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        var record = await collector.WaitForLogAsync(Ready, cts.Token);
+
+        await Assert.That(record.Message).IsEqualTo("service ready");
+    }
+
+    /// <summary>A record that arrives and a cancellation that follows it before the wait has read the record: the
+    /// collector holds the record when the wait ends, so the wait returns it. The stream checks its token before it
+    /// reads the records it holds, so without that the wait would throw.</summary>
+    [Test]
+    public async Task WaitForLogAsync_CanceledRightAfterTheRecordArrived_ReturnsIt(CancellationToken cancellationToken)
+    {
+        var collector = new FakeLogCollector();
+        var logger = new FakeLogger(collector, "Test");
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var wait = StartWait(collector, Ready, cts.Token);
+        await Assert.That(wait.IsCompleted).IsFalse();
+
+        Write(logger, "service ready");
+        await cts.CancelAsync();
+
+        await Assert.That((await wait).Message).IsEqualTo("service ready");
+    }
+
+    /// <summary>A canceled wait counts what the collector holds: the message names the records collected and the
+    /// matching ones among them, also when the wait was canceled before it read any.</summary>
+    [Test]
+    public async Task WaitForLogsAsync_PreCanceledToken_NotEnoughCollected_NamesWhatTheCollectorHolds(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var collector = new FakeLogCollector();
+        var logger = new FakeLogger(collector, "Test");
+        Write(logger, "ready 1");
+        Write(logger, "noise");
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        var exception = await Assert.That(async () => await collector.WaitForLogsAsync(Ready, 2, cts.Token))
+            .Throws<OperationCanceledException>();
+
+        await Assert.That(exception!.Message).IsEqualTo(
+            "Waiting for 2 log record(s) where Message contains \"ready\" (Ordinal): 1 matched among the 2 record(s) collected before the wait was canceled.");
+        await Assert.That(exception.CancellationToken).IsEqualTo(cts.Token);
+    }
+
     /// <summary>A count far beyond any real test allocates nothing up front: the wait starts and ends on its
     /// token.</summary>
     [Test]
@@ -225,6 +280,23 @@ internal sealed class FakeLogCollectorWaitTests
         await Assert.That(records.Count).IsEqualTo(3);
         await Assert.That(records[0].Message).IsEqualTo("ready 1");
         await Assert.That(records[2].Message).IsEqualTo("ready 3");
+    }
+
+    /// <summary>Should the record stream end before enough records matched (the collector's never ends today), the
+    /// wait fails and says what it saw, instead of returning fewer records than asked for.</summary>
+    [Test]
+    public async Task WaitForLogsAsync_StreamEndsBeforeEnoughMatched_Fails(CancellationToken cancellationToken)
+    {
+        var collector = new FakeLogCollector();
+        var logger = new FakeLogger(collector, "Test");
+        Write(logger, "ready 1");
+        Write(logger, "noise");
+
+        var exception = await Assert.That(async () =>
+                await FakeLogCollectorWaitExtensions.ReadMatchesAsync(EndingStream(collector.GetSnapshot()), Ready, 2, cancellationToken))
+            .Throws<InvalidOperationException>();
+
+        await Assert.That(exception!.Message).IsEqualTo("The collector's record stream ended after 2 record(s), 1 of 2 matching.");
     }
 
     // --- CreateDiscarding ---
@@ -289,6 +361,18 @@ internal sealed class FakeLogCollectorWaitTests
         {
             source.Cancel();
             return false;
+        }
+    }
+
+    /// <summary>Yields <paramref name="records"/>, each after a yield of the thread, and then ends.</summary>
+    /// <param name="records">The records to yield.</param>
+    /// <returns>A record stream that ends.</returns>
+    private static async IAsyncEnumerable<FakeLogRecord> EndingStream(IEnumerable<FakeLogRecord> records)
+    {
+        foreach (var record in records)
+        {
+            await Task.Yield();
+            yield return record;
         }
     }
 

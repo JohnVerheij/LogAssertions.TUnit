@@ -11,8 +11,8 @@
     <IsPackable>true</IsPackable>
     <PackageId>LogAssertions</PackageId>
     <ProductName>LogAssertions</ProductName>
-    <Version>0.14.0</Version>
-    <PackageValidationBaselineVersion>0.13.1</PackageValidationBaselineVersion>
+    <Version>0.14.1</Version>
+    <PackageValidationBaselineVersion>0.14.0</PackageValidationBaselineVersion>
     <Authors>John Verheij</Authors>
     <Copyright>Copyright (c) 2026 John Verheij</Copyright>
     <Description>Framework-agnostic core for fluent log assertions over Microsoft.Extensions.Logging.Testing.FakeLogCollector. Provides ILogRecordFilter + LogFilter composable filter primitives, the failure-message rendering, the FakeLogCollector inspection extensions (Filter, CountMatching, DumpTo), event-driven waits for background logs (WaitForLogAsync, WaitForLogsAsync on FakeLogCollector.GetLogsAsync), the LogCollectorBuilder factories (Create returns a LogCapture, CreateDiscarding), and deterministic renderers for snapshot baselines (LogSnapshotRenderer for captured records, LogContractRenderer for log definitions). Test-framework-specific entry points live in adapter packages (LogAssertions.TUnit); adapters for other test frameworks are not planned, as the family targets TUnit.</Description>
@@ -82,8 +82,10 @@
 
   <ItemGroup>
     <!-- The TUnit adapter consults the internal LogCaptureFloorRegistry to detect a vacuous
-         below-floor HasNotLogged assertion; no public API is added for it. -->
+         below-floor HasNotLogged assertion; no public API is added for it. The core tests read a record stream that
+         ends through the wait's internal loop, which FakeLogCollector's stream never does. -->
     <InternalsVisibleTo Include="LogAssertions.TUnit" />
+    <InternalsVisibleTo Include="LogAssertions.Tests" />
   </ItemGroup>
 
 </Project>

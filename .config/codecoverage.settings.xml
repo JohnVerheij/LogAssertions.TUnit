@@ -35,14 +35,16 @@
     <Sources>
       <Exclude>
         <Source>.*[/\\]obj[/\\].*</Source>
+        <Source>.*\.g\.cs$</Source>
       </Exclude>
     </Sources>
-    <!-- Exclude generated / explicitly-opted-out code via attribute. -->
+    <!-- Exclude only what source generators emit. CompilerGeneratedAttribute is not excluded: the compiler puts it on
+         async state machines and lambda closures, which hold the bodies of async methods and lambdas, so excluding it
+         would leave that code unmeasured. ExcludeFromCodeCoverageAttribute is not honored either, so no attribute can
+         hide code from the measurement. -->
     <Attributes>
       <Exclude>
-        <Attribute>^System\.Diagnostics\.CodeAnalysis\.ExcludeFromCodeCoverageAttribute$</Attribute>
         <Attribute>^System\.CodeDom\.Compiler\.GeneratedCodeAttribute$</Attribute>
-        <Attribute>^System\.Runtime\.CompilerServices\.CompilerGeneratedAttribute$</Attribute>
       </Exclude>
     </Attributes>
     <!-- MTP default is false (VSTest default was true). Explicit for clarity. -->
