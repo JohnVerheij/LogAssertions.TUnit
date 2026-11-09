@@ -188,9 +188,10 @@ internal sealed class FakeLogCollectorWaitTests
         await Assert.That(record.Message).IsEqualTo("service ready");
     }
 
-    /// <summary>A record that arrives and a cancellation that follows it before the wait has read the record: the
-    /// collector holds the record when the wait ends, so the wait returns it. The stream checks its token before it
-    /// reads the records it holds, so without that the wait would throw.</summary>
+    /// <summary>A record that arrives and a cancellation right after it: the wait returns the record either way. When
+    /// the stream reads the record before the cancellation, the stream returns it; when the cancellation comes first,
+    /// the stream throws before it reads the records it holds, and the wait returns the record from the collector.
+    /// Timing decides which path runs; the pre-canceled tests above pin the second one deterministically.</summary>
     [Test]
     public async Task WaitForLogAsync_CanceledRightAfterTheRecordArrived_ReturnsIt(CancellationToken cancellationToken)
     {
