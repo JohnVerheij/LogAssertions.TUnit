@@ -255,7 +255,7 @@ await Assert.That(collector).WillLog(TimeSpan.FromSeconds(5), cancellationToken)
     .Once();
 ```
 
-`WillLog` is the event-driven form of `HasLogged()`: it waits on `FakeLogCollector.GetLogsAsync`, the stream `WaitForLogAsync` uses (no polling, no real-time delay). The count is read from the collector right after the minimum number of matching records has been captured. Records captured by then count, including ones logged before the assertion ran. A record that arrives after the assertion has passed isn't checked: to pin "no more than one", assert `HasLogged()...Once()` after the work has settled. The assertion fails when that count is above the maximum, and when `timeout` or the token ends the wait it fails with the same diagnostics as `HasLogged()`: the expectation, the count, and the captured records. A chain whose levels all sit below the collector's capture floor fails at once, since no such record can arrive.
+`WillLog` is the event-driven form of `HasLogged()`: it waits on `FakeLogCollector.GetLogsAsync`, the stream `WaitForLogAsync` uses (no polling, no real-time delay). The count is read from the collector right after the minimum number of matching records has been captured. Records captured by then count, including ones logged before the assertion ran. A record that arrives after the assertion has passed isn't checked: to pin "no more than one", assert `HasLogged()...Once()` after the work has settled. The assertion fails when that count is above the maximum. When `timeout` or the token ends the wait, the records the collector holds at that moment decide *(v0.14.1+)*: enough matching records pass (also a record captured just before the timeout fired, or records already captured when the token was canceled before the assertion ran); otherwise it fails with the same diagnostics as `HasLogged()`: the expectation, the count, and the captured records. A chain whose levels all sit below the collector's capture floor fails at once, since no such record can arrive.
 
 - The `timeout` is required and is the bound; the token is optional. It is real time, and it starts when the assertion runs (at `await`), not when the chain is built. Choose a timeout below the test's own `[Timeout]`, so the wait fails with its own diagnostics first.
 - A wait proves that records arrived, not that no more follow, so there is no `Never()` or `AtMost(n)`. For absence, use `HasNotLogged()` after the work has finished.
@@ -705,6 +705,8 @@ static readonly ILogRecordFilter CriticalDbError = LogFilter.All(
 await Assert.That(collector).HasLogged().WithFilter(CriticalDbError).AtLeast(1);
 ```
 
+A filter may run more than once for the same record within one assertion or wait: `WillLog` checks each record as it arrives and again when it decides, and a canceled wait checks the collector's records again. Keep a custom filter free of side effects.
+
 ### Conditional configuration (`When`)
 
 ```csharp
@@ -1038,7 +1040,7 @@ var record = await collector.WaitForLogAsync(
     cancellationToken);
 ```
 
-`WaitForLogAsync` takes any `ILogRecordFilter` (compose them with `LogFilter.All` / `Any` / `Not`) or a `Func<FakeLogRecord, bool>`, and `WaitForLogsAsync(filter, count, cancellationToken)` waits for several. Both waits are built on `FakeLogCollector.GetLogsAsync`, so they wake on each new record: no polling interval, no real-time delay, and no cost when the record is already there. Here the token is the only bound and is required; pass the test's token, or a linked source with a timeout. On cancellation the `OperationCanceledException` says how many records arrived and how many matched.
+`WaitForLogAsync` takes any `ILogRecordFilter` (compose them with `LogFilter.All` / `Any` / `Not`) or a `Func<FakeLogRecord, bool>`, and `WaitForLogsAsync(filter, count, cancellationToken)` waits for several. Both waits are built on `FakeLogCollector.GetLogsAsync`, so they wake on each new record: no polling interval, no real-time delay, and no cost when the record is already there. Here the token is the only bound and is required; pass the test's token, or a linked source with a timeout. On cancellation the collector decides *(v0.14.1+)*: if it holds enough matching records (also ones captured just before the cancellation, or before the call with a token that was already canceled), the wait returns them; otherwise the `OperationCanceledException` says how many records the collector holds and how many of them match.
 
 A wait proves that a record arrived; it cannot prove that one did not. For "has not logged", let the work finish first (await its completion, or wait for the log that marks the end of the step) and then assert `HasNotLogged()`.
 
@@ -1122,7 +1124,9 @@ The tee picks the test for each record when it is logged:
 2. otherwise the test that was current when the tee was built (its *owner*), while that test runs, so a record logged on a thread with no test context still reaches the report;
 3. otherwise no test: the record is not teed, and when the factory is disposed the tee writes one line, to the test current at that moment (if any), saying how many records it skipped.
 
-With the [lifetime attribute](#setup-the-test-lifetime-attribute-v0140) (v0.14.0+) a test counts as running until its `[After(Test)]` hooks have finished, and a record logged on the flow of a test that has ended is not teed (it does not fall back to the owner). Without it, rule 2 ends when the owner has a result, and rule 1 has no end check. Keep the plain `Create()` for log-heavy soak tests where writing every record to the per-test output is undesirable.
+With the [lifetime attribute](#setup-the-test-lifetime-attribute-v0140) (v0.14.0+) a test counts as running until its `[After(Test)]` hooks have finished, and a record logged on the flow of a test that has ended is not teed (it does not fall back to the owner). The check and the write are one step, so a record whose test ends while it is being formatted is skipped and counted too *(v0.14.1+)*. Without the attribute, rule 2 ends when the owner has a result, and rule 1 has no end check. Keep the plain `Create()` for log-heavy soak tests where writing every record to the per-test output is undesirable.
+
+TUnit disposes the test class after the test has ended, so a record logged in the test class's `DisposeAsync` is not teed (it is counted); log through `await using` in the test, or in an `[After(Test)]` hook. A retried test keeps one output across its attempts, so work left running by an earlier attempt logs into the same test's output.
 
 #### Where each record goes
 
@@ -1135,7 +1139,7 @@ The tee picks the test from the logging code's own context: it cannot know that 
 | on a thread with no test context (timer, suppressed flow) | the test that built the tee, while it runs; after that not teed, counted |
 | by a host started outside any test (inside `ExecutionContext.SuppressFlow()`) | its own loop records: not teed, counted; records from requests a test makes: that test |
 
-So start a host shared across tests outside any test, and every record a test causes lands in that test. TUnit (1.80) runs the `[Before(Assembly)]`, `[Before(Class)]` and other hooks, and the initialization of shared fixtures, on the flow of the first test that needs them, so a host built and started there counts as started inside that test (the second row). Build and start it inside `ExecutionContext.SuppressFlow()` instead:
+So start a host shared across tests outside any test, and every record a test causes lands in that test. TUnit (1.81) runs the `[Before(Assembly)]`, `[Before(Class)]` and other hooks, and the initialization of shared fixtures, on the flow of the first test that needs them, so a host built and started there counts as started inside that test (the second row). Build and start it inside `ExecutionContext.SuppressFlow()` instead:
 
 ```csharp
 Task started;
@@ -1180,15 +1184,18 @@ private static LogCapture Logs = null!;   // shared by the class, built in [Befo
 public void ArmLogDump() => Logs.Collector.DumpToTestOutputOnFailure();
 ```
 
+A capture shared by tests that run at the same time holds all their records, so the dump of one of them also holds the records the others logged since its call: mark such a class `[NotInParallel]`, or give each test its own capture.
+
 When the test ends without passing (it failed, timed out, or was canceled; a skipped test does not count), the records captured since the call are written to the test's output, one timestamp (UTC) per record:
 
 ```
 Captured records since the dump was armed (3 of 120 total, times in UTC):
   08:47:12.345 [warn] Broker: connection lost
   ...
+End of dump: 3 of 120 records.
 ```
 
-A test that passes writes nothing. The time on each line is the record's timestamp, from the collector's [clock](#clocks-v0140). The start point is the collector's latest record at the time of the call, not a clock reading, so it is right whatever clock the collector uses; when the collector is cleared after the call, every record is written. The dump is not capped. A retried test arms again in each attempt, and the heading names the attempt (`Captured records of attempt 1 since ...`). Without the attribute the call throws, with a message that names the line to add.
+A test that passes writes nothing. The time on each line is the record's timestamp, from the collector's [clock](#clocks-v0140). The start point is the collector's latest record at the time of the call, not a clock reading, so it is right whatever clock the collector uses; when the collector is cleared after the call, every record is written. The dump writes every record, and its last line repeats the summary *(v0.14.1+)*: TUnit keeps only the last ~786,000 characters of a test's output once it grows past about a million, so the report of a very large dump loses its start (the heading and the first records) but still ends with the summary. A retried test arms again in each attempt, and the heading and the last line name the attempt (`Captured records of attempt 1 since ...`, `End of dump of attempt 1: ...`). Without the attribute the call throws, with a message that names the line to add; called before TUnit has started the test (in a `[Before(Class)]` hook, the test class's constructor, or a fixture's initialization), it throws with a message that says so *(v0.14.1+)*.
 
 ### Don't use `NullLogger` for code under coverage
 
@@ -1330,7 +1337,7 @@ Issues that surface during adoption and upgrades. If you hit something not liste
 
 ### "`DumpToTestOutputOnFailure()` throws `InvalidOperationException`"
 
-**Cause:** the test project does not apply the lifetime attribute, so the package cannot see the test end; the call ran after the test had ended (for example from a background loop); or it ran where no test is current (`TestContext.Current` was `null`). Each case has its own message.
+**Cause:** the test project does not apply the lifetime attribute, so the package cannot see the test end; the call ran before TUnit started the test (in a `[Before(Class)]` hook, the test class's constructor, or while a fixture or data source was initialized: TUnit runs these with the test already current, before the attribute sees it start); the call ran after the test had ended (for example from a background loop); or it ran where no test is current (`TestContext.Current` was `null`). Each case has its own message. In 0.14.0 a call before the start said the attribute was missing; since 0.14.1 it says the call came before the start.
 
 **Fix:** add `[assembly: LogAssertions.TUnit.LogAssertionsTestLifetime]` once to the test project (the exception message names the line), and call the method in the test or a `[Before(Test)]` hook. See [Setup](#setup-the-test-lifetime-attribute-v0140).
 

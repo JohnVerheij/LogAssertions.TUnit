@@ -29,10 +29,12 @@ namespace LogAssertions.TUnit;
 /// reads. The count is read from the collector right after the minimum number of matching records has been captured.
 /// Records captured by then count, including ones logged before the assertion ran. A record that arrives after the
 /// assertion has passed isn't checked: to pin "no more than one", assert <c>HasLogged()...Once()</c> after the work
-/// has settled. The assertion fails when that count is above the maximum, and when the <c>timeout</c> or the token
-/// ends the wait, it fails with the expectation, the count, and the captured records: the same diagnostics as
-/// <c>HasLogged()</c>, not a bare cancellation. A chain whose levels all sit below the collector's capture floor fails
-/// at once, since such a record can never be captured.
+/// has settled. The assertion fails when that count is above the maximum. When the <c>timeout</c> or the token ends
+/// the wait, the records the collector holds at that moment decide: enough matching records pass (also a record
+/// captured just before the timeout fired, or records already captured when the token was canceled before the
+/// assertion ran); otherwise it fails with the expectation, the count, and the captured records, the same diagnostics
+/// as <c>HasLogged()</c>, not a bare cancellation. A chain whose levels all sit below the collector's capture floor
+/// fails at once, since such a record can never be captured.
 /// </para>
 /// <para>
 /// Clock: the <c>timeout</c> runs in real time (<see cref="TimeProvider.System"/>), whatever clock the collector uses,

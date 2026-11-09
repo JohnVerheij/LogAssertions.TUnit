@@ -109,6 +109,20 @@ internal sealed class LogAssertionsFiltersV040Tests
             .Throws<AssertionException>();
     }
 
+    /// <summary>Neither inner-exception filter matches a record logged without any exception, next to one whose inner
+    /// exception does match.</summary>
+    [Test]
+    public async Task InnerExceptionFilters_RecordWithoutAnException_DoNotMatch(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var collector = CreateCollectorWithWrappedException(
+            outer: new InvalidOperationException("outer", new FormatException("the inner cause")));
+        DirectLog.Write(new FakeLogger(collector, "Test"), "logged without an exception", LogLevel.Error);
+
+        await Assert.That(collector).HasLogged().WithInnerException<FormatException>().Once();
+        await Assert.That(collector).HasLogged().WithInnerExceptionMessage("inner cause", StringComparison.Ordinal).Once();
+    }
+
     /// <summary>F1 composition: WithException&lt;TOuter&gt; AND WithInnerException&lt;TInner&gt;
     /// can be chained: typical gRPC pattern (RpcException-wraps-domain-exception).</summary>
     [Test]

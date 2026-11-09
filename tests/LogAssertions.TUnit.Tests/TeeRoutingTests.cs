@@ -290,18 +290,21 @@ internal sealed class TeeRoutingTests
         await Assert.That(table.ResolveTeeTarget(null, owner)).IsSameReferenceAs(owner);
     }
 
-    /// <summary>The note for a project without the attribute: a table that never saw the test start writes it once,
-    /// to that test, and names the line to add; no test, or a test the table started, gets none. In this assembly the
-    /// attribute started every test, so the shared table writes none.</summary>
+    /// <summary>The note for a project without the attribute: a table that never saw the test start, and is told the
+    /// project does not apply the attribute, writes it once, to that test, and names the line to add; no test, a test
+    /// the table started, or a test whose project applies the attribute (TUnit lists it on the test before the start)
+    /// gets none. In this assembly the attribute started every test, so the shared table writes none.</summary>
     [Test]
     public async Task MissingAttributeNote_IsWrittenOnce_ToATestTheAttributeDidNotStart(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var test = TestContext.Current!;
-        var untracked = new TestLifetimeTable();
-        var tracked = new TestLifetimeTable();
+        var untracked = new TestLifetimeTable(static _ => false);
+        var notStartedYet = new TestLifetimeTable();
+        var tracked = new TestLifetimeTable(static _ => false);
         tracked.MarkStarted(test);
 
+        notStartedYet.NoteIfUntracked(test);
         untracked.NoteIfUntracked(null);
         untracked.NoteIfUntracked(test);
         untracked.NoteIfUntracked(test);

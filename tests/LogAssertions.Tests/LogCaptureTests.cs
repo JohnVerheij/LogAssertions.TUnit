@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -108,6 +109,55 @@ internal sealed class LogCaptureTests
 
         await Assert.That(() => logs.CreateLogger("After")).Throws<ObjectDisposedException>();
         await Assert.That(logs.Collector.Count).IsEqualTo(1);
+    }
+
+    /// <summary>After disposal a provider can't be added either, as the member documents.</summary>
+    [Test]
+    public async Task Dispose_AddProviderAfterwards_Throws(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var logs = LogCollectorBuilder.Create();
+        await logs.DisposeAsync();
+        using var provider = new DisposalProbe();
+
+        await Assert.That(() => logs.AddProvider(provider)).Throws<ObjectDisposedException>();
+    }
+
+    /// <summary>One capture shared by work on eight threads at once (as parallel tests sharing a class-level capture
+    /// log): every record is captured exactly once.</summary>
+    [Test]
+    public async Task SharedCapture_ConcurrentLoggers_CaptureEveryRecordOnce(CancellationToken cancellationToken)
+    {
+        const int Threads = 8;
+        const int PerThread = 500;
+        using var logs = LogCollectorBuilder.Create();
+        using var start = new ManualResetEventSlim();
+
+        var writers = new Task[Threads];
+        for (var thread = 0; thread < Threads; thread++)
+        {
+            var logger = logs.CreateLogger($"Thread{thread}");
+            var lines = new string[PerThread];
+            for (var i = 0; i < PerThread; i++)
+                lines[i] = $"{thread}-{i}";
+            writers[thread] = Task.Run(
+                () =>
+                {
+                    start.Wait(cancellationToken);
+                    foreach (var line in lines)
+                        logger.Log(LogLevel.Information, default, line, null, static (state, _) => state);
+                },
+                cancellationToken);
+        }
+
+        start.Set();
+        await Task.WhenAll(writers);
+
+        var messages = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var record in logs.Collector.GetSnapshot())
+            messages.Add(record.Message);
+        await Assert.That(logs.Collector.Count).IsEqualTo(Threads * PerThread);
+        await Assert.That(messages.Count).IsEqualTo(Threads * PerThread);
     }
 
     /// <summary><see langword="null"/> arguments are rejected.</summary>

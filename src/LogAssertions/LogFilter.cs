@@ -509,7 +509,7 @@ public static class LogFilter
         foreach (var kv in required)
             snapshot[kv.Key] = kv.Value;
         var description = "All scope properties: {" + string.Join(", ",
-            snapshot.Select(static kv => kv.Key + "=" + (kv.Value ?? "null"))) + "}";
+            snapshot.Select(static kv => string.Concat(kv.Key, "=", kv.Value ?? "null"))) + "}";
         return new PredicateFilter(
             r => snapshot.All(kv => ScopePropertyMatches(r, kv.Key, v => Equals(v, kv.Value))),
             description);

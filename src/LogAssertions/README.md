@@ -40,7 +40,7 @@ Adapters for other test frameworks (NUnit, xUnit, MSTest) are not planned; the f
 dotnet add package LogAssertions.TUnit
 ```
 
-`LogAssertions` comes transitively. You don't need to install it directly unless you're building your own adapter package. **Requirements:** .NET 10; the TUnit adapter needs TUnit 1.80.0 or later, and this core package does not depend on TUnit.
+`LogAssertions` comes transitively. You don't need to install it directly unless you're building your own adapter package. **Requirements:** .NET 10; the TUnit adapter needs TUnit 1.81.10 or later, and this core package does not depend on TUnit.
 
 ## Direct use
 

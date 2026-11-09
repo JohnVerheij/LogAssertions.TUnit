@@ -60,7 +60,9 @@ public static class FakeLogCollectorTUnitInspectionExtensions
     /// <para>
     /// The start point is the collector's latest record at the time of the call, not a clock reading, so it is right
     /// whatever clock the collector uses. When the collector is cleared after the call, every record is written. The
-    /// dump writes every record since the call; only the dump inside an assertion's failure message is capped.
+    /// dump writes every record since the call (only the dump inside an assertion's failure message is capped), and its
+    /// last line repeats the summary: TUnit keeps only the latest part of a very large test output, so the report of
+    /// such a dump loses its start but still ends with the summary.
     /// </para>
     /// <para>
     /// Clock: the time on each line is the record's <see cref="FakeLogRecord.Timestamp"/>, that is, the collector's
@@ -69,15 +71,16 @@ public static class FakeLogCollectorTUnitInspectionExtensions
     /// </para>
     /// <para>
     /// A retried test arms again in each attempt (the test body and its hooks run again). After an attempt that did
-    /// not pass, that attempt's records are written, and the heading names the attempt. A second call for the same
-    /// collector in the same attempt changes nothing.
+    /// not pass, that attempt's records are written, and the heading and the last line name the attempt. A second call
+    /// for the same collector in the same attempt changes nothing.
     /// </para>
     /// </remarks>
     /// <param name="collector">The collector to dump when the test does not pass.</param>
     /// <exception cref="ArgumentNullException"><paramref name="collector"/> is <see langword="null"/>.</exception>
     /// <exception cref="InvalidOperationException">There is no current test; the
     /// <see cref="LogAssertionsTestLifetimeAttribute"/> is not applied to the test project (the message names the line
-    /// to add); or the current test has ended.</exception>
+    /// to add); TUnit has not started the current test yet (a <c>[Before(Class)]</c> hook, the test class's
+    /// constructor, or a fixture's initialization); or the current test has ended.</exception>
     public static void DumpToTestOutputOnFailure(this FakeLogCollector collector)
         => DumpToTestOutputOnFailure(collector, DumpVerbosity.Default);
 
@@ -88,8 +91,8 @@ public static class FakeLogCollectorTUnitInspectionExtensions
     /// <param name="verbosity">How much detail to write per record. See <see cref="DumpVerbosity"/>.</param>
     /// <exception cref="ArgumentNullException"><paramref name="collector"/> is <see langword="null"/>.</exception>
     /// <exception cref="InvalidOperationException">There is no current test; the
-    /// <see cref="LogAssertionsTestLifetimeAttribute"/> is not applied to the test project; or the current test has
-    /// ended.</exception>
+    /// <see cref="LogAssertionsTestLifetimeAttribute"/> is not applied to the test project; TUnit has not started the
+    /// current test yet; or the current test has ended.</exception>
     public static void DumpToTestOutputOnFailure(this FakeLogCollector collector, DumpVerbosity verbosity)
     {
         ArgumentNullException.ThrowIfNull(collector);

@@ -8,14 +8,26 @@ namespace LogAssertions.TUnit;
 
 /// <summary>A failure dump armed by <c>DumpToTestOutputOnFailure</c>: the collector, and the record that was its
 /// latest when the dump was armed. The dump writes the records captured after that record.</summary>
-/// <param name="Collector">The collector to dump.</param>
-/// <param name="Bookmark">The collector's latest record when the dump was armed, or <see langword="null"/> when it
+/// <param name="collector">The collector to dump.</param>
+/// <param name="bookmark">The collector's latest record when the dump was armed, or <see langword="null"/> when it
 /// held none.</param>
-/// <param name="Verbosity">How much detail to write per record.</param>
-internal sealed record ArmedFailureDump(FakeLogCollector Collector, FakeLogRecord? Bookmark, DumpVerbosity Verbosity)
+/// <param name="verbosity">How much detail to write per record.</param>
+internal sealed class ArmedFailureDump(FakeLogCollector collector, FakeLogRecord? bookmark, DumpVerbosity verbosity)
 {
-    /// <summary>Writes the heading and the records captured since the dump was armed, one timestamp (UTC) per record.
-    /// When the bookmark is no longer in the collector (it was cleared), every record is written.</summary>
+    /// <summary>Gets the collector to dump.</summary>
+    internal FakeLogCollector Collector { get; } = collector;
+
+    /// <summary>Gets the collector's latest record when the dump was armed, or <see langword="null"/> when it held
+    /// none.</summary>
+    internal FakeLogRecord? Bookmark { get; } = bookmark;
+
+    /// <summary>Gets how much detail to write per record.</summary>
+    internal DumpVerbosity Verbosity { get; } = verbosity;
+
+    /// <summary>Writes the heading, the records captured since the dump was armed (one timestamp, UTC, per record), and
+    /// a footer that repeats the counts. TUnit keeps only the latest part of a very large test output, so a trimmed dump
+    /// still ends with its summary. When the bookmark is no longer in the collector (it was cleared), every record is
+    /// written.</summary>
     /// <param name="writer">The test's output.</param>
     /// <param name="attempt">The attempt number to name in the heading, or <see langword="null"/> for a test without
     /// retries.</param>
@@ -24,6 +36,7 @@ internal sealed record ArmedFailureDump(FakeLogCollector Collector, FakeLogRecor
     {
         var snapshot = Collector.GetSnapshot();
         var start = FindStart(snapshot, out var cleared);
+        var written = snapshot.Count - start;
 
         StringBuilder sb = new();
         sb.Append("Captured records");
@@ -32,7 +45,7 @@ internal sealed record ArmedFailureDump(FakeLogCollector Collector, FakeLogRecor
             sb.Append(" of attempt ").Append(number);
         }
 
-        sb.Append(" since the dump was armed (").Append(snapshot.Count - start).Append(" of ").Append(snapshot.Count)
+        sb.Append(" since the dump was armed (").Append(written).Append(" of ").Append(snapshot.Count)
             .Append(" total, times in UTC");
         if (cleared)
         {
@@ -41,6 +54,13 @@ internal sealed record ArmedFailureDump(FakeLogCollector Collector, FakeLogRecor
 
         sb.AppendLine("):");
         LogAssertionRendering.AppendRecords(sb, snapshot, start, Verbosity, withTimestamps: true);
+        sb.Append("End of dump");
+        if (attempt is { } ended)
+        {
+            sb.Append(" of attempt ").Append(ended);
+        }
+
+        sb.Append(": ").Append(written).Append(" of ").Append(snapshot.Count).AppendLine(" records.");
         await writer.WriteAsync(sb.ToString()).ConfigureAwait(false);
     }
 
