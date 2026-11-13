@@ -102,7 +102,8 @@ public static class LogAssertionRendering
     }
 
     /// <summary>Appends one record: its headline, then, unless <paramref name="verbosity"/> is
-    /// <see cref="DumpVerbosity.Compact"/>, its properties, scopes, and exception.</summary>
+    /// <see cref="DumpVerbosity.Compact"/>, its properties and scopes (not at
+    /// <see cref="DumpVerbosity.CompactWithException"/>) and its exception.</summary>
     /// <param name="sb">The target string builder.</param>
     /// <param name="record">The record.</param>
     /// <param name="verbosity">How much detail to render.</param>
@@ -123,13 +124,22 @@ public static class LogAssertionRendering
         if (verbosity is DumpVerbosity.Compact)
             return;
 
-        AppendStructuredState(sb, record);
-        AppendScopes(sb, record);
+        if (verbosity is not DumpVerbosity.CompactWithException)
+        {
+            AppendStructuredState(sb, record);
+            AppendScopes(sb, record);
+        }
+
         if (record.Exception is not null)
             AppendException(sb, record.Exception, verbosity);
     }
 
-    /// <summary>Appends the exception line and, at <see cref="DumpVerbosity.Verbose"/>, the full exception text.</summary>
+    /// <summary>Replaces each line break (CR, LF, CRLF, and the other Unicode line separators) in a text with one space, so a message stays on one line.</summary>
+    /// <param name="text">The text.</param>
+    /// <returns>The text on one line.</returns>
+    private static string SingleLine(string text) => text.ReplaceLineEndings(" ");
+
+    /// <summary>Appends the exception line (its message on one line) and, at <see cref="DumpVerbosity.Verbose"/>, the full exception text.</summary>
     /// <param name="sb">The target string builder.</param>
     /// <param name="exception">The record's exception.</param>
     /// <param name="verbosity">How much detail to render.</param>
@@ -138,7 +148,7 @@ public static class LogAssertionRendering
         sb.Append("    exception: ")
             .Append(exception.GetType().Name)
             .Append(": ")
-            .Append(exception.Message)
+            .Append(SingleLine(exception.Message))
             .AppendLine();
 
         if (verbosity is not DumpVerbosity.Verbose)

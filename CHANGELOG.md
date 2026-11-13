@@ -15,6 +15,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### BREAKING
+
+- **`LogCapture.Deconstruct`** was removed, as 0.14.0 announced. It only turned `var (factory, collector) = LogCollectorBuilder.Create();` into a build error that named the new form; that line now fails with the compiler's own error (`CS1061`, no `Deconstruct` on `LogCapture`). Source that compiled against 0.14.x never contained the call, so this changes binary compatibility only. Migration: `using var logs = LogCollectorBuilder.Create();`, then `logs.Collector` (`await using var` in async code).
+- **`LogContractRenderer.Render`** output changed in two cases. Definitions that tie on event ID, name, template, and level used to keep their input order, so the same set could render in two orders; they are now ordered by their rendered line as well. The event name and the placeholder names are now escaped like the template (`\\`, `\"`, CR, LF, and tab), so a name with a line break no longer splits its line. A committed contract baseline changes only if it held such a tie or such a name. Migration: regenerate the baseline and review the diff.
+
+### Added
+
+- **Targets `net10.0` and `net11.0`.** Each target framework resolves its own `Microsoft.Extensions.Diagnostics.Testing` (10.11.0 for `net10.0`, 11.0.0 for `net11.0`).
+- **`WithEventIdIn(params int[] eventIds)`** on every assertion chain (`HasLogged`, `HasNotLogged`, `HasLoggedSequence` steps, `WillLog`) and **`LogFilter.WithEventIdIn(params int[] eventIds)`**: records whose event ID is any of the listed IDs, in place of `LogFilter.Any(LogFilter.WithEventId(a), LogFilter.WithEventId(b))`. Duplicates count once. An empty list throws `ArgumentException`, because a filter that accepts nothing is almost always a mistake and would make `HasNotLogged()` pass for no reason. The failure text names the call with its distinct IDs and describes the filter as `EventId in {1, 2}`, with braces, so it is not taken for the range of `WithEventIdInRange`.
+- **`DumpVerbosity.CompactWithException`** (value 3, appended after `Verbose`; the values of the other members did not change): the `Compact` headline of each record plus one `exception: Type: message` line for a record that carries an exception, with no properties and no scopes. It works with `DumpTo`, `DumpToTestOutput`, and both `DumpToTestOutputOnFailure` overloads; a dump of 46 records, three of them with an exception, is 49 lines.
+
+### Changed
+
+- **`TUnit.Assertions`** and **`TUnit.Core`** minimum versions raised from 1.81.10 to 1.83.0, the first TUnit with a `net11.0` asset.
+- **README:** the shared-host recipe (build and start a host that outlives a test inside `Task.Run` within `ExecutionContext.SuppressFlow()` and await it after the block, because suppressing the flow does not clear the calling thread's own context) is in the TUnit adapter README and in the remarks of `AddTeedFakeLogging` as well; the lifetime attribute is needed once in every test assembly, also when the package arrives through another project; a new cookbook entry, "Pin the records other tools read", shows `WithEventName(...).WithMessageTemplate(...)` for a record the contract renderer cannot reach; the troubleshooting entry for the removed `Deconstruct` names the new error; every C# sample compiles against the packed packages.
+
+### Fixed
+
+- **Dumps and failure messages** (`DumpTo`, `DumpToTestOutput`, `DumpToTestOutputOnFailure`, and the captured records in an assertion failure) wrote an exception message with line breaks as several lines, the later ones without indentation. The `exception:` line now shows the message on one line, each line break replaced by a space; `Verbose` still writes the full exception text below it.
+
 ## [0.14.1] - 2026-11-09: tee, failure dump, and waits fixed at their edges
 
 Patch release, no API change. The test-output tee keeps each record with its exception text and never writes into a test that ended while the record was being formatted; a dump armed or a tee built before TUnit starts the test no longer claims the lifetime attribute is missing; a failure dump ends with its summary; a wait whose token or timeout ends it returns the matching records the collector already holds.

@@ -10,18 +10,14 @@ using Microsoft.CodeAnalysis.CSharp;
 namespace LogAssertions.Tests;
 
 /// <summary>The 0.13 tuple form, <c>var (factory, collector) = LogCollectorBuilder.Create();</c>, compiled against the
-/// core: it fails with one build error, which names the 0.14.0 form.</summary>
+/// core: <c>LogCapture</c> has no <c>Deconstruct</c>, so it fails with the compiler's own error (CS1061).</summary>
 [Category("Smoke")]
 [Timeout(60_000)]
 internal sealed class DeconstructCompileTests
 {
-    /// <summary>The message of the obsolete <c>LogCapture.Deconstruct</c>.</summary>
-    internal const string Message =
-        "LogCollectorBuilder.Create() and TestOutputLogCollectorBuilder.CreateTeed() return a LogCapture: use 'await using var logs = ...;' ('using var' in synchronous code), then logs.Collector.";
-
     /// <summary>Compiles the tuple form with the C# compiler against the assemblies this test runs with.</summary>
     [Test]
-    public async Task TupleForm_FailsToCompile_WithTheMigrationMessage(CancellationToken cancellationToken)
+    public async Task TupleForm_FailsToCompile_BecauseCaptureHasNoDeconstruct(CancellationToken cancellationToken)
     {
         var source = CSharpSyntaxTree.ParseText(
             """
@@ -45,8 +41,9 @@ internal sealed class DeconstructCompileTests
 
         var errors = compilation.GetDiagnostics(cancellationToken).Where(static d => d.Severity is DiagnosticSeverity.Error).ToArray();
 
-        await Assert.That(errors).Count().IsEqualTo(1);
-        await Assert.That(errors[0].Id).IsEqualTo("CS0619");
-        await Assert.That(errors[0].GetMessage(CultureInfo.InvariantCulture)).Contains(Message, StringComparison.Ordinal);
+        await Assert.That(errors).IsNotEmpty();
+        await Assert.That(errors[0].Id).IsEqualTo("CS1061");
+        await Assert.That(errors[0].GetMessage(CultureInfo.InvariantCulture)).Contains(
+            "'LogCapture' does not contain a definition for 'Deconstruct'", StringComparison.Ordinal);
     }
 }

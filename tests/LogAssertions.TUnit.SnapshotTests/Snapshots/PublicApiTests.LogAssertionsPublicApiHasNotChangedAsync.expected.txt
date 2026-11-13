@@ -3,7 +3,6 @@
 [assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/JohnVerheij/LogAssertions.TUnit")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("LogAssertions.TUnit")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("LogAssertions.Tests")]
-[assembly: System.Runtime.Versioning.TargetFramework(".NETCoreApp,Version=v10.0", FrameworkDisplayName=".NET 10.0")]
 namespace LogAssertions
 {
     public enum DumpVerbosity
@@ -11,6 +10,7 @@ namespace LogAssertions
         Compact = 0,
         Default = 1,
         Verbose = 2,
+        CompactWithException = 3,
     }
     public static class FakeLogCollectorInspectionExtensions
     {
@@ -41,10 +41,6 @@ namespace LogAssertions
         public Microsoft.Extensions.Logging.Testing.FakeLogCollector Collector { get; }
         public void AddProvider(Microsoft.Extensions.Logging.ILoggerProvider provider) { }
         public Microsoft.Extensions.Logging.ILogger CreateLogger(string categoryName) { }
-        [System.Obsolete("LogCollectorBuilder.Create() and TestOutputLogCollectorBuilder.CreateTeed() retur" +
-            "n a LogCapture: use \'await using var logs = ...;\' (\'using var\' in synchronous co" +
-            "de), then logs.Collector.", true)]
-        public void Deconstruct(out Microsoft.Extensions.Logging.ILoggerFactory factory, out Microsoft.Extensions.Logging.Testing.FakeLogCollector collector) { }
         public void Dispose() { }
         public System.Threading.Tasks.ValueTask DisposeAsync() { }
     }
@@ -83,6 +79,7 @@ namespace LogAssertions
         public static LogAssertions.ILogRecordFilter Where(System.Func<Microsoft.Extensions.Logging.Testing.FakeLogRecord, bool> predicate) { }
         public static LogAssertions.ILogRecordFilter WithCategory(string category) { }
         public static LogAssertions.ILogRecordFilter WithEventId(int eventId) { }
+        public static LogAssertions.ILogRecordFilter WithEventIdIn(params int[] eventIds) { }
         public static LogAssertions.ILogRecordFilter WithEventIdInRange(int min, int max) { }
         public static LogAssertions.ILogRecordFilter WithEventName(string eventName) { }
         public static LogAssertions.ILogRecordFilter WithException() { }

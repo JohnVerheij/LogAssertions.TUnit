@@ -147,7 +147,7 @@ public static class LogSnapshotRenderer
             return category;
         }
 
-        var lastDot = category.LastIndexOf('.');
+        var lastDot = category.AsSpan().LastIndexOf('.');
         return lastDot < 0 ? category : category[(lastDot + 1)..];
     }
 

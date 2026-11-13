@@ -202,8 +202,10 @@ internal sealed class TeeRoutingTests
         await Assert.That(() => logger.Log(LogLevel.Warning, default, "state", null, null!)).Throws<ArgumentNullException>();
     }
 
-    /// <summary>The routing decision runs for every record and allocates nothing (measured over 10,000 calls after a
-    /// warm-up). TUnit's output writer itself allocates on access, so the tee fetches it only to write.</summary>
+    /// <summary>The routing decision runs for every record and allocates nothing (the best of five rounds of 10,000
+    /// calls after a warm-up: the runtime itself can allocate once while it promotes the method to optimized code,
+    /// which must not fail the test, whereas a real allocation shows in every round). TUnit's output writer itself
+    /// allocates on access, so the tee fetches it only to write.</summary>
     [Test]
     public async Task RoutingDecision_AllocatesNothing(CancellationToken cancellationToken)
     {
@@ -212,16 +214,21 @@ internal sealed class TeeRoutingTests
         for (var i = 0; i < 1_000; i++)
             _ = provider.ResolveTarget();
 
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        for (var i = 0; i < 10_000; i++)
-            _ = provider.ResolveTarget();
-        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        var allocated = long.MaxValue;
+        for (var round = 0; round < 5; round++)
+        {
+            var before = GC.GetAllocatedBytesForCurrentThread();
+            for (var i = 0; i < 10_000; i++)
+                _ = provider.ResolveTarget();
+            allocated = Math.Min(allocated, GC.GetAllocatedBytesForCurrentThread() - before);
+        }
 
         await Assert.That(allocated).IsEqualTo(0L);
     }
 
-    /// <summary>A record that reaches no test allocates nothing on the tee path (10,000 records through
-    /// <see cref="ILogger.Log{TState}"/> after a warm-up), and every one is counted.</summary>
+    /// <summary>A record that reaches no test allocates nothing on the tee path (the best of five rounds of 10,000
+    /// records through <see cref="ILogger.Log{TState}"/> after a warm-up, for the reason given at
+    /// <see cref="RoutingDecision_AllocatesNothing"/>), and every one is counted.</summary>
     [Test]
     public async Task SkippedRecord_AllocatesNothing(CancellationToken cancellationToken)
     {
@@ -235,15 +242,19 @@ internal sealed class TeeRoutingTests
                 for (var i = 0; i < 1_000; i++)
                     DirectLog.Write(logger, "warm-up");
 
-                var before = GC.GetAllocatedBytesForCurrentThread();
-                for (var i = 0; i < 10_000; i++)
-                    DirectLog.Write(logger, "skipped");
-                allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+                allocated = long.MaxValue;
+                for (var round = 0; round < 5; round++)
+                {
+                    var before = GC.GetAllocatedBytesForCurrentThread();
+                    for (var i = 0; i < 10_000; i++)
+                        DirectLog.Write(logger, "skipped");
+                    allocated = Math.Min(allocated, GC.GetAllocatedBytesForCurrentThread() - before);
+                }
             },
             cancellationToken);
 
         await Assert.That(allocated).IsEqualTo(0L);
-        await Assert.That(provider.SkippedRecordCount).IsEqualTo(11_000);
+        await Assert.That(provider.SkippedRecordCount).IsEqualTo(51_000);
     }
 
     /// <summary><c>CreateTeedDiscarding</c>: enabled from the minimum level up, the record is teed, and a scope is a

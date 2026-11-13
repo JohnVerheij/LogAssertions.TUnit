@@ -1,6 +1,4 @@
 using System;
-using System.ComponentModel;
-using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
@@ -27,10 +25,6 @@ namespace LogAssertions;
 /// </remarks>
 public sealed class LogCapture : ILoggerFactory, IAsyncDisposable
 {
-    /// <summary>The build error a deconstruction of the capture reports.</summary>
-    private const string DeconstructMessage =
-        "LogCollectorBuilder.Create() and TestOutputLogCollectorBuilder.CreateTeed() return a LogCapture: use 'await using var logs = ...;' ('using var' in synchronous code), then logs.Collector.";
-
     private readonly ILoggerFactory _factory;
 
     /// <summary>Initializes the capture over a factory that writes into <paramref name="collector"/>. Only the
@@ -74,23 +68,6 @@ public sealed class LogCapture : ILoggerFactory, IAsyncDisposable
         ArgumentNullException.ThrowIfNull(provider);
         _factory.AddProvider(provider);
     }
-
-    /// <summary>
-    /// Not supported. Until 0.13, <c>LogCollectorBuilder.Create()</c> returned a <c>(Factory, Collector)</c> tuple;
-    /// this member only turns <c>var (factory, collector) = LogCollectorBuilder.Create();</c> into a build error that
-    /// names the new form, instead of the compiler's generic one. It is removed in a later minor version.
-    /// </summary>
-    /// <param name="factory">Never assigned.</param>
-    /// <param name="collector">Never assigned.</param>
-    /// <exception cref="NotSupportedException">Always; C# code cannot call it.</exception>
-    [SuppressMessage(
-        "Info Code Smell",
-        "S1133:Deprecated code should be removed",
-        Justification = "Deliberate migration window: the member only names the 0.14.0 form in the build error, and is removed in a later minor version.")]
-    [Obsolete(DeconstructMessage, error: true)]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public void Deconstruct(out ILoggerFactory factory, out FakeLogCollector collector)
-        => throw new NotSupportedException(DeconstructMessage);
 
     /// <summary>Disposes the factory and the providers it owns. The collector keeps its records.</summary>
     public void Dispose() => _factory.Dispose();

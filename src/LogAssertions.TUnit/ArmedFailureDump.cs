@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Testing;
 
@@ -61,7 +62,14 @@ internal sealed class ArmedFailureDump(FakeLogCollector collector, FakeLogRecord
         }
 
         sb.Append(": ").Append(written).Append(" of ").Append(snapshot.Count).AppendLine(" records.");
+
+        // The dump is written after the test, also when the test was canceled, so no token is passed on. .NET 11 added a
+        // token overload that the analyzers ask for; the older frameworks have only the plain one.
+#if NET11_0_OR_GREATER
+        await writer.WriteAsync(sb.ToString(), CancellationToken.None).ConfigureAwait(false);
+#else
         await writer.WriteAsync(sb.ToString()).ConfigureAwait(false);
+#endif
     }
 
     /// <summary>Finds the index of the first record after the bookmark.</summary>

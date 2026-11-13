@@ -37,6 +37,9 @@ internal static partial class TestLogMessages
     [LoggerMessage(EventId = 9, Level = LogLevel.Warning, Message = "Item {ItemId} failed")]
     public static partial void ItemFailed(ILogger logger, string itemId);
 
+    [LoggerMessage(EventId = 10, EventName = "Item", Level = LogLevel.Warning, Message = "Item {ItemId} failed")]
+    public static partial void NamedItemFailed(ILogger logger, string itemId);
+
     [LoggerMessage(EventId = 100, EventName = "Bootstrap", Level = LogLevel.Information, Message = "App started")]
     public static partial void AppStarted(ILogger logger);
 

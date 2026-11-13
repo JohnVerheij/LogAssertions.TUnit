@@ -23,7 +23,7 @@
     explicit None entry below is a redundant safeguard if auto-import ever regresses.
   -->
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
     <RootNamespace>LogAssertions.TUnit.SnapshotTests</RootNamespace>
     <AssemblyName>LogAssertions.TUnit.SnapshotTests</AssemblyName>
 
