@@ -29,7 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **`TUnit.Assertions`** and **`TUnit.Core`** minimum versions raised from 1.81.10 to 1.83.0, the first TUnit with a `net11.0` asset.
-- **README:** the shared-host recipe (start a host that outlives a test inside `ExecutionContext.SuppressFlow()` without awaiting, and await the start after the block, because the block must end on the thread that opened it) is in the TUnit adapter README and in the remarks of `AddTeedFakeLogging` as well; the lifetime attribute is needed once in every test assembly, also when the package arrives through another project; a new cookbook entry, "Pin the records other tools read", shows `WithEventName(...).WithMessageTemplate(...)` for a record the contract renderer cannot reach; the troubleshooting entry for the removed `Deconstruct` names the new error; every C# sample compiles against the packed packages.
+- **README:** the shared-host recipe (build and start a host that outlives a test inside `Task.Run` within `ExecutionContext.SuppressFlow()` and await it after the block, because suppressing the flow does not clear the calling thread's own context) is in the TUnit adapter README and in the remarks of `AddTeedFakeLogging` as well; the lifetime attribute is needed once in every test assembly, also when the package arrives through another project; a new cookbook entry, "Pin the records other tools read", shows `WithEventName(...).WithMessageTemplate(...)` for a record the contract renderer cannot reach; the troubleshooting entry for the removed `Deconstruct` names the new error; every C# sample compiles against the packed packages.
+
+### Fixed
+
+- **Dumps and failure messages** (`DumpTo`, `DumpToTestOutput`, `DumpToTestOutputOnFailure`, and the captured records in an assertion failure) wrote an exception message with line breaks as several lines, the later ones without indentation. The `exception:` line now shows the message on one line, each line break replaced by a space; `Verbose` still writes the full exception text below it.
 
 ## [0.14.1] - 2026-11-09: tee, failure dump, and waits fixed at their edges
 

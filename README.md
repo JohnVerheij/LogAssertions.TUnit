@@ -1164,16 +1164,20 @@ The tee picks the test from the logging code's own context: it cannot know that 
 | on a thread with no test context (timer, suppressed flow) | the test that built the tee, while it runs; after that not teed, counted |
 | by a host started outside any test (inside `ExecutionContext.SuppressFlow()`) | its own loop records: not teed, counted; records from requests a test makes: that test |
 
-So start a host shared across tests outside any test, and every record a test causes lands in that test. TUnit (1.81) runs the `[Before(Assembly)]`, `[Before(Class)]` and other hooks, and the initialization of shared fixtures, on the flow of the first test that needs them, so a host built and started there counts as started inside that test (the second row). Build and start it inside `ExecutionContext.SuppressFlow()` instead:
+So start a host shared across tests outside any test, and every record a test causes lands in that test. TUnit (1.81) runs the `[Before(Assembly)]`, `[Before(Class)]` and other hooks, and the initialization of shared fixtures, on the flow of the first test that needs them, so a host built and started there counts as started inside that test (the second row). Build and start it inside `Task.Run` within `ExecutionContext.SuppressFlow()` instead, and await it after the block. Suppressing the flow does not clear the calling thread's own context (it still has the first test as current), but work queued while the flow is suppressed starts without it. Never `await` inside the block: it must end on the thread that opened it.
 
 ```csharp
-Task started;
+Task<SharedHost> started;
 using (ExecutionContext.SuppressFlow())
 {
-    host = BuildHost();                              // its tee has no owning test
-    started = host.StartAsync(cancellationToken);    // its loops carry no test context
+    started = Task.Run(async () =>
+    {
+        var built = BuildHost();                        // its tee has no owning test
+        await built.StartAsync(cancellationToken);      // its loops carry no test context
+        return built;
+    });
 }
-await started;
+host = await started;
 ```
 
 Requests a test makes reach that test when they run on the test's flow, as with an in-memory test server.

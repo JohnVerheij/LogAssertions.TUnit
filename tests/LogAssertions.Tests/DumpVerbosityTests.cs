@@ -150,6 +150,30 @@ internal sealed class DumpVerbosityTests
             + "    exception: InvalidOperationException: boom\n");
     }
 
+    /// <summary>An exception message with line breaks (CR, LF, CRLF) stays one line in the summary line: under
+    /// <see cref="DumpVerbosity.CompactWithException"/> a record is its headline plus exactly one exception line, and
+    /// under <see cref="DumpVerbosity.Default"/> the exception line is one line as well.</summary>
+    [Test]
+    public async Task ExceptionMessageWithLineBreaks_IsOneLine(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var factory = LogCollectorBuilder.Create();
+        var logger = factory.CreateLogger("Lines");
+        logger.LogError(new InvalidOperationException("first\r\nsecond\nthird\rfourth"), "Op failed");
+
+        using var compact = new StringWriter();
+        factory.Collector.DumpTo(compact, DumpVerbosity.CompactWithException);
+        using var standard = new StringWriter();
+        factory.Collector.DumpTo(standard, DumpVerbosity.Default);
+
+        await Assert.That(compact.ToString().ReplaceLineEndings("\n")).IsEqualTo(
+            "Captured records (1 total):\n"
+            + "  [fail] Lines: Op failed\n"
+            + "    exception: InvalidOperationException: first second third fourth\n");
+        await Assert.That(standard.ToString().ReplaceLineEndings("\n")).Contains(
+            "    exception: InvalidOperationException: first second third fourth\n", StringComparison.Ordinal);
+    }
+
     /// <summary>The members keep the values that were released: the new member is appended with the value 3.</summary>
     [Test]
     public async Task Values_OfTheReleasedMembers_AreUnchanged(CancellationToken ct)

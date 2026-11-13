@@ -89,16 +89,20 @@ using LogAssertions.TUnit;
 await using var logs = TestOutputLogCollectorBuilder.CreateTeed();
 ```
 
-Each record goes to the test current when it is logged; otherwise to the test that built the tee, while that test runs; otherwise it is skipped and counted. With the lifetime attribute, a test counts as running until its `[After(Test)]` hooks finish, and a record logged on the flow of a test that has ended is not teed. A background loop (a `BackgroundService`, say) keeps the context of the test it was started in: its records go to that test while it runs, then are skipped and counted, never to a later test. So build and start a host shared across tests inside `ExecutionContext.SuppressFlow()`; TUnit runs hooks such as `[Before(Class)]` and shared-fixture initialization on the flow of the first test that needs them. Start the host inside the block without awaiting, and await the start after it: the block must end on the thread that opened it, so never `await` inside it.
+Each record goes to the test current when it is logged; otherwise to the test that built the tee, while that test runs; otherwise it is skipped and counted. With the lifetime attribute, a test counts as running until its `[After(Test)]` hooks finish, and a record logged on the flow of a test that has ended is not teed. A background loop (a `BackgroundService`, say) keeps the context of the test it was started in: its records go to that test while it runs, then are skipped and counted, never to a later test. So build and start a host shared across tests inside `ExecutionContext.SuppressFlow()`; TUnit runs hooks such as `[Before(Class)]` and shared-fixture initialization on the flow of the first test that needs them. Build and start the host inside `Task.Run` within the block and await it after the block: the calling thread still has the first test as current, even while the flow is suppressed, and work queued while the flow is suppressed starts without it. Never `await` inside the block: it must end on the thread that opened it.
 
 ```csharp
-Task started;
+Task<SharedHost> started;
 using (ExecutionContext.SuppressFlow())
 {
-    host = BuildHost();                              // your host, with the tee
-    started = host.StartAsync(cancellationToken);    // its loops carry no test context
+    started = Task.Run(async () =>
+    {
+        var built = BuildHost();                        // your host, with the tee
+        await built.StartAsync(cancellationToken);      // its loops carry no test context
+        return built;
+    });
 }
-await started;
+host = await started;
 ```
 
 [Where each record goes, on GitHub.](https://github.com/JohnVerheij/LogAssertions.TUnit#where-each-record-goes)

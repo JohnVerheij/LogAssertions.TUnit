@@ -667,7 +667,8 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf WithEventIdIn(params int[] eventIds)
     {
         AddFilter(LogFilter.WithEventIdIn(eventIds));
-        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithEventIdIn({string.Join(", ", LogFilter.DistinctInOrder(eventIds))})");
+        var ids = string.Join(", ", LogFilter.DistinctInOrder(eventIds).Select(static id => id.ToString(CultureInfo.InvariantCulture)));
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithEventIdIn({ids})");
         return Self;
     }
 

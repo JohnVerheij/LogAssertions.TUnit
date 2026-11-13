@@ -117,6 +117,34 @@ internal sealed class WithEventIdInTests
         await Assert.That(failure.Message).DoesNotContain("EventId in [", StringComparison.Ordinal);
     }
 
+    /// <summary>The call in the failure text is formatted in the invariant culture, whatever the current culture writes
+    /// for a negative number: a culture with a Unicode minus still gives <c>-3</c> with an ASCII minus.</summary>
+    [Test]
+    [NotInParallel(nameof(WithEventIdInTests) + ".Culture")]
+    public async Task Failure_FormatsTheIdsInTheInvariantCulture(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var collector = Seed(withExtremeIds: false);
+        var culture = (System.Globalization.CultureInfo)System.Globalization.CultureInfo.InvariantCulture.Clone();
+        culture.NumberFormat.NegativeSign = "−";
+        var previous = System.Globalization.CultureInfo.CurrentCulture;
+        string message;
+        try
+        {
+            System.Globalization.CultureInfo.CurrentCulture = culture;
+            var failure = await Assert.That(async () => await Assert.That(collector).HasLogged().WithEventIdIn(-3, 40).Once())
+                .Throws<AssertionException>();
+            message = failure!.Message;
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = previous;
+        }
+
+        await Assert.That(message).Contains(".WithEventIdIn(-3, 40)", StringComparison.Ordinal);
+        await Assert.That(message).DoesNotContain("−", StringComparison.Ordinal);
+    }
+
     /// <summary>An empty set and a <see langword="null"/> array are rejected, on the chain and on the filter.</summary>
     [Test]
     public async Task EmptyAndNull_AreRejected(CancellationToken cancellationToken)

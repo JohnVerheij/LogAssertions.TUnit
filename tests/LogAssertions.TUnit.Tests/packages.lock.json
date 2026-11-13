@@ -290,7 +290,7 @@
       "logassertions.tunit": {
         "type": "Project",
         "dependencies": {
-          "LogAssertions": "[0.15.0, )",
+          "LogAssertions": "[0.14.1, )",
           "TUnit.Assertions": "[1.83.0, )",
           "TUnit.Core": "[1.83.0, )"
         }
@@ -521,7 +521,7 @@
       "logassertions.tunit": {
         "type": "Project",
         "dependencies": {
-          "LogAssertions": "[0.15.0, )",
+          "LogAssertions": "[0.14.1, )",
           "TUnit.Assertions": "[1.83.0, )",
           "TUnit.Core": "[1.83.0, )"
         }

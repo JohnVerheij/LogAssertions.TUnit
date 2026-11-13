@@ -8,12 +8,12 @@ using TUnit.Core;
 namespace LogAssertions.TUnit.Tests;
 
 /// <summary>
-/// The shared-host recipe of the README, run as written from a <c>[Before(Class)]</c> hook: build the host and start it
-/// inside <c>ExecutionContext.SuppressFlow()</c> without awaiting, then <c>await</c> the start after the block.
-/// The host's <c>StartAsync</c> completes asynchronously (it yields before it starts its loop), which is what a real
-/// host does and what makes an <c>await</c> inside the block a trap: the block must end on the thread that opened it.
-/// The hook must not throw, the host's loop must carry no test context, and the records of the loop must reach no
-/// test, while a record made on a test's own flow reaches that test.
+/// The shared-host recipe of the README, run as written from a <c>[Before(Class)]</c> hook: build and start the host in
+/// <c>Task.Run</c> inside <c>ExecutionContext.SuppressFlow()</c>, then <c>await</c> it after the block. The calling
+/// thread of the hook still has the first test as current, so building the host on it would make that test the owner of
+/// the tee; work queued inside the block starts without a test. The hook must not throw, the host's loop must carry no
+/// test context, and its records must reach no test, the first test included while it runs, while a record made on a
+/// test's own flow reaches that test.
 /// </summary>
 [NotInParallel(nameof(SharedHostFormTests))]
 [Timeout(15_000)]
@@ -44,16 +44,18 @@ internal sealed class SharedHostFormTests
         {
             LoopGate = new SemaphoreSlim(0);
             LoopLogged = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            SharedHost host;
-            Task started;
+            Task<SharedHost> started;
             using (ExecutionContext.SuppressFlow())
             {
-                host = BuildHost();                              // its tee has no owning test
-                started = host.StartAsync(cancellationToken);    // its loops carry no test context
+                started = Task.Run(async () =>
+                {
+                    var built = BuildHost();                        // its tee has no owning test
+                    await built.StartAsync(cancellationToken);      // its loops carry no test context
+                    return built;
+                }, cancellationToken);
             }
 
-            await started;
-            Host = host;
+            Host = await started;
         }
         catch (InvalidOperationException exception)
         {
@@ -71,20 +73,26 @@ internal sealed class SharedHostFormTests
         LoopGate?.Dispose();
     }
 
-    /// <summary>The recipe ran without an exception, and the host is up.</summary>
+    /// <summary>The recipe ran without an exception, the host is up, and its loop logs while this test, the first of the
+    /// class and the one whose flow ran the hook, is still running: the record reaches no test, this one included.</summary>
     [Test]
-    public async Task TheHook_StartedTheHost_WithoutAnException(CancellationToken cancellationToken)
+    public async Task TheHook_StartedTheHost_AndItsLoopRecordReachesNoTest(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         FirstTest = TestContext.Current;
 
         await Assert.That(HookError).IsNull();
         await Assert.That(Host).IsNotNull();
+
+        LoopGate!.Release();
+        await LoopLogged!.Task.WaitAsync(cancellationToken);
+
+        await Assert.That(FirstTest!.GetStandardOutput()).DoesNotContain("record of the host loop", StringComparison.Ordinal);
     }
 
     /// <summary>A record made on a test's own flow through the shared host's factory reaches that test.</summary>
     [Test]
-    [DependsOn(nameof(TheHook_StartedTheHost_WithoutAnException))]
+    [DependsOn(nameof(TheHook_StartedTheHost_AndItsLoopRecordReachesNoTest))]
     public async Task ATestsOwnRecord_ReachesThatTest(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -92,20 +100,6 @@ internal sealed class SharedHostFormTests
         DirectLog.Write(Host!.Factory.CreateLogger("Request"), "record of a request this test made");
 
         await Assert.That(TestContext.Current!.GetStandardOutput()).Contains("record of a request this test made", StringComparison.Ordinal);
-    }
-
-    /// <summary>The host's own loop logs while a later test runs: its record reaches neither that test nor the first
-    /// test, the one whose flow ran the hook.</summary>
-    [Test]
-    [DependsOn(nameof(ATestsOwnRecord_ReachesThatTest))]
-    public async Task TheHostsLoopRecords_ReachNoTest(CancellationToken cancellationToken)
-    {
-        var current = TestContext.Current!;
-        LoopGate!.Release();
-        await LoopLogged!.Task.WaitAsync(cancellationToken);
-
-        await Assert.That(current.GetStandardOutput()).DoesNotContain("record of the host loop", StringComparison.Ordinal);
-        await Assert.That(FirstTest!.GetStandardOutput()).DoesNotContain("record of the host loop", StringComparison.Ordinal);
     }
 
     /// <summary>Builds the host: a logger factory with the tee, and a loop that logs once the gate opens.</summary>
