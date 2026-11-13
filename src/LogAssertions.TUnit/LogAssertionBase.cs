@@ -659,6 +659,18 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
         return Self;
     }
 
+    /// <summary>Filters to records whose <see cref="FakeLogRecord.Id"/> ID is any of <paramref name="eventIds"/>.</summary>
+    /// <param name="eventIds">The numeric event IDs to match: at least one, duplicates allowed (they match once).</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="eventIds"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="eventIds"/> is empty.</exception>
+    public TSelf WithEventIdIn(params int[] eventIds)
+    {
+        AddFilter(LogFilter.WithEventIdIn(eventIds));
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithEventIdIn({string.Join(", ", LogFilter.DistinctInOrder(eventIds))})");
+        return Self;
+    }
+
     /// <summary>
     /// Filters to records whose <see cref="FakeLogRecord.Id"/> ID is within the inclusive range
     /// <paramref name="min"/>..<paramref name="max"/>.

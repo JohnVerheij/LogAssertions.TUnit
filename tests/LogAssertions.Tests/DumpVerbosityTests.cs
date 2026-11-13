@@ -122,6 +122,51 @@ internal sealed class DumpVerbosityTests
         await Assert.That(defaultText).Contains("RequestId");
     }
 
+    /// <summary>
+    /// <see cref="DumpVerbosity.CompactWithException"/> writes the headline of each record, and the exception line of
+    /// the records that carry one: no properties and no scopes. The text is pinned in full here; the verbosity docs
+    /// call the exact text unstable for consumers, not for the package.
+    /// </summary>
+    [Test]
+    public async Task CompactWithException_WritesHeadlineAndExceptionLineOnly(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var factory = LogCollectorBuilder.Create();
+        var collector = factory.Collector;
+        var logger = factory.CreateLogger("Timeline");
+        using (logger.BeginScope(new Dictionary<string, object?>(StringComparer.Ordinal) { ["RequestId"] = "abc-123" }))
+        {
+            logger.LogInformation("Op {Id} started", 7);
+            logger.LogError(new InvalidOperationException("boom"), "Op {Id} failed", 7);
+        }
+
+        using var sw = new StringWriter();
+        collector.DumpTo(sw, DumpVerbosity.CompactWithException);
+
+        await Assert.That(sw.ToString().ReplaceLineEndings("\n")).IsEqualTo(
+            "Captured records (2 total):\n"
+            + "  [info] Timeline: Op 7 started\n"
+            + "  [fail] Timeline: Op 7 failed\n"
+            + "    exception: InvalidOperationException: boom\n");
+    }
+
+    /// <summary>The members keep the values that were released: the new member is appended with the value 3.</summary>
+    [Test]
+    public async Task Values_OfTheReleasedMembers_AreUnchanged(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        var compact = DumpVerbosity.Compact;
+        var standard = DumpVerbosity.Default;
+        var verbose = DumpVerbosity.Verbose;
+        var compactWithException = DumpVerbosity.CompactWithException;
+
+        await Assert.That((int)compact).IsEqualTo(0);
+        await Assert.That((int)standard).IsEqualTo(1);
+        await Assert.That((int)verbose).IsEqualTo(2);
+        await Assert.That((int)compactWithException).IsEqualTo(3);
+    }
+
     [Test]
     public async Task NoArgOverload_IsDefaultVerbosity(CancellationToken ct)
     {

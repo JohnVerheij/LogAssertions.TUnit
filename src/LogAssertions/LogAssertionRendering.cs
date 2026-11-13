@@ -102,7 +102,8 @@ public static class LogAssertionRendering
     }
 
     /// <summary>Appends one record: its headline, then, unless <paramref name="verbosity"/> is
-    /// <see cref="DumpVerbosity.Compact"/>, its properties, scopes, and exception.</summary>
+    /// <see cref="DumpVerbosity.Compact"/>, its properties and scopes (not at
+    /// <see cref="DumpVerbosity.CompactWithException"/>) and its exception.</summary>
     /// <param name="sb">The target string builder.</param>
     /// <param name="record">The record.</param>
     /// <param name="verbosity">How much detail to render.</param>
@@ -123,8 +124,12 @@ public static class LogAssertionRendering
         if (verbosity is DumpVerbosity.Compact)
             return;
 
-        AppendStructuredState(sb, record);
-        AppendScopes(sb, record);
+        if (verbosity is not DumpVerbosity.CompactWithException)
+        {
+            AppendStructuredState(sb, record);
+            AppendScopes(sb, record);
+        }
+
         if (record.Exception is not null)
             AppendException(sb, record.Exception, verbosity);
     }

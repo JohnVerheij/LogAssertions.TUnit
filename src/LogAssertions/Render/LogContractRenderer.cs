@@ -26,12 +26,13 @@ namespace LogAssertions.Render;
 /// <b>Format.</b> Each line is the numeric event ID, the event name (<c>?</c> when the definition has none), the level,
 /// the message template in double quotes (<c>&lt;no template&gt;</c> when the call carried none), and the placeholder
 /// names in template order, separated by commas, with <c>{OriginalFormat}</c> left out. A definition without
-/// placeholders ends after the template. In the template, <c>\</c>, <c>"</c>, carriage return, line feed, and tab are
-/// written as <c>\\</c>, <c>\"</c>, <c>\r</c>, <c>\n</c>, and <c>\t</c>, so every definition stays on one line.
+/// placeholders ends after the template. In the template, the event name, and the placeholder names, <c>\</c>,
+/// <c>"</c>, carriage return, line feed, and tab are written as <c>\\</c>, <c>\"</c>, <c>\r</c>, <c>\n</c>, and
+/// <c>\t</c>, so every definition stays on one line.
 /// </para>
 /// <para>
 /// <b>Deterministic.</b> Lines are ordered by event ID, then event name, then template (both ordinal), then level,
-/// whatever the input order. Every line ends with the literal LF byte (<c>'\n'</c>), never
+/// then the line itself (ordinal), whatever the input order. Every line ends with the literal LF byte (<c>'\n'</c>), never
 /// <see cref="Environment.NewLine"/>, so a baseline committed on one operating system stays valid on every other. There
 /// is no header line, as with <see cref="LogSnapshotRenderer"/>; a change to the format is a listed breaking change.
 /// </para>
@@ -43,7 +44,7 @@ namespace LogAssertions.Render;
 /// </remarks>
 public static class LogContractRenderer
 {
-    /// <summary>Renders one line per definition, ordered by event ID, name, template, and level.</summary>
+    /// <summary>Renders one line per definition, ordered by event ID, name, template, level, and the line itself.</summary>
     /// <param name="definitions">The definitions of the contract. Must not contain <see langword="null"/>.</param>
     /// <returns>The contract: one LF-terminated line per definition, or <see cref="string.Empty"/> when there are none.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="definitions"/> is <see langword="null"/>.</exception>
@@ -59,25 +60,40 @@ public static class LogContractRenderer
             throw new ArgumentException("The definitions must not contain null.", nameof(definitions));
         }
 
-        StringBuilder sb = new();
-        foreach (var definition in items
-            .OrderBy(static d => d.Id.Id)
-            .ThenBy(static d => d.Id.Name, StringComparer.Ordinal)
-            .ThenBy(static d => d.Template, StringComparer.Ordinal)
-            .ThenBy(static d => d.Level))
-        {
-            AppendLine(sb, definition);
-        }
-
-        return sb.ToString();
+        return string.Concat(OrderedLines(items));
     }
 
-    private static void AppendLine(StringBuilder sb, LogDefinition definition)
+    /// <summary>Renders the lines of the definitions in the order of the contract: event ID, name, template, and level
+    /// (the last three ordinal), then the line itself, so that definitions which tie on every key still have one order.</summary>
+    /// <param name="items">The definitions, none of them <see langword="null"/>.</param>
+    /// <returns>The lines, LF included, in order.</returns>
+    private static IEnumerable<string> OrderedLines(LogDefinition[] items)
+        => items
+            .Select(static d => (Definition: d, Line: Line(d)))
+            .OrderBy(static x => x.Definition.Id.Id)
+            .ThenBy(static x => x.Definition.Id.Name, StringComparer.Ordinal)
+            .ThenBy(static x => x.Definition.Template, StringComparer.Ordinal)
+            .ThenBy(static x => x.Definition.Level)
+            .ThenBy(static x => x.Line, StringComparer.Ordinal)
+            .Select(static x => x.Line);
+
+    /// <summary>Renders the line of one definition, LF included.</summary>
+    /// <param name="definition">The definition.</param>
+    /// <returns>The line.</returns>
+    private static string Line(LogDefinition definition)
     {
-        sb.Append(definition.Id.Id.ToString(CultureInfo.InvariantCulture))
-            .Append(' ')
-            .Append(definition.Id.Name ?? "?")
-            .Append(' ')
+        StringBuilder sb = new();
+        sb.Append(definition.Id.Id.ToString(CultureInfo.InvariantCulture)).Append(' ');
+        if (definition.Id.Name is null)
+        {
+            sb.Append('?');
+        }
+        else
+        {
+            AppendEscaped(sb, definition.Id.Name);
+        }
+
+        sb.Append(' ')
             .Append(definition.Level.ToString())
             .Append(' ');
 
@@ -95,11 +111,12 @@ public static class LogContractRenderer
         var first = true;
         foreach (var name in PlaceholderNames(definition))
         {
-            sb.Append(first ? ' ' : ',').Append(name);
+            sb.Append(first ? ' ' : ',');
+            AppendEscaped(sb, name);
             first = false;
         }
 
-        sb.Append('\n');
+        return sb.Append('\n').ToString();
     }
 
     /// <summary>The definition's placeholder names (its <see cref="LogDefinition.Properties"/> keys) in template
@@ -123,7 +140,7 @@ public static class LogContractRenderer
     {
         var positions = new Dictionary<string, int>(StringComparer.Ordinal);
         var index = 0;
-        while (template.IndexOf('{', index) is var open and >= 0)
+        while (IndexOf(template, '{', index) is var open and >= 0)
         {
             if (open + 1 < template.Length && template[open + 1] is '{')
             {
@@ -131,7 +148,7 @@ public static class LogContractRenderer
                 continue;
             }
 
-            var close = template.IndexOf('}', open + 1);
+            var close = IndexOf(template, '}', open + 1);
             if (close < 0)
                 break;
 
@@ -141,6 +158,18 @@ public static class LogContractRenderer
         }
 
         return positions;
+    }
+
+    /// <summary>Finds a character from a start index, ordinally. The span form compiles on every target framework: the
+    /// string overload that takes a start index gained a comparison parameter in .NET 11, and the analyzers then ask for it.</summary>
+    /// <param name="text">The text to search.</param>
+    /// <param name="value">The character to find.</param>
+    /// <param name="startIndex">The index to start at.</param>
+    /// <returns>The index of the character in <paramref name="text"/>, or -1.</returns>
+    private static int IndexOf(string text, char value, int startIndex)
+    {
+        var found = text.AsSpan(startIndex).IndexOf(value);
+        return found < 0 ? -1 : startIndex + found;
     }
 
     private static void AppendEscaped(StringBuilder sb, string template)

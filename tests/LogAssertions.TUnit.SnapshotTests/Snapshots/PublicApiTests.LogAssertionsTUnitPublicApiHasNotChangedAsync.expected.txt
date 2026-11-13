@@ -2,7 +2,6 @@
 [assembly: System.Reflection.AssemblyMetadata("IsTrimmable", "True")]
 [assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/JohnVerheij/LogAssertions.TUnit")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("LogAssertions.TUnit.Tests")]
-[assembly: System.Runtime.Versioning.TargetFramework(".NETCoreApp,Version=v10.0", FrameworkDisplayName=".NET 10.0")]
 namespace LogAssertions.TUnit
 {
     public static class AssertAllExtensions
@@ -98,6 +97,7 @@ namespace LogAssertions.TUnit
         public TSelf Where(System.Func<Microsoft.Extensions.Logging.Testing.FakeLogRecord, bool> predicate) { }
         public TSelf WithCategory(string category) { }
         public TSelf WithEventId(int eventId) { }
+        public TSelf WithEventIdIn(params int[] eventIds) { }
         public TSelf WithEventIdInRange(int min, int max) { }
         public TSelf WithEventName(string eventName) { }
         public TSelf WithException() { }

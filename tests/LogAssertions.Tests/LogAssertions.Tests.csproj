@@ -11,7 +11,7 @@
     a TUnit dependency by accident, this project would fail to compile.
   -->
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
     <RootNamespace>LogAssertions.Tests</RootNamespace>
     <AssemblyName>LogAssertions.Tests</AssemblyName>
 

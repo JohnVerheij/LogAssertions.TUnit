@@ -76,7 +76,10 @@ public static class FakeLoggingBuilderExtensions
     /// The same call works per test and for a host shared across tests. A background loop keeps the context of the
     /// test it was started in, so start a shared host outside any test, inside
     /// <see cref="System.Threading.ExecutionContext.SuppressFlow"/>; records produced for a test (its requests, its
-    /// calls) still reach that test. TUnit runs hooks such as <c>[Before(Class)]</c> and the initialization of shared
+    /// calls) still reach that test. Start the host inside the block without awaiting it, and await the start after
+    /// the block: the block must end on the thread that opened it, so never <see langword="await"/> inside it
+    /// (<c>Task started; using (ExecutionContext.SuppressFlow()) { host = Build(); started = host.StartAsync(token); }
+    /// await started;</c>). TUnit runs hooks such as <c>[Before(Class)]</c> and the initialization of shared
     /// fixtures on the flow of the first test that needs them, so a host started there without suppressing the flow
     /// counts as started inside that test.
     /// </para>

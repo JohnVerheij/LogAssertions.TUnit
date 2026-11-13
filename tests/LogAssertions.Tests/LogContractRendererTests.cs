@@ -90,6 +90,71 @@ internal sealed class LogContractRendererTests
             + "8 Manual Information \"ends with {\"\n");
     }
 
+    /// <summary>Two definitions that tie on ID, name, template, and level but differ in a placeholder the template does
+    /// not contain render in the same order whatever the input order, as every other definition does.</summary>
+    [Test]
+    public async Task Render_DefinitionsThatTieOnEveryKey_AreOrderedWhateverTheInputOrder(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var plain = LogDefinition.Capture(log => LogState(log, 20, "tie {A}", ("A", 1)));
+        var extra = LogDefinition.Capture(log => LogState(log, 20, "tie {A}", ("A", 1), ("Extra", 2)));
+
+        var forward = LogContractRenderer.Render([plain, extra]);
+        var backward = LogContractRenderer.Render([extra, plain]);
+
+        await Assert.That(backward).IsEqualTo(forward);
+        await Assert.That(forward).IsEqualTo(
+            "20 Manual Information \"tie {A}\" A\n"
+            + "20 Manual Information \"tie {A}\" A,Extra\n");
+    }
+
+    /// <summary>An event name and a placeholder name are escaped as the template is, so a name with a line break still
+    /// renders its definition on one line.</summary>
+    [Test]
+    public async Task Render_NamesWithLineBreaks_StayOnOneLine(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var named = LogDefinition.Capture(log => LogRecord(log, LogLevel.Information, new EventId(21, "two\nlines"), "{Line\r\nBreak} at\tthe end", [("Line\r\nBreak", 1)]));
+
+        var contract = LogContractRenderer.Render([named]);
+
+        await Assert.That(contract).IsEqualTo("21 two\\nlines Information \"{Line\\r\\nBreak} at\\tthe end\" Line\\r\\nBreak\n");
+        await Assert.That(contract.Split('\n')).Count().IsEqualTo(2);
+    }
+
+    /// <summary>A large set renders in the same order whatever the input order, and the text does not depend on the
+    /// current culture (the Turkish culture changes the case of "I" and the formatting of numbers).</summary>
+    [Test]
+    public async Task Render_LargeShuffledSet_IsOrderedAndCultureIndependent(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var definitions = new List<LogDefinition>();
+        for (var id = 1; id <= 500; id++)
+        {
+            var current = id;
+            definitions.Add(LogDefinition.Capture(log => LogX(log, LogLevel.Information, new EventId(current, "Event" + current), "Item {X} number " + current)));
+        }
+
+        var forward = LogContractRenderer.Render(definitions);
+        var shuffled = new List<LogDefinition>(definitions);
+        shuffled.Reverse();
+        var previous = System.Globalization.CultureInfo.CurrentCulture;
+        string turkish;
+        try
+        {
+            System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo("tr-TR");
+            turkish = LogContractRenderer.Render(shuffled);
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = previous;
+        }
+
+        await Assert.That(turkish).IsEqualTo(forward);
+        await Assert.That(forward.Split('\n').Length).IsEqualTo(501);
+        await Assert.That(forward).StartsWith("1 Event1 Information \"Item {X} number 1\" X\n", StringComparison.Ordinal);
+    }
+
     /// <summary>No definitions render as the empty string.</summary>
     [Test]
     public async Task Render_NoDefinitions_IsEmpty(CancellationToken cancellationToken)

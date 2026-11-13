@@ -32,6 +32,13 @@ namespace LogAssertions.TUnit.SnapshotTests;
 [Timeout(10_000)]
 internal sealed class PublicApiTests
 {
+    /// <summary>The generator options: the target framework attribute is left out, so one baseline serves every target
+    /// framework of the package.</summary>
+    private static readonly ApiGeneratorOptions ApiOptions = new()
+    {
+        ExcludeAttributes = ["System.Runtime.Versioning.TargetFrameworkAttribute"],
+    };
+
     /// <summary>
     /// Pins the public surface of the framework-agnostic <c>LogAssertions</c> assembly:
     /// <c>ILogRecordFilter</c>, <c>LogFilter</c>, <c>LogAssertionRendering</c>,
@@ -48,7 +55,7 @@ internal sealed class PublicApiTests
         // platform's native EOL while the committed .expected.txt baseline is always LF
         // (per .gitattributes), and Windows local runs would diff against the CI-accepted
         // baseline.
-        var publicApi = assembly.GeneratePublicApi().ReplaceLineEndings("\n");
+        var publicApi = assembly.GeneratePublicApi(ApiOptions).ReplaceLineEndings("\n");
 
         await Assert.That(publicApi).MatchesSnapshot();
     }
@@ -70,7 +77,7 @@ internal sealed class PublicApiTests
         // platform's native EOL while the committed .expected.txt baseline is always LF
         // (per .gitattributes), and Windows local runs would diff against the CI-accepted
         // baseline.
-        var publicApi = assembly.GeneratePublicApi().ReplaceLineEndings("\n");
+        var publicApi = assembly.GeneratePublicApi(ApiOptions).ReplaceLineEndings("\n");
 
         await Assert.That(publicApi).MatchesSnapshot();
     }

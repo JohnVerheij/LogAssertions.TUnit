@@ -1,12 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
-using EditorBrowsableAttribute = System.ComponentModel.EditorBrowsableAttribute;
-using EditorBrowsableState = System.ComponentModel.EditorBrowsableState;
 
 namespace LogAssertions.Tests;
 
@@ -192,23 +189,6 @@ internal sealed class LogCaptureTests
         await Assert.That(faked.Collector.Count).IsEqualTo(1);
         await Assert.That(faked.Collector.LatestRecord.Timestamp).IsEqualTo(noon);
         await Assert.That(system.Collector.LatestRecord.Timestamp).IsBetween(before, after);
-    }
-
-    /// <summary>The obsolete <c>Deconstruct</c> is a build error whose message names the 0.14.0 form, is hidden from
-    /// IntelliSense, and throws when reflection calls it anyway.</summary>
-    [Test]
-    public async Task Deconstruct_IsAHiddenBuildError_AndThrows(CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var method = typeof(LogCapture).GetMethod("Deconstruct")!;
-        var obsolete = method.GetCustomAttribute<ObsoleteAttribute>()!;
-        using var logs = LogCollectorBuilder.Create();
-
-        await Assert.That(obsolete.IsError).IsTrue();
-        await Assert.That(obsolete.Message).IsEqualTo(DeconstructCompileTests.Message);
-        await Assert.That(method.GetCustomAttribute<EditorBrowsableAttribute>()!.State).IsEqualTo(EditorBrowsableState.Never);
-        var thrown = await Assert.That(() => method.Invoke(logs, [null, null])).Throws<TargetInvocationException>();
-        await Assert.That(thrown!.InnerException).IsTypeOf<NotSupportedException>();
     }
 
     /// <summary>Disposes the capture through <see cref="IDisposable.Dispose"/>, twice.</summary>

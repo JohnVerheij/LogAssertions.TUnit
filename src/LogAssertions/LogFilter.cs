@@ -365,6 +365,33 @@ public static class LogFilter
         => new PredicateFilter(r => r.Id.Id == eventId,
             string.Format(CultureInfo.InvariantCulture, "EventId = {0}", eventId));
 
+    /// <summary>Records whose <see cref="EventId.Id"/> is any of <paramref name="eventIds"/>.</summary>
+    /// <param name="eventIds">The numeric event IDs to match: at least one, duplicates allowed (they match once).</param>
+    /// <returns>A filter accepting records whose event ID is in the set. Its description lists the distinct IDs in braces,
+    /// as <c>EventId in {1, 2}</c>.</returns>
+    /// <remarks>The set is copied, so later changes to <paramref name="eventIds"/> do not affect the filter.</remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="eventIds"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="eventIds"/> is empty: a filter that accepts no record is
+    /// almost always a mistake, such as an empty list that was meant to hold the IDs.</exception>
+    public static ILogRecordFilter WithEventIdIn(params int[] eventIds)
+    {
+        ArgumentNullException.ThrowIfNull(eventIds);
+        if (eventIds.Length is 0)
+        {
+            throw new ArgumentException("At least one event ID is required.", nameof(eventIds));
+        }
+
+        var ids = DistinctInOrder(eventIds);
+        HashSet<int> set = [.. ids];
+        return new PredicateFilter(r => set.Contains(r.Id.Id),
+            "EventId in {" + string.Join(", ", ids.Select(static id => id.ToString(CultureInfo.InvariantCulture))) + "}");
+    }
+
+    /// <summary>The distinct event IDs, in the order they first appear.</summary>
+    /// <param name="eventIds">The event IDs.</param>
+    /// <returns>The distinct IDs.</returns>
+    internal static int[] DistinctInOrder(int[] eventIds) => [.. eventIds.Distinct()];
+
     /// <summary>Records whose <see cref="EventId.Id"/> is within the inclusive range <paramref name="min"/>..<paramref name="max"/>.</summary>
     /// <param name="min">The minimum event ID (inclusive).</param>
     /// <param name="max">The maximum event ID (inclusive). Must be greater than or equal to <paramref name="min"/>.</param>

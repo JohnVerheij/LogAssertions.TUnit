@@ -22,6 +22,8 @@ internal sealed class FailureDumpTests
 
     private static int s_retryAttempts;
 
+    private static int s_largeRetryAttempts;
+
     /// <summary>Gets or sets the context of <see cref="A_PassingTest_ArmsADump"/>.</summary>
     private static TestContext? PassingTest { get; set; }
 
@@ -130,6 +132,43 @@ internal sealed class FailureDumpTests
         await Assert.That(output.IndexOf(Heading, StringComparison.Ordinal)).IsEqualTo(output.LastIndexOf(Heading, StringComparison.Ordinal));
     }
 
+    /// <summary>A dump at <see cref="DumpVerbosity.CompactWithException"/> writes one line per record plus one line for
+    /// each record's exception, whatever the properties and scopes: 46 records, 3 of them with an exception, are 49
+    /// lines between the heading and the footer.</summary>
+    [Test]
+    public async Task Dump_CompactWithExceptionVerbosity_WritesOneLinePerRecordPlusItsException(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var collector = new FakeLogCollector();
+        var logger = new FakeLogger(collector, "Timeline");
+
+        await EndWithDumpAsync(
+            table => table.Arm(TestContext.Current!, collector, DumpVerbosity.CompactWithException),
+            () =>
+            {
+                for (var i = 0; i < 43; i++)
+                {
+                    using var scope = logger.BeginScope("a-scope");
+                    TestLogMessages.OrderForCustomer(logger, i, "timeline-customer");
+                    if (i % 20 is 0)
+                    {
+                        logger.Log(LogLevel.Error, default, "failed " + i, new InvalidOperationException("boom " + i), static (state, _) => state);
+                    }
+                }
+            });
+
+        var output = TestContext.Current!.GetStandardOutput();
+        var start = output.IndexOf(Heading + " (46 of 46 total", StringComparison.Ordinal);
+        await Assert.That(start).IsGreaterThanOrEqualTo(0);
+        var body = output[start..output.IndexOf("End of dump:", start, StringComparison.Ordinal)]
+            .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+        // The heading line, 46 record lines (43 orders and 3 errors), 3 exception lines.
+        await Assert.That(body.Length).IsEqualTo(1 + 46 + 3);
+        await Assert.That(output).Contains("    exception: InvalidOperationException: boom 40", StringComparison.Ordinal);
+        await Assert.That(output).DoesNotContain("props:", StringComparison.Ordinal);
+        await Assert.That(output).DoesNotContain("scope:", StringComparison.Ordinal);
+    }
+
     /// <summary>A test that passed writes no dump.</summary>
     [Test]
     [DependsOn(nameof(A_PassingTest_ArmsADump))]
@@ -185,9 +224,42 @@ internal sealed class FailureDumpTests
         await Assert.That(output).Contains("End of dump of attempt 1: 1 of 1 records.", StringComparison.Ordinal);
     }
 
-    /// <summary>A test that skips itself after arming a dump writes no dump: skipping is not a failure.</summary>
+    /// <summary>The public method with <see cref="DumpVerbosity.CompactWithException"/> in a retried test that logs
+    /// 1,000 records, every hundredth with an exception: attempt 1 fails and writes its dump, a line per record and a
+    /// line per exception, and the output still ends with the summary.</summary>
     [Test]
+    [Retry(2)]
+    [NotInParallel(nameof(FailureDumpTests) + ".LargeRetry")]
+    public async Task Dump_RetriedTest_CompactWithException_ThousandRecords(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var attempt = Interlocked.Increment(ref s_largeRetryAttempts);
+        var collector = new FakeLogCollector();
+        collector.DumpToTestOutputOnFailure(DumpVerbosity.CompactWithException);
+        var logger = new FakeLogger(collector, "Large");
+        for (var i = 0; i < 1_000; i++)
+        {
+            var text = i.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            Exception? exception = i % 100 is 0 ? new InvalidOperationException("boom " + text) : null;
+            logger.Log(LogLevel.Information, default, "record " + text, exception, static (state, _) => state);
+        }
+
+        await Assert.That(attempt).IsGreaterThan(1);
+
+        var output = TestContext.Current!.GetStandardOutput();
+        var start = output.IndexOf("Captured records of attempt 1 since the dump was armed (1000 of 1000 total", StringComparison.Ordinal);
+        await Assert.That(start).IsGreaterThanOrEqualTo(0);
+        var end = output.IndexOf("End of dump of attempt 1: 1000 of 1000 records.", start, StringComparison.Ordinal);
+        await Assert.That(end).IsGreaterThan(start);
+        var lines = output[start..end].Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+        // The heading, 1,000 record lines, and 10 exception lines.
+        await Assert.That(lines.Length).IsEqualTo(1 + 1_000 + 10);
+        await Assert.That(output).Contains("    exception: InvalidOperationException: boom 900", StringComparison.Ordinal);
+    }
+
+    /// <summary>A test that skips itself after arming a dump writes no dump: skipping is not a failure.</summary>
     /// <param name="cancellationToken">The test's token.</param>
+    [Test]
     public void Dump_TestThatSkipsItself_WritesNothing(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();

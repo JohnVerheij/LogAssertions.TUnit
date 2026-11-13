@@ -20,9 +20,9 @@ TUnit-native fluent log-assertion DSL on top of `Microsoft.Extensions.Logging.Te
 dotnet add package LogAssertions.TUnit
 ```
 
-`LogAssertions` (the framework-agnostic core) comes transitively. **Requirements:** TUnit 1.83.0 or later, .NET 10.
+`LogAssertions` (the framework-agnostic core) comes transitively. **Requirements:** TUnit 1.83.0 or later, .NET 10 and .NET 11.
 
-**Setup (v0.14.0+):** add `[assembly: LogAssertions.TUnit.LogAssertionsTestLifetime]` once to the test project (for example in `GlobalUsings.cs`). It lets the package see when each test ends, which `DumpToTestOutputOnFailure()` needs (it throws without it) and which makes the test-output tee exact. Everything else works without it; without it, the first tee built in a run writes one note naming this line. **Upgrading from 0.13:** see the [upgrade table on GitHub](https://github.com/JohnVerheij/LogAssertions.TUnit#upgrading-to-v0140) (`Create()` returns a `LogCapture`, and `var (factory, collector) = ...` fails with a build error naming the new form; `AddTeedFakeLogging` lost `teeProvider`; absence counts below the capture floor fail as vacuous; the tee no longer writes into a test that has ended).
+**Setup (v0.14.0+):** add `[assembly: LogAssertions.TUnit.LogAssertionsTestLifetime]` once to the test project (for example in `GlobalUsings.cs`). It lets the package see when each test ends, which `DumpToTestOutputOnFailure()` needs (it throws without it) and which makes the test-output tee exact. Everything else works without it; without it, the first tee built in a run writes one note naming this line. **Upgrading from 0.13:** see the [upgrade table on GitHub](https://github.com/JohnVerheij/LogAssertions.TUnit#upgrading-to-v0140) (`Create()` returns a `LogCapture`, and `var (factory, collector) = ...` no longer compiles, use `using var logs = ...` and `logs.Collector`; `AddTeedFakeLogging` lost `teeProvider`; absence counts below the capture floor fail as vacuous; the tee no longer writes into a test that has ended).
 
 ## Quick start
 
@@ -84,10 +84,24 @@ It replaces polling the collector with `Eventually`. A wait proves arrival, not 
 **Mirror logs into the test report (v0.8.0+):** `TestOutputLogCollectorBuilder.CreateTeed()` captures for assertions and also mirrors each record to the test's output, so logs appear inline in the TUnit report:
 
 ```csharp
+using LogAssertions.TUnit;
+
 await using var logs = TestOutputLogCollectorBuilder.CreateTeed();
 ```
 
-Each record goes to the test current when it is logged; otherwise to the test that built the tee, while that test runs; otherwise it is skipped and counted. With the lifetime attribute, a test counts as running until its `[After(Test)]` hooks finish, and a record logged on the flow of a test that has ended is not teed. A background loop (a `BackgroundService`, say) keeps the context of the test it was started in: its records go to that test while it runs, then are skipped and counted, never to a later test. So build and start a host shared across tests inside `ExecutionContext.SuppressFlow()`; TUnit runs hooks such as `[Before(Class)]` and shared-fixture initialization on the flow of the first test that needs them. [Where each record goes, on GitHub.](https://github.com/JohnVerheij/LogAssertions.TUnit#where-each-record-goes)
+Each record goes to the test current when it is logged; otherwise to the test that built the tee, while that test runs; otherwise it is skipped and counted. With the lifetime attribute, a test counts as running until its `[After(Test)]` hooks finish, and a record logged on the flow of a test that has ended is not teed. A background loop (a `BackgroundService`, say) keeps the context of the test it was started in: its records go to that test while it runs, then are skipped and counted, never to a later test. So build and start a host shared across tests inside `ExecutionContext.SuppressFlow()`; TUnit runs hooks such as `[Before(Class)]` and shared-fixture initialization on the flow of the first test that needs them. Start the host inside the block without awaiting, and await the start after it: the block must end on the thread that opened it, so never `await` inside it.
+
+```csharp
+Task started;
+using (ExecutionContext.SuppressFlow())
+{
+    host = BuildHost();                              // your host, with the tee
+    started = host.StartAsync(cancellationToken);    // its loops carry no test context
+}
+await started;
+```
+
+[Where each record goes, on GitHub.](https://github.com/JohnVerheij/LogAssertions.TUnit#where-each-record-goes)
 
 **A teed logger that keeps nothing (v0.14.0+):** `TestOutputLogCollectorBuilder.CreateTeedDiscarding()` returns an enabled factory (so `[LoggerMessage]` and `IsEnabled`-guarded code runs) that keeps no records but tees them to the report: for fixtures and long-lived hosts nobody asserts on.
 
@@ -96,6 +110,10 @@ Each record goes to the test current when it is logged; otherwise to the test th
 **Write the logs of a test that did not pass (v0.14.0+):** arm once in the test or a `[Before(Test)]` hook; when the test fails, times out, or is canceled, the records captured since the call are written to its output, each with its timestamp from the collector's clock (needs the lifetime attribute):
 
 ```csharp
+using LogAssertions.TUnit;
+
+private static LogCapture Logs = null!;   // shared by the class, built in [Before(Class)]
+
 [Before(Test)]
 public void ArmLogDump() => Logs.Collector.DumpToTestOutputOnFailure();
 ```
@@ -137,7 +155,13 @@ A `private` `[LoggerMessage]` method can't be captured (the capture calls it): m
 **Pin the log contract (v0.14.0+):** `LogContractRenderer.Render(definitions)` (in `LogAssertions.Render`) writes one deterministic line per definition, so with `MatchesSnapshot()` a renamed placeholder or a reworded template shows as a diff:
 
 ```csharp
-await Assert.That(LogContractRenderer.Render([OrderProcessed, OrderShipped])).MatchesSnapshot();
+using LogAssertions.Render;
+
+var contract = LogContractRenderer.Render([OrderProcessed, OrderShipped]);
+```
+
+```csharp no-compile
+await Assert.That(contract).MatchesSnapshot();
 // 1201 OrderProcessed Information "Order {OrderId} processed in {DurationMs} ms" OrderId,DurationMs
 ```
 
@@ -193,6 +217,8 @@ await Assert.That(collector).HasLoggedSequence()
 **Assert several invariants and report all failures together:**
 
 ```csharp
+using LogAssertions.TUnit;
+
 await Assert.That(collector).AssertAllAsync(
     c => c.HasLogged().AtLevel(LogLevel.Information).AtLeast(1),
     c => c.HasNotLogged().AtLevelOrAbove(LogLevel.Error),
