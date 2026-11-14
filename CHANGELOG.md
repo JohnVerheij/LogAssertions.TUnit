@@ -34,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Dumps and failure messages** (`DumpTo`, `DumpToTestOutput`, `DumpToTestOutputOnFailure`, and the captured records in an assertion failure) wrote an exception message with line breaks as several lines, the later ones without indentation. The `exception:` line now shows the message on one line, each line break replaced by a space; `Verbose` still writes the full exception text below it.
+- **Captured records in failure messages and dumps** wrote a captured message, category, property key or value, or scope text that held a line break as several lines, the later ones without indentation, so they could be mistaken for records or detail lines of their own. Each now stays on one line, each line break replaced by a space, as the exception message does. `LogSnapshotRenderer` is unchanged: it writes the captured text verbatim, as documented.
+- **Filter descriptions and the allowlist** (the `matching:` and `Step filters:` clauses of a failure, the filter named by a canceled wait, and the `Allowed definitions:` lines of `HasLoggedOnly`) wrote a substring, key, template, or event name that held a line break as several lines. Each line break is now one space.
+- **Expression text of a failure** (`.Containing(...)`, `.WithProperty(...)`, `.WithCategory(...)`, and the other chain methods that take a string, a value, or a definition) wrote the caller's argument raw, so a line break in it split the expression line and a quote or backslash made it ambiguous. The text now reads as a C# string literal does: `\`, `"`, CR, and LF are written as `\\`, `\"`, `\r`, and `\n`.
+- **`HasNotLogged()` failure** showed only the last 50 captured records, so a matching record older than that was not in the message. When an older match would be hidden, the message now lists the matching records themselves (`Matching records (N of M captured):`, capped at the latest 50 after a line that counts the earlier ones). When the last 50 captured records hold every match, the message is unchanged.
 
 ## [0.14.1] - 2026-11-09: tee, failure dump, and waits fixed at their edges
 

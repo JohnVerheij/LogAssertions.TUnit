@@ -62,6 +62,15 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     /// <param name="context">The assertion context supplied by TUnit.</param>
     protected LogAssertionBase(AssertionContext<FakeLogCollector> context) : base(context) { }
 
+    /// <summary>A caller-supplied value as it reads inside a C# string literal in the expression text, so a quote,
+    /// backslash, or line break in it cannot break the expression line.</summary>
+    /// <typeparam name="T">The value type.</typeparam>
+    /// <param name="value">The value, formatted with the invariant culture; <see langword="null"/> is the empty text
+    /// (<c>Convert.ToString(object, IFormatProvider)</c> never returns <see langword="null"/> for it).</param>
+    /// <returns>The escaped text.</returns>
+    private static string Lit<T>(T value)
+        => LogAssertionRendering.EscapeLiteral(Convert.ToString(value, CultureInfo.InvariantCulture)!);
+
     /// <summary>Intersects <see cref="_matchableLevels"/> with the levels an inclusive level filter
     /// admits (the chain's matchable set is the intersection of its level filters).</summary>
     /// <param name="admits">Returns <see langword="true"/> for a level the filter keeps.</param>
@@ -252,7 +261,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf Containing(string substring, StringComparison comparison)
     {
         AddFilter(LogFilter.Containing(substring, comparison));
-        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".Containing(\"{substring}\", {comparison})");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".Containing(\"{Lit(substring)}\", {comparison})");
         return Self;
     }
 
@@ -294,7 +303,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     {
         ArgumentNullException.ThrowIfNull(definition);
         AddFilter(LogFilter.Matching(definition));
-        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".Matching({definition})");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".Matching({Lit(definition)})");
         return Self;
     }
 
@@ -329,7 +338,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
         ArgumentNullException.ThrowIfNull(call);
         var captured = LogDefinition.Capture(call);
         AddFilter(LogFilter.MatchingCall(captured));
-        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".MatchingCall({captured})");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".MatchingCall({Lit(captured)})");
         return Self;
     }
 
@@ -354,7 +363,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf WithMessageTemplate(string template)
     {
         AddFilter(LogFilter.WithMessageTemplate(template));
-        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithMessageTemplate(\"{template}\")");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithMessageTemplate(\"{Lit(template)}\")");
         return Self;
     }
 
@@ -415,7 +424,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf WithExceptionMessage(string substring, StringComparison comparison)
     {
         AddFilter(LogFilter.WithExceptionMessage(substring, comparison));
-        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithExceptionMessage(\"{substring}\", {comparison})");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithExceptionMessage(\"{Lit(substring)}\", {comparison})");
         return Self;
     }
 
@@ -447,7 +456,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf WithInnerExceptionMessage(string substring, StringComparison comparison)
     {
         AddFilter(LogFilter.WithInnerExceptionMessage(substring, comparison));
-        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithInnerExceptionMessage(\"{substring}\", {comparison})");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithInnerExceptionMessage(\"{Lit(substring)}\", {comparison})");
         return Self;
     }
 
@@ -464,7 +473,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf WithProperty(string key, string? value)
     {
         AddFilter(LogFilter.WithProperty(key, value));
-        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithProperty(\"{key}\", \"{value}\")");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithProperty(\"{Lit(key)}\", \"{Lit(value)}\")");
         return Self;
     }
 
@@ -479,7 +488,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf WithProperty(string key, Func<string?, bool> predicate)
     {
         AddFilter(LogFilter.WithProperty(key, predicate));
-        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithProperty(\"{key}\", predicate)");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithProperty(\"{Lit(key)}\", predicate)");
         return Self;
     }
 
@@ -500,7 +509,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf WithProperty<T>(string key, T value) where T : IParsable<T>
     {
         AddFilter(LogFilter.WithProperty(key, value));
-        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithProperty(\"{key}\", {value})");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithProperty(\"{Lit(key)}\", {Lit(value)})");
         return Self;
     }
 
@@ -518,7 +527,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf WithProperty<T>(string key, Func<T, bool> predicate) where T : IParsable<T>
     {
         AddFilter(LogFilter.WithProperty(key, predicate));
-        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithProperty<{typeof(T).Name}>(\"{key}\", predicate)");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithProperty<{typeof(T).Name}>(\"{Lit(key)}\", predicate)");
         return Self;
     }
 
@@ -534,7 +543,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf WithScopeProperty(string key, object? value)
     {
         AddFilter(LogFilter.WithScopeProperty(key, value));
-        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithScopeProperty(\"{key}\", {value ?? "null"})");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithScopeProperty(\"{Lit(key)}\", {Lit(value ?? "null")})");
         return Self;
     }
 
@@ -552,7 +561,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf WithScopeProperty(string key)
     {
         AddFilter(LogFilter.WithScopeProperty(key));
-        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithScopeProperty(\"{key}\")");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithScopeProperty(\"{Lit(key)}\")");
         return Self;
     }
 
@@ -567,7 +576,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf WithScopeProperty(string key, Func<object?, bool> predicate)
     {
         AddFilter(LogFilter.WithScopeProperty(key, predicate));
-        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithScopeProperty(\"{key}\", predicate)");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithScopeProperty(\"{Lit(key)}\", predicate)");
         return Self;
     }
 
@@ -587,7 +596,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf WithScopeProperty<T>(string key, T value)
     {
         AddFilter(LogFilter.WithScopeProperty(key, value));
-        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithScopeProperty(\"{key}\", {value})");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithScopeProperty(\"{Lit(key)}\", {Lit(value)})");
         return Self;
     }
 
@@ -604,7 +613,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf WithScopeProperty<T>(string key, Func<T, bool> predicate)
     {
         AddFilter(LogFilter.WithScopeProperty(key, predicate));
-        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithScopeProperty<{typeof(T).Name}>(\"{key}\", predicate)");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithScopeProperty<{typeof(T).Name}>(\"{Lit(key)}\", predicate)");
         return Self;
     }
 
@@ -634,7 +643,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf WithCategory(string category)
     {
         AddFilter(LogFilter.WithCategory(category));
-        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithCategory(\"{category}\")");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithCategory(\"{Lit(category)}\")");
         return Self;
     }
 
@@ -645,7 +654,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf WithLoggerName(string loggerName)
     {
         AddFilter(LogFilter.WithCategory(loggerName));
-        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithLoggerName(\"{loggerName}\")");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithLoggerName(\"{Lit(loggerName)}\")");
         return Self;
     }
 
@@ -694,7 +703,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf WithEventName(string eventName)
     {
         AddFilter(LogFilter.WithEventName(eventName));
-        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithEventName(\"{eventName}\")");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithEventName(\"{Lit(eventName)}\")");
         return Self;
     }
 
@@ -822,7 +831,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf NotContaining(string substring, StringComparison comparison)
     {
         AddFilter(LogFilter.Not(LogFilter.Containing(substring, comparison)));
-        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".NotContaining(\"{substring}\", {comparison})");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".NotContaining(\"{Lit(substring)}\", {comparison})");
         return Self;
     }
 
@@ -844,7 +853,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     public TSelf ExcludingCategory(string category)
     {
         AddFilter(LogFilter.Not(LogFilter.WithCategory(category)));
-        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".ExcludingCategory(\"{category}\")");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".ExcludingCategory(\"{Lit(category)}\")");
         return Self;
     }
 
@@ -927,7 +936,7 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
         if (_filters.Count > 0)
         {
             sb.Append(" matching: ")
-                .AppendJoin(", ", _filters.Select(static f => f.Description));
+                .AppendJoin(", ", _filters.Select(static f => LogAssertionRendering.Describe(f)));
         }
     }
 

@@ -118,8 +118,8 @@ public static class LogAssertionRendering
 
         sb.Append('[').Append(LevelAbbreviation(record.Level)).Append("] ");
         if (!string.IsNullOrEmpty(record.Category))
-            sb.Append(record.Category).Append(": ");
-        sb.Append(record.Message).AppendLine();
+            sb.Append(SingleLine(record.Category)).Append(": ");
+        sb.Append(SingleLine(record.Message)).AppendLine();
 
         if (verbosity is DumpVerbosity.Compact)
             return;
@@ -137,7 +137,24 @@ public static class LogAssertionRendering
     /// <summary>Replaces each line break (CR, LF, CRLF, and the other Unicode line separators) in a text with one space, so a message stays on one line.</summary>
     /// <param name="text">The text.</param>
     /// <returns>The text on one line.</returns>
-    private static string SingleLine(string text) => text.ReplaceLineEndings(" ");
+    internal static string SingleLine(string text) => text.ReplaceLineEndings(" ");
+
+    /// <summary>Escapes a caller-supplied string as the inside of a C# string literal reads: backslash, double quote,
+    /// carriage return, and line feed become <c>\\</c>, <c>\"</c>, <c>\r</c>, and <c>\n</c>, so the text of an
+    /// expression such as <c>.Containing("a\nb", ...)</c> stays on one line and shows the exact argument.</summary>
+    /// <param name="text">The text.</param>
+    /// <returns>The escaped text.</returns>
+    internal static string EscapeLiteral(string text)
+        => text.Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("\"", "\\\"", StringComparison.Ordinal)
+            .Replace("\r", "\\r", StringComparison.Ordinal)
+            .Replace("\n", "\\n", StringComparison.Ordinal);
+
+    /// <summary>The description of a filter on one line, for the expectation lines and failure messages: a filter
+    /// description carries caller-supplied text (a substring, a key, a template), which may hold a line break.</summary>
+    /// <param name="filter">The filter.</param>
+    /// <returns>The filter's description with each line break replaced by one space.</returns>
+    internal static string Describe(ILogRecordFilter filter) => SingleLine(filter.Description);
 
     /// <summary>Appends the exception line (its message on one line) and, at <see cref="DumpVerbosity.Verbose"/>, the full exception text.</summary>
     /// <param name="sb">The target string builder.</param>
@@ -199,7 +216,7 @@ public static class LogAssertionRendering
                 continue;
 
             sb.Append(first ? "    props: " : ", ")
-                .Append(kvp.Key).Append('=').Append(kvp.Value ?? "null");
+                .Append(SingleLine(kvp.Key)).Append('=').Append(SingleLine(kvp.Value ?? "null"));
             first = false;
         }
 
@@ -235,8 +252,14 @@ public static class LogAssertionRendering
         if (TryAppendKeyValuePairs<object?>(sb, scope) || TryAppendKeyValuePairs<object>(sb, scope))
             return;
 
-        sb.Append(scope);
+        sb.Append(SingleLine(Display(scope)));
     }
+
+    /// <summary>The text of a value as <see cref="StringBuilder.Append(object?)"/> writes it (its
+    /// <c>ToString()</c>, nothing for a <see langword="null"/> result).</summary>
+    /// <param name="value">The value.</param>
+    /// <returns>The text.</returns>
+    private static string Display(object value) => new StringBuilder().Append(value).ToString();
 
     private static bool TryAppendKeyValuePairs<TValue>(StringBuilder sb, object scope)
     {
@@ -251,7 +274,7 @@ public static class LogAssertionRendering
 
             if (any)
                 sb.Append(", ");
-            sb.Append(kvp.Key).Append('=').Append(kvp.Value is null ? "null" : kvp.Value.ToString());
+            sb.Append(SingleLine(kvp.Key)).Append('=').Append(SingleLine(kvp.Value is null ? "null" : Display(kvp.Value)));
             any = true;
         }
 

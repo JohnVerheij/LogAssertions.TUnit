@@ -66,6 +66,32 @@ internal sealed class RenderingEdgeCaseTests
         await Assert.That(dump).Contains("    scope: null | a=1, b=null", StringComparison.Ordinal);
     }
 
+    /// <summary>A captured category, message, property key and value, and scope text with line breaks (CR, LF, CRLF)
+    /// stay on their own lines in the dump, as an exception message does: each line break is one space, so the
+    /// indented detail lines of one record are never split.</summary>
+    [Test]
+    public async Task DumpTo_LineBreaksInCapturedText_StayOnOneLine(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var collector = new FakeLogCollector();
+        var logger = new FakeLogger(collector, "Cat\negory");
+        List<KeyValuePair<string, object?>> state = [new("k\n1", "v\r\n1")];
+        using (logger.BeginScope<object>("scope\ntext"))
+        using (logger.BeginScope(new Dictionary<string, object?>(StringComparer.Ordinal) { ["x\ny"] = "a\r\nb" }))
+        {
+            logger.Log(LogLevel.Information, default, state, null, static (_, _) => "line1\r\nline2\rline3");
+        }
+
+        using var writer = new StringWriter();
+        collector.DumpTo(writer);
+
+        await Assert.That(writer.ToString().ReplaceLineEndings("\n")).IsEqualTo(
+            "Captured records (1 total):\n"
+            + "  [info] Cat egory: line1 line2 line3\n"
+            + "    props: k 1=v 1\n"
+            + "    scope: scope text | x y=a b\n");
+    }
+
     /// <summary>The descriptions of the regex filter and of the scope-property filter with a <see langword="null"/>
     /// and a non-<see langword="null"/> value.</summary>
     [Test]

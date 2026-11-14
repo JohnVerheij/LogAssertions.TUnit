@@ -176,7 +176,7 @@ public sealed class HasLoggedOnlyAssertion : Assertion<FakeLogCollector>
             sb.Append("Allowed definitions:").AppendLine();
             foreach (var definition in _allowed)
             {
-                sb.Append("  ").Append(definition.ToString()).AppendLine();
+                sb.Append("  ").Append(LogAssertionRendering.SingleLine(definition.ToString())).AppendLine();
             }
         }
 

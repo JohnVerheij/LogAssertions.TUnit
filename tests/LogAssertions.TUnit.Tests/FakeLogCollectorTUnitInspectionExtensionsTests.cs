@@ -88,7 +88,16 @@ internal sealed class FakeLogCollectorTUnitInspectionExtensionsTests
         { IsBackground = true };
         thread.UnsafeStart();
 
-        InvalidOperationException? caught = await completion.Task.WaitAsync(cancellationToken);
+        InvalidOperationException? caught;
+        try
+        {
+            caught = await completion.Task.WaitAsync(cancellationToken);
+        }
+        finally
+        {
+            // The worker ends right after it signals, so the join returns at once; no thread outlives the test.
+            thread.Join();
+        }
 
         await Assert.That(caught).IsNotNull();
         await Assert.That(caught!.Message).Contains("DumpToTestOutput");

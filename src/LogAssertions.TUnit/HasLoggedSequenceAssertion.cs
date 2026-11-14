@@ -305,14 +305,8 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
                 assigned[subStepIdx] = rIdx;
                 if (TryAssignAnyOrder(subStepIdx + 1, subSteps, snapshot, startIdx, assigned))
                     return true;
-                // Backtracking: reset this sub-step's claim so the next iteration of the outer
-                // for-loop can try a different record. The double-write to assigned[subStepIdx]
-                // is intentional (assign-then-reset): Sonar S4143 is suppressed because the
-                // analyzer can't see that the first write was conditional on the recursive call
-                // succeeding.
-#pragma warning disable S4143
-                assigned[subStepIdx] = -1;
-#pragma warning restore S4143
+                // Backtracking needs no reset: the claim check above reads only the entries of earlier
+                // sub-steps, and the next iteration overwrites this one before anything reads it.
             }
         }
         return false;
@@ -347,7 +341,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
     {
         if (step.Kind is SequenceStepKind.Simple)
         {
-            sb.AppendJoin(" + ", step.Filters.Select(static f => f.Description));
+            sb.AppendJoin(" + ", step.Filters.Select(static f => LogAssertionRendering.Describe(f)));
             return;
         }
 
@@ -357,7 +351,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
         {
             if (!first)
                 sb.Append(" / ");
-            sb.AppendJoin(" + ", sub.Select(static f => f.Description));
+            sb.AppendJoin(" + ", sub.Select(static f => LogAssertionRendering.Describe(f)));
             first = false;
         }
 
@@ -374,7 +368,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
         if (step.Kind is SequenceStepKind.Simple)
         {
             sb.Append("Step filters: ")
-                .AppendJoin(" + ", step.Filters.Select(static f => f.Description));
+                .AppendJoin(" + ", step.Filters.Select(static f => LogAssertionRendering.Describe(f)));
         }
         else
         {
@@ -382,7 +376,7 @@ public sealed class HasLoggedSequenceAssertion : LogAssertionBase<HasLoggedSeque
             for (var i = 0; i < step.AnyOrderSubSteps!.Count; i++)
             {
                 sb.AppendLine().Append(CultureInfo.InvariantCulture, $"  [{i + 1}] ")
-                    .AppendJoin(" + ", step.AnyOrderSubSteps[i].Select(static f => f.Description));
+                    .AppendJoin(" + ", step.AnyOrderSubSteps[i].Select(static f => LogAssertionRendering.Describe(f)));
             }
         }
 

@@ -210,7 +210,16 @@ internal sealed class CaptureFloorAndTeeTests
             { IsBackground = true };
             thread.UnsafeStart();
 
-            await done.Task.WaitAsync(cancellationToken);
+            try
+            {
+                await done.Task.WaitAsync(cancellationToken);
+            }
+            finally
+            {
+                // The worker ends right after it signals, so the join returns at once; no thread outlives the test.
+                thread.Join();
+            }
+
             await Assert.That(collector).HasLogged().Containing("from background", StringComparison.Ordinal).Once();
         }
     }

@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Testing;
@@ -45,7 +48,34 @@ public sealed class HasNotLoggedAssertion : LogAssertionBase<HasNotLoggedAsserti
                     : AssertionResult.Passed);
         }
 
-        return Task.FromResult(AssertionResult.Failed(BuildFailureMessage(matchCount, snapshot)));
+        return Task.FromResult(AssertionResult.Failed(DescribeMatches(matchCount, snapshot)));
+    }
+
+    /// <summary>Renders the failure. When the failure message's captured records (the last 50) already show every
+    /// matching record, that is the usual message; otherwise (an older match would be hidden) it lists the matching
+    /// records themselves, capped as the captured records are, so the offending record is always visible.</summary>
+    /// <param name="matchCount">The number of matching records.</param>
+    /// <param name="snapshot">All captured records.</param>
+    /// <returns>The failure message body.</returns>
+    private string DescribeMatches(int matchCount, IReadOnlyList<FakeLogRecord> snapshot)
+    {
+        var matches = GetMatches(snapshot);
+        var shownFrom = Math.Max(0, snapshot.Count - LogAssertionRendering.FailureRecordLimit);
+        var firstShown = false;
+        for (var i = shownFrom; i < snapshot.Count && !firstShown; i++)
+            firstShown = ReferenceEquals(snapshot[i], matches[0]);
+
+        if (firstShown)
+            return BuildFailureMessage(matchCount, snapshot);
+
+        StringBuilder sb = new();
+        sb.Append(CultureInfo.InvariantCulture, $"{matchCount} record(s) matched")
+            .AppendLine()
+            .AppendLine()
+            .Append(CultureInfo.InvariantCulture, $"Matching records ({matchCount} of {snapshot.Count} captured):")
+            .AppendLine();
+        AppendCapturedRecords(sb, matches);
+        return sb.ToString();
     }
 
     /// <inheritdoc/>
