@@ -67,22 +67,38 @@ internal sealed class TeeWriteTests
             lock (entry.Gate)
             {
                 held.TrySetResult();
-                release.Wait(cancellationToken);
+                try
+                {
+                    release.Wait(cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    // The test was canceled: leave the lock. An exception on this thread would end the test host.
+                }
             }
         })
         {
             IsBackground = true,
         };
         holder.Start();
-        await held.Task.WaitAsync(cancellationToken);
+        try
+        {
+            await held.Task.WaitAsync(cancellationToken);
 
-        var writing = Task.Run(() => entry.TryWriteLine(test, "Gate: record written once the lock is free"), cancellationToken);
-        await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken);
-        await Assert.That(writing.IsCompleted).IsFalse();
+            var writing = Task.Run(() => entry.TryWriteLine(test, "Gate: record written once the lock is free"), cancellationToken);
+            await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken);
+            await Assert.That(writing.IsCompleted).IsFalse();
 
-        release.Set();
-        await Assert.That(await writing.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken)).IsTrue();
-        await Assert.That(test.GetStandardOutput()).Contains("Gate: record written once the lock is free", StringComparison.Ordinal);
+            release.Set();
+            await Assert.That(await writing.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken)).IsTrue();
+            await Assert.That(test.GetStandardOutput()).Contains("Gate: record written once the lock is free", StringComparison.Ordinal);
+        }
+        finally
+        {
+            // On every exit path the holder leaves the lock and ends before release is disposed.
+            release.Set();
+            holder.Join();
+        }
     }
 
     /// <summary>Eight threads log 200 records each, every one with a thrown exception, into one test at the same time.
