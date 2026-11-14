@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-11-15: event ID allowlist, compact dumps with exceptions, .NET 11
+
 ### BREAKING
 
 - **`LogCapture.Deconstruct`** was removed, as 0.14.0 announced. It only turned `var (factory, collector) = LogCollectorBuilder.Create();` into a build error that named the new form; that line now fails with the compiler's own error (`CS1061`, no `Deconstruct` on `LogCapture`). Source that compiled against 0.14.x never contained the call, so this changes binary compatibility only. Migration: `using var logs = LogCollectorBuilder.Create();`, then `logs.Collector` (`await using var` in async code).
@@ -439,7 +441,8 @@ Documentation-only release. No API or behavior change.
 - **Failure-message snapshot rendering** with 4-character level abbreviations matching the `Microsoft.Extensions.Logging` console formatter (`trce`, `dbug`, `info`, `warn`, `fail`, `crit`, `none`), indented `props:` line listing each record's structured properties (excluding the `{OriginalFormat}` entry, already implied by the message line), indented `scope:` line rendering each active scope's content as `key=value` pairs (or `ToString()` for opaque scopes), and indented `exception:` line with type name and message.
 - **`.And` / `.Or`** chaining via TUnit's `Assertion<T>` base class.
 
-[unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.14.1...HEAD
+[unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.14.1...v0.15.0
 [0.14.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.13.1...v0.14.0
 [0.13.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.13.0...v0.13.1
