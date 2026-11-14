@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **`TUnit.Assertions`** and **`TUnit.Core`** minimum versions raised from 1.81.10 to 1.83.0, the first TUnit with a `net11.0` asset.
+- **`TUnit.Assertions`** and **`TUnit.Core`** minimum versions raised from 1.81.10 to 1.85.0: 1.83.0 is the first TUnit with a `net11.0` asset, and 1.85.0 keeps TUnit's OpenTelemetry and ASP.NET Core packages on OpenTelemetry 1.20.x for `net10.0`, so a project with one version for all its TUnit packages gets no .NET 11 packages there.
 - **README:** the shared-host recipe (build and start a host that outlives a test inside `Task.Run` within `ExecutionContext.SuppressFlow()` and await it after the block, because suppressing the flow does not clear the calling thread's own context) is in the TUnit adapter README and in the remarks of `AddTeedFakeLogging` as well; the lifetime attribute is needed once in every test assembly, also when the package arrives through another project; a new cookbook entry, "Pin the records other tools read", shows `WithEventName(...).WithMessageTemplate(...)` for a record the contract renderer cannot reach; the troubleshooting entry for the removed `Deconstruct` names the new error; every C# sample compiles against the packed packages.
 
 ### Fixed

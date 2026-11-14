@@ -20,7 +20,7 @@ TUnit-native fluent log-assertion DSL on top of `Microsoft.Extensions.Logging.Te
 dotnet add package LogAssertions.TUnit
 ```
 
-`LogAssertions` (the framework-agnostic core) comes transitively. **Requirements:** TUnit 1.83.0 or later, .NET 10 and .NET 11.
+`LogAssertions` (the framework-agnostic core) comes transitively. **Requirements:** TUnit 1.85.0 or later, .NET 10 and .NET 11.
 
 **Setup (v0.14.0+):** add `[assembly: LogAssertions.TUnit.LogAssertionsTestLifetime]` once to the test project (for example in `GlobalUsings.cs`). It lets the package see when each test ends, which `DumpToTestOutputOnFailure()` needs (it throws without it) and which makes the test-output tee exact. Everything else works without it; without it, the first tee built in a run writes one note naming this line. **Upgrading from 0.13:** see the [upgrade table on GitHub](https://github.com/JohnVerheij/LogAssertions.TUnit#upgrading-to-v0140) (`Create()` returns a `LogCapture`, and `var (factory, collector) = ...` no longer compiles, use `using var logs = ...` and `logs.Collector`; `AddTeedFakeLogging` lost `teeProvider`; absence counts below the capture floor fail as vacuous; the tee no longer writes into a test that has ended).
 

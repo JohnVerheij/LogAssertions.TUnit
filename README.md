@@ -86,7 +86,7 @@ This library replaces both with a fluent DSL that integrates with TUnit's assert
 dotnet add package LogAssertions.TUnit
 ```
 
-**Requirements:** TUnit 1.83.0 or later, .NET 10 and .NET 11. The package is AOT-compatible, trimmable, and uses no reflection in the assertion path.
+**Requirements:** TUnit 1.85.0 or later, .NET 10 and .NET 11. The package is AOT-compatible, trimmable, and uses no reflection in the assertion path.
 
 ### Setup: the test lifetime attribute (v0.14.0+)
 
