@@ -228,6 +228,23 @@ internal sealed class FakeLogCollectorWaitTests
         await Assert.That(exception.CancellationToken).IsEqualTo(cts.Token);
     }
 
+    /// <summary>A canceled wait names its filter on one line, also when a substring of the filter holds a line break.</summary>
+    [Test]
+    public async Task WaitForLogsAsync_CanceledWithLineBreakInFilter_NamesTheFilterOnOneLine(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var collector = new FakeLogCollector();
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        var exception = await Assert.That(async () => await collector.WaitForLogsAsync(
+                LogFilter.Containing("ready\r\nnow", StringComparison.Ordinal), 1, cts.Token))
+            .Throws<OperationCanceledException>();
+
+        await Assert.That(exception!.Message).IsEqualTo(
+            "Waiting for 1 log record(s) where Message contains \"ready now\" (Ordinal): 0 matched among the 0 record(s) collected before the wait was canceled.");
+    }
+
     /// <summary>A count far beyond any real test allocates nothing up front: the wait starts and ends on its
     /// token.</summary>
     [Test]

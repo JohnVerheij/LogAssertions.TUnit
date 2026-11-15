@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-11-15: event ID allowlist, compact dumps with exceptions, .NET 11
+
 ### BREAKING
 
 - **`LogCapture.Deconstruct`** was removed, as 0.14.0 announced. It only turned `var (factory, collector) = LogCollectorBuilder.Create();` into a build error that named the new form; that line now fails with the compiler's own error (`CS1061`, no `Deconstruct` on `LogCapture`). Source that compiled against 0.14.x never contained the call, so this changes binary compatibility only. Migration: `using var logs = LogCollectorBuilder.Create();`, then `logs.Collector` (`await using var` in async code).
@@ -28,12 +30,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **`TUnit.Assertions`** and **`TUnit.Core`** minimum versions raised from 1.81.10 to 1.83.0, the first TUnit with a `net11.0` asset.
+- **`TUnit.Assertions`** and **`TUnit.Core`** minimum versions raised from 1.81.10 to 1.85.0: 1.83.0 is the first TUnit with a `net11.0` asset, and 1.85.0 keeps TUnit's OpenTelemetry and ASP.NET Core packages on OpenTelemetry 1.20.x for `net10.0`, so a project with one version for all its TUnit packages gets no .NET 11 packages there.
 - **README:** the shared-host recipe (build and start a host that outlives a test inside `Task.Run` within `ExecutionContext.SuppressFlow()` and await it after the block, because suppressing the flow does not clear the calling thread's own context) is in the TUnit adapter README and in the remarks of `AddTeedFakeLogging` as well; the lifetime attribute is needed once in every test assembly, also when the package arrives through another project; a new cookbook entry, "Pin the records other tools read", shows `WithEventName(...).WithMessageTemplate(...)` for a record the contract renderer cannot reach; the troubleshooting entry for the removed `Deconstruct` names the new error; every C# sample compiles against the packed packages.
 
 ### Fixed
 
 - **Dumps and failure messages** (`DumpTo`, `DumpToTestOutput`, `DumpToTestOutputOnFailure`, and the captured records in an assertion failure) wrote an exception message with line breaks as several lines, the later ones without indentation. The `exception:` line now shows the message on one line, each line break replaced by a space; `Verbose` still writes the full exception text below it.
+- **Captured records in failure messages and dumps** wrote a captured message, category, property key or value, or scope text that held a line break as several lines, the later ones without indentation, so they could be mistaken for records or detail lines of their own. Each now stays on one line, each line break replaced by a space, as the exception message does. `LogSnapshotRenderer` is unchanged: it writes the captured text verbatim, as documented.
+- **Filter descriptions and the allowlist** (the `matching:` and `Step filters:` clauses of a failure, the filter named by a canceled wait, and the `Allowed definitions:` lines of `HasLoggedOnly`) wrote a substring, key, template, or event name that held a line break as several lines. Each line break is now one space.
+- **Expression text of a failure** (`.Containing(...)`, `.WithProperty(...)`, `.WithCategory(...)`, and the other chain methods that take a string, a value, or a definition) wrote the caller's argument raw, so a line break in it split the expression line and a quote or backslash made it ambiguous. The text now reads as a C# string literal does: `\`, `"`, CR, and LF are written as `\\`, `\"`, `\r`, and `\n`, and the other line breaks the failure text recognizes (form feed, NEL, LS, and PS) as `\f`, `\u0085`, `\u2028`, and `\u2029`.
+- **`HasNotLogged()` failure** showed only the last 50 captured records, so a matching record older than that was not in the message. When an older match would be hidden, the message now lists the matching records themselves (`Matching records (N of M captured):`, capped at the latest 50 after a line that counts the earlier ones). When the last 50 captured records hold every match, the message is unchanged.
 
 ## [0.14.1] - 2026-11-09: tee, failure dump, and waits fixed at their edges
 
@@ -435,7 +441,8 @@ Documentation-only release. No API or behavior change.
 - **Failure-message snapshot rendering** with 4-character level abbreviations matching the `Microsoft.Extensions.Logging` console formatter (`trce`, `dbug`, `info`, `warn`, `fail`, `crit`, `none`), indented `props:` line listing each record's structured properties (excluding the `{OriginalFormat}` entry, already implied by the message line), indented `scope:` line rendering each active scope's content as `key=value` pairs (or `ToString()` for opaque scopes), and indented `exception:` line with type name and message.
 - **`.And` / `.Or`** chaining via TUnit's `Assertion<T>` base class.
 
-[unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.14.1...HEAD
+[unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.14.1...v0.15.0
 [0.14.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.13.1...v0.14.0
 [0.13.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.13.0...v0.13.1

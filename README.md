@@ -86,7 +86,7 @@ This library replaces both with a fluent DSL that integrates with TUnit's assert
 dotnet add package LogAssertions.TUnit
 ```
 
-**Requirements:** TUnit 1.83.0 or later, .NET 10 and .NET 11. The package is AOT-compatible, trimmable, and uses no reflection in the assertion path.
+**Requirements:** TUnit 1.85.0 or later, .NET 10 and .NET 11. The package is AOT-compatible, trimmable, and uses no reflection in the assertion path.
 
 ### Setup: the test lifetime attribute (v0.14.0+)
 
@@ -996,7 +996,7 @@ On a failed count assertion (`HasLogged()`, `HasNotLogged()`, `WillLog()`) the `
 
 1. The expectation (terminator + filter summary)
 2. The actual match count
-3. A snapshot of the captured records, with **4-character level abbreviation** (matching the `Microsoft.Extensions.Logging` console formatter), category, message, structured properties, active scopes, and exception details. Since v0.14.0 the snapshot shows the last 50 records, after one line `(N earlier record(s) not shown)` when there are more; a long run's collector can hold thousands, and the latest ones are the context of the failure. The explicit dumps (`DumpTo`, `DumpToTestOutput`, `DumpToTestOutputOnFailure`) write every record.
+3. A snapshot of the captured records, with **4-character level abbreviation** (matching the `Microsoft.Extensions.Logging` console formatter), category, message, structured properties, active scopes, and exception details. Each record's text stays on its own line: a line break inside a message, category, property, scope, or exception message is written as a space. Since v0.14.0 the snapshot shows the last 50 records, after one line `(N earlier record(s) not shown)` when there are more; a long run's collector can hold thousands, and the latest ones are the context of the failure. The explicit dumps (`DumpTo`, `DumpToTestOutput`, `DumpToTestOutputOnFailure`) write every record. When a `HasNotLogged()` match is older than those 50, the failure lists the matching records instead (`Matching records (N of M captured):`, capped the same way), so the offending record is always shown.
 
 A sequence failure names the step that did not match instead of a count; a `HasLoggedOnly` failure lists the records that escaped the allowlist (capped the same way) and the allowlist; a capture-floor failure explains the floor instead of showing a snapshot.
 

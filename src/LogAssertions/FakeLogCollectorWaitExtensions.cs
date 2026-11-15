@@ -126,7 +126,7 @@ public static class FakeLogCollectorWaitExtensions
             throw new OperationCanceledException(
                 string.Create(
                     CultureInfo.InvariantCulture,
-                    $"Waiting for {count} log record(s) where {filter.Description}: {held.Count} matched among the {collected.Count} record(s) collected before the wait was canceled."),
+                    $"Waiting for {count} log record(s) where {LogAssertionRendering.Describe(filter)}: {held.Count} matched among the {collected.Count} record(s) collected before the wait was canceled."),
                 exception,
                 cancellationToken);
         }

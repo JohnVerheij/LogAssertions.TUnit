@@ -155,7 +155,16 @@ internal sealed class NewSurfaceSmokeTests
         })
         { IsBackground = true };
         thread.UnsafeStart();
-        await done.Task.WaitAsync(cancellationToken);
+        try
+        {
+            await done.Task.WaitAsync(cancellationToken);
+        }
+        finally
+        {
+            // The worker ends right after it signals, so the join returns at once; no thread outlives the test.
+            thread.Join();
+        }
+
         logger.LogInformation("own-flow fallback record");
 
         var output = TestContext.Current!.GetStandardOutput();

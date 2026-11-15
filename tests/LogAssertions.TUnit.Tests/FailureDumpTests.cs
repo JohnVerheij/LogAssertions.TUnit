@@ -20,10 +20,6 @@ internal sealed class FailureDumpTests
 {
     private const string Heading = "Captured records since the dump was armed";
 
-    private static int s_retryAttempts;
-
-    private static int s_largeRetryAttempts;
-
     /// <summary>Gets or sets the context of <see cref="A_PassingTest_ArmsADump"/>.</summary>
     private static TestContext? PassingTest { get; set; }
 
@@ -211,14 +207,14 @@ internal sealed class FailureDumpTests
     public async Task Dump_RetriedTest_WritesTheFailedAttempt(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var attempt = Interlocked.Increment(ref s_retryAttempts);
+        var attempt = TestContext.Current!.Execution.CurrentRetryAttempt + 1;
         var collector = new FakeLogCollector();
         collector.DumpToTestOutputOnFailure();
         DirectLog.Write(new FakeLogger(collector, "Retry"), $"record of attempt {attempt}");
 
         await Assert.That(attempt).IsGreaterThan(1);
 
-        var output = TestContext.Current!.GetStandardOutput();
+        var output = TestContext.Current.GetStandardOutput();
         await Assert.That(output).Contains("Captured records of attempt 1 since the dump was armed (1 of 1 total, times in UTC):", StringComparison.Ordinal);
         await Assert.That(output).Contains("Retry: record of attempt 1", StringComparison.Ordinal);
         await Assert.That(output).Contains("End of dump of attempt 1: 1 of 1 records.", StringComparison.Ordinal);
@@ -233,7 +229,7 @@ internal sealed class FailureDumpTests
     public async Task Dump_RetriedTest_CompactWithException_ThousandRecords(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var attempt = Interlocked.Increment(ref s_largeRetryAttempts);
+        var attempt = TestContext.Current!.Execution.CurrentRetryAttempt + 1;
         var collector = new FakeLogCollector();
         collector.DumpToTestOutputOnFailure(DumpVerbosity.CompactWithException);
         var logger = new FakeLogger(collector, "Large");
@@ -246,7 +242,7 @@ internal sealed class FailureDumpTests
 
         await Assert.That(attempt).IsGreaterThan(1);
 
-        var output = TestContext.Current!.GetStandardOutput();
+        var output = TestContext.Current.GetStandardOutput();
         var start = output.IndexOf("Captured records of attempt 1 since the dump was armed (1000 of 1000 total", StringComparison.Ordinal);
         await Assert.That(start).IsGreaterThanOrEqualTo(0);
         var end = output.IndexOf("End of dump of attempt 1: 1000 of 1000 records.", start, StringComparison.Ordinal);
