@@ -139,16 +139,21 @@ public static class LogAssertionRendering
     /// <returns>The text on one line.</returns>
     internal static string SingleLine(string text) => text.ReplaceLineEndings(" ");
 
-    /// <summary>Escapes a caller-supplied string as the inside of a C# string literal reads: backslash, double quote,
-    /// carriage return, and line feed become <c>\\</c>, <c>\"</c>, <c>\r</c>, and <c>\n</c>, so the text of an
-    /// expression such as <c>.Containing("a\nb", ...)</c> stays on one line and shows the exact argument.</summary>
+    /// <summary>Escapes a caller-supplied string as the inside of a C# string literal reads: a backslash and a double
+    /// quote become <c>\\</c> and <c>\"</c>, and each line break that <see cref="SingleLine"/> recognizes becomes its
+    /// C# escape: <c>\r</c>, <c>\n</c>, <c>\f</c>, <c>\u0085</c>, <c>\u2028</c> and <c>\u2029</c>. So the text of an expression such
+    /// as <c>.Containing("a\nb", ...)</c> stays on one line and shows the exact argument.</summary>
     /// <param name="text">The text.</param>
     /// <returns>The escaped text.</returns>
     internal static string EscapeLiteral(string text)
         => text.Replace("\\", "\\\\", StringComparison.Ordinal)
             .Replace("\"", "\\\"", StringComparison.Ordinal)
             .Replace("\r", "\\r", StringComparison.Ordinal)
-            .Replace("\n", "\\n", StringComparison.Ordinal);
+            .Replace("\n", "\\n", StringComparison.Ordinal)
+            .Replace("\f", "\\f", StringComparison.Ordinal)
+            .Replace("\u0085", "\\u0085", StringComparison.Ordinal)
+            .Replace("\u2028", "\\u2028", StringComparison.Ordinal)
+            .Replace("\u2029", "\\u2029", StringComparison.Ordinal);
 
     /// <summary>The description of a filter on one line, for the expectation lines and failure messages: a filter
     /// description carries caller-supplied text (a substring, a key, a template), which may hold a line break.</summary>

@@ -65,11 +65,12 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     /// <summary>A caller-supplied value as it reads inside a C# string literal in the expression text, so a quote,
     /// backslash, or line break in it cannot break the expression line.</summary>
     /// <typeparam name="T">The value type.</typeparam>
-    /// <param name="value">The value, formatted with the invariant culture; <see langword="null"/> is the empty text
-    /// (<c>Convert.ToString(object, IFormatProvider)</c> never returns <see langword="null"/> for it).</param>
+    /// <param name="value">The value, formatted with the invariant culture. <see langword="null"/> is the empty text, and
+    /// so is a value whose <see cref="object.ToString"/> returns <see langword="null"/>, which
+    /// <c>Convert.ToString(object, IFormatProvider)</c> passes through.</param>
     /// <returns>The escaped text.</returns>
     private static string Lit<T>(T value)
-        => LogAssertionRendering.EscapeLiteral(Convert.ToString(value, CultureInfo.InvariantCulture)!);
+        => LogAssertionRendering.EscapeLiteral(Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty);
 
     /// <summary>Intersects <see cref="_matchableLevels"/> with the levels an inclusive level filter
     /// admits (the chain's matchable set is the intersection of its level filters).</summary>

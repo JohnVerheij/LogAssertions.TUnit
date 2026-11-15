@@ -126,6 +126,50 @@ internal sealed class FailureTextLineBreakTests
         await Assert.That(two).DoesNotContain("cat\negory", StringComparison.Ordinal);
     }
 
+    /// <summary>The other line breaks that the filter descriptions replace (form feed, NEL, LS and PS) are written into
+    /// the expression text as their C# escapes too, so the expression stays on one line as the descriptions do.</summary>
+    [Test]
+    public async Task ExpressionText_EscapesEveryLineBreakTheDescriptionsRecognize(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var collector = new FakeLogCollector();
+
+        var failure = await CatchAsync(async () => await Assert.That(collector).HasLogged()
+            .Containing("a\fb\u0085c\u2028d\u2029e", StringComparison.Ordinal));
+
+        var message = failure!.Message;
+        await Assert.That(message).Contains("""
+            .Containing("a\fb\u0085c\u2028d\u2029e", Ordinal)
+            """, StringComparison.Ordinal);
+        await Assert.That(message.AsSpan().IndexOfAny("\f\u0085\u2028\u2029")).IsEqualTo(-1);
+    }
+
+    /// <summary>A value whose <see cref="object.ToString"/> returns <see langword="null"/> is written into the expression
+    /// text as empty text, on both scope-property overloads, instead of throwing before the assertion runs.</summary>
+    [Test]
+    public async Task ExpressionText_ValueWhoseToStringIsNull_IsEmptyText(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var collector = new FakeLogCollector();
+
+        var typed = await CatchAsync(async () => await Assert.That(collector).HasLogged()
+            .WithScopeProperty("k", new NullText(null)));
+        var boxed = await CatchAsync(async () => await Assert.That(collector).HasLogged()
+            .WithScopeProperty("k", (object?)new NullText(null)));
+
+        await Assert.That(typed!.Message).Contains(".WithScopeProperty(\"k\", )", StringComparison.Ordinal);
+        await Assert.That(boxed!.Message).Contains(".WithScopeProperty(\"k\", )", StringComparison.Ordinal);
+    }
+
+    /// <summary>A value whose text is the given one, also <see langword="null"/>, as an override of
+    /// <see cref="object.ToString"/> in other code may return.</summary>
+    /// <param name="text">The text <see cref="ToString"/> returns.</param>
+    private sealed class NullText(string? text)
+    {
+        /// <inheritdoc/>
+        public override string? ToString() => text;
+    }
+
     /// <summary>A definition whose event name and template hold line breaks.</summary>
     /// <param name="log">The logger.</param>
     private static void Multi(ILogger log) => log.Log(
