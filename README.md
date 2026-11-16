@@ -8,7 +8,7 @@
 [![NuGet](https://img.shields.io/nuget/v/LogAssertions.TUnit.svg)](https://www.nuget.org/packages/LogAssertions.TUnit/)
 [![Downloads](https://img.shields.io/nuget/dt/LogAssertions.TUnit.svg)](https://www.nuget.org/packages/LogAssertions.TUnit/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
+[![.NET](https://img.shields.io/badge/.NET-10.0%20%7C%2011.0-512BD4.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
 [![Docs](https://img.shields.io/badge/docs-logassertions.dev-512BD4.svg)](https://logassertions.dev)
 
 A TUnit-native fluent log-assertion DSL on top of `Microsoft.Extensions.Logging.Testing.FakeLogCollector`. Built using TUnit's `[AssertionExtension]` source generator, so the assertion entry points integrate directly into TUnit's `Assert.That(...)` pipeline with rich failure diagnostics.
@@ -86,7 +86,7 @@ This library replaces both with a fluent DSL that integrates with TUnit's assert
 dotnet add package LogAssertions.TUnit
 ```
 
-**Requirements:** TUnit 1.85.0 or later, .NET 10 and .NET 11. The package is AOT-compatible, trimmable, and uses no reflection in the assertion path.
+**Requirements:** TUnit 1.85.0 or later, .NET 10 or .NET 11. The package is AOT-compatible, trimmable, and uses no reflection in the assertion path.
 
 ### Setup: the test lifetime attribute (v0.14.0+)
 
