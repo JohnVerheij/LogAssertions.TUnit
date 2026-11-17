@@ -91,8 +91,9 @@ internal sealed class TestOutputLoggerProvider : ILoggerProvider
     /// <returns>The test, or <see langword="null"/> when the record reaches no test.</returns>
     internal TestContext? ResolveTarget() => _lifetimes.ResolveTeeTarget(TestContext.Current, _owner);
 
-    /// <summary>Counts a record that reached no test, by level, and keeps the level and category of the first one. Only
-    /// the first allocates, so skipping stays allocation-free.</summary>
+    /// <summary>Counts a record that reached no test, by level, and keeps the level and category of the first one. Once
+    /// the first is kept, counting allocates nothing; records skipped at the same moment as the first can each build
+    /// their text once before one of them is kept.</summary>
     /// <param name="level">The record's level.</param>
     /// <param name="category">The record's logger category.</param>
     private void CountSkipped(LogLevel level, string category)
