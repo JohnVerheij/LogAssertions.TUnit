@@ -28,6 +28,12 @@ namespace LogAssertions;
 /// of them match.
 /// </para>
 /// <para>
+/// In a TUnit test that asserts on the record rather than using it, LogAssertions.TUnit's
+/// <c>Assert.That(collector).WillLog(timeout, cancellationToken)</c> is the bounded wait: it takes the same filters as
+/// <c>HasLogged()</c> and a timeout of its own, and when the timeout runs out it fails with the expectation, the count
+/// and the captured records, as <c>HasLogged()</c> does, instead of a cancellation.
+/// </para>
+/// <para>
 /// A wait proves that a record arrived; it cannot prove that one did not. For "has not logged", let the work finish
 /// first (an event, a barrier) and then assert on the collector.
 /// </para>

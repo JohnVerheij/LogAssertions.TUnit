@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-11-17: the not-teed line names its records
+
+### Changed
+
+- **The tee's "N log record(s) were not teed" line** names the levels of the records it skipped, most severe first, and the first one's level and category: `3 log record(s) were not teed to a test report (1 Information, 2 Debug; the first: [Information] Shop.Orders): ...`. A reader can tell whether a lost record matters without a rerun.
+- **`WaitForLogAsync` and `WaitForLogsAsync` documentation** points to `WillLog(timeout, cancellationToken)` for a bounded wait that fails with the captured records.
+
 ## [0.15.1] - 2026-11-17: a record a test has seen is in its report
 
 ### Fixed
@@ -448,7 +455,8 @@ Documentation-only release. No API or behavior change.
 - **Failure-message snapshot rendering** with 4-character level abbreviations matching the `Microsoft.Extensions.Logging` console formatter (`trce`, `dbug`, `info`, `warn`, `fail`, `crit`, `none`), indented `props:` line listing each record's structured properties (excluding the `{OriginalFormat}` entry, already implied by the message line), indented `scope:` line rendering each active scope's content as `key=value` pairs (or `ToString()` for opaque scopes), and indented `exception:` line with type name and message.
 - **`.And` / `.Or`** chaining via TUnit's `Assertion<T>` base class.
 
-[unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.15.1...HEAD
+[unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.16.0...HEAD
+[0.16.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.15.1...v0.16.0
 [0.15.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.15.0...v0.15.1
 [0.15.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.14.1...v0.15.0
 [0.14.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.14.0...v0.14.1

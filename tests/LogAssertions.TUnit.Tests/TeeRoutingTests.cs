@@ -140,9 +140,35 @@ internal sealed class TeeRoutingTests
         provider.Dispose();
 
         var output = TestContext.Current!.GetStandardOutput();
-        const string line = "2 log record(s) were not teed to a test report: each was logged after its test had ended, or where no test was current.";
+        const string line = "2 log record(s) were not teed to a test report (2 Information; the first: [Information] Skipped): each was logged after its test had ended, or where no test was current.";
         await Assert.That(output).Contains(line, StringComparison.Ordinal);
         await Assert.That(output.IndexOf(line, StringComparison.Ordinal)).IsEqualTo(output.LastIndexOf(line, StringComparison.Ordinal));
+    }
+
+    /// <summary>The line counts the skipped records per level, most severe first, and names the first one.</summary>
+    [Test]
+    public async Task Dispose_WithSkippedRecords_NamesTheLevelsAndTheFirstRecord(CancellationToken cancellationToken)
+    {
+        var provider = new TestOutputLoggerProvider(owner: null);
+        var logger = provider.CreateLogger("Levels");
+        await OffContext.RunAsync(
+            () =>
+            {
+                DirectLog.Write(logger, "first", LogLevel.Debug);
+                DirectLog.Write(logger, "trace", LogLevel.Trace);
+                DirectLog.Write(logger, "debug", LogLevel.Debug);
+                DirectLog.Write(logger, "information", LogLevel.Information);
+                DirectLog.Write(logger, "warning", LogLevel.Warning);
+                DirectLog.Write(logger, "error", LogLevel.Error);
+                DirectLog.Write(logger, "critical", LogLevel.Critical);
+            },
+            cancellationToken);
+
+        provider.Dispose();
+
+        await Assert.That(TestContext.Current!.GetStandardOutput()).Contains(
+            "7 log record(s) were not teed to a test report (1 Critical, 1 Error, 1 Warning, 1 Information, 2 Debug, 1 Trace; the first: [Debug] Levels):",
+            StringComparison.Ordinal);
     }
 
     /// <summary>Disposal without skipped records writes nothing.</summary>
