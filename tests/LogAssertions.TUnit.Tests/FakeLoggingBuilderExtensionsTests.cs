@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -81,5 +82,73 @@ internal sealed class FakeLoggingBuilderExtensionsTests
         cancellationToken.ThrowIfCancellationRequested();
         await Assert.That(() => LoggerFactory.Create(b => b.AddTeedFakeLogging(null!, LogLevel.Trace)))
             .Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task AddTeedFakeLogging_NullCollector_RegistersNoProvider(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var before = -1;
+        var after = -1;
+        Exception? thrown = null;
+
+        using var factory = LoggerFactory.Create(b =>
+        {
+            before = b.Services.Count(static d => d.ServiceType == typeof(ILoggerProvider));
+            try
+            {
+                b.AddTeedFakeLogging(null!);
+            }
+            catch (ArgumentNullException exception)
+            {
+                thrown = exception;
+            }
+
+            after = b.Services.Count(static d => d.ServiceType == typeof(ILoggerProvider));
+        });
+
+        await Assert.That(thrown).IsNotNull();
+        await Assert.That(after).IsEqualTo(before);
+    }
+
+    [Test]
+    public async Task AddTeedFakeLogging_TheTeeWritesARecord_BeforeTheCollectorStoresIt(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var test = TestContext.Current!;
+        string? reportWhenStored = null;
+
+        // The collector calls its sink when it stores a record: the report is read at that moment.
+        var collector = FakeLogCollector.Create(new FakeLogCollectorOptions
+        {
+            OutputSink = _ => reportWhenStored ??= test.GetStandardOutput(),
+        });
+        using var factory = LoggerFactory.Create(b => b.AddTeedFakeLogging(collector));
+
+        DirectLog.Write(factory.CreateLogger("Order"), "written before it is stored");
+
+        await Assert.That(reportWhenStored).IsNotNull();
+        await Assert.That(reportWhenStored!).Contains("Order: written before it is stored", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task AddTeedFakeLogging_ARecordFromAnotherFlow_IsInTheReport_OnceTheTestHasSeenIt(CancellationToken cancellationToken)
+    {
+        var collector = new FakeLogCollector();
+        using var factory = LoggerFactory.Create(b => b.AddTeedFakeLogging(collector));
+        var logger = factory.CreateLogger("Check");
+        var failure = new InvalidOperationException("the check failed");
+
+        // A background check without the test's flow reports an error; the test waits for it in the collector and looks
+        // at its report at once, as a test that ends right after seeing the record would.
+        var check = OffContext.RunAsync(
+            () => logger.Log(LogLevel.Error, default, "check reported an error", failure, static (state, _) => state),
+            cancellationToken);
+        await collector.WaitForLogAsync(static record => record.Level == LogLevel.Error, cancellationToken);
+        var report = TestContext.Current!.GetStandardOutput();
+        await check;
+
+        await Assert.That(report).Contains("[Error] Check: check reported an error", StringComparison.Ordinal);
+        await Assert.That(report).Contains("InvalidOperationException: the check failed", StringComparison.Ordinal);
     }
 }

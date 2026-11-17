@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.1] - 2026-11-17: a record a test has seen is in its report
+
+### Fixed
+
+- **`AddTeedFakeLogging` and `TestOutputLogCollectorBuilder.CreateTeed()`: a record that a test had seen could be missing from its report.** The collector stored a record before the tee wrote it. A test that waited for a record logged on another flow could see it, pass and end while the tee was still formatting it, and the tee then skipped it as a record of an ended test. The tee now writes a record before the collector stores it.
+- **`AddTeedFakeLogging` with a null collector** registered the tee before it threw `ArgumentNullException`. It now checks both arguments first and leaves the builder unchanged.
+
 ## [0.15.0] - 2026-11-15: event ID allowlist, compact dumps with exceptions, .NET 11
 
 ### BREAKING
@@ -441,7 +448,8 @@ Documentation-only release. No API or behavior change.
 - **Failure-message snapshot rendering** with 4-character level abbreviations matching the `Microsoft.Extensions.Logging` console formatter (`trce`, `dbug`, `info`, `warn`, `fail`, `crit`, `none`), indented `props:` line listing each record's structured properties (excluding the `{OriginalFormat}` entry, already implied by the message line), indented `scope:` line rendering each active scope's content as `key=value` pairs (or `ToString()` for opaque scopes), and indented `exception:` line with type name and message.
 - **`.And` / `.Or`** chaining via TUnit's `Assertion<T>` base class.
 
-[unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.15.0...HEAD
+[unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.15.1...HEAD
+[0.15.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.15.0...v0.15.1
 [0.15.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.14.1...v0.15.0
 [0.14.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.13.1...v0.14.0
