@@ -1147,7 +1147,7 @@ The tee picks the test for each record when it is logged:
 
 1. the test current at the log call (its own flow, including the thread-pool work it starts);
 2. otherwise the test that was current when the tee was built (its *owner*), while that test runs, so a record logged on a thread with no test context still reaches the report;
-3. otherwise no test: the record is not teed, and when the factory is disposed the tee writes one line, to the test current at that moment (if any), saying how many records it skipped.
+3. otherwise no test: the record is not teed, and when the factory is disposed the tee writes one line, to the test current at that moment (if any), saying how many records it skipped, per level, and naming the first one *(v0.16.0+)*: `3 log record(s) were not teed to a test report (1 Information, 2 Debug; the first: [Information] Shop.Orders): ...`.
 
 With the [lifetime attribute](#setup-the-test-lifetime-attribute-v0140) (v0.14.0+) a test counts as running until its `[After(Test)]` hooks have finished, and a record logged on the flow of a test that has ended is not teed (it does not fall back to the owner). The check and the write are one step, so a record whose test ends while it is being formatted is skipped and counted too *(v0.14.1+)*. Without the attribute, rule 2 ends when the owner has a result, and rule 1 has no end check. Keep the plain `Create()` for log-heavy soak tests where writing every record to the per-test output is undesirable.
 
