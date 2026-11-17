@@ -1151,6 +1151,8 @@ The tee picks the test for each record when it is logged:
 
 With the [lifetime attribute](#setup-the-test-lifetime-attribute-v0140) (v0.14.0+) a test counts as running until its `[After(Test)]` hooks have finished, and a record logged on the flow of a test that has ended is not teed (it does not fall back to the owner). The check and the write are one step, so a record whose test ends while it is being formatted is skipped and counted too *(v0.14.1+)*. Without the attribute, rule 2 ends when the owner has a result, and rule 1 has no end check. Keep the plain `Create()` for log-heavy soak tests where writing every record to the per-test output is undesirable.
 
+The tee writes a record before the collector stores it *(v0.15.1+)*, so a record that a test has found in the collector, for example with `WaitForLogAsync`, is already in its report, also when another flow logged it and the test ends right after finding it.
+
 TUnit disposes the test class after the test has ended, so a record logged in the test class's `DisposeAsync` is not teed (it is counted); log through `await using` in the test, or in an `[After(Test)]` hook. A retried test keeps one output across its attempts, so work left running by an earlier attempt logs into the same test's output.
 
 #### Where each record goes

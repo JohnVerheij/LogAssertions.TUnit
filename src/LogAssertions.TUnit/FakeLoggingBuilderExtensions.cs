@@ -73,6 +73,11 @@ public static class FakeLoggingBuilderExtensions
     /// the owning test has a result, and a record on a test's own flow always goes to that test.
     /// </para>
     /// <para>
+    /// The tee writes a record before the collector stores it. A record that a test finds in the collector, for example
+    /// by waiting for it, is therefore already in the test's report, also when it was logged on another flow and the
+    /// test ends as soon as it has seen it.
+    /// </para>
+    /// <para>
     /// The same call works per test and for a host shared across tests. A background loop keeps the context of the
     /// test it was started in, so start a shared host outside any test, inside
     /// <see cref="System.Threading.ExecutionContext.SuppressFlow"/>; records produced for a test (its requests, its
@@ -103,8 +108,14 @@ public static class FakeLoggingBuilderExtensions
     /// <exception cref="ArgumentNullException"><paramref name="builder"/> or <paramref name="collector"/> is null.</exception>
     public static ILoggingBuilder AddTeedFakeLogging(this ILoggingBuilder builder, FakeLogCollector collector, LogLevel minimumLevel = LogLevel.Trace)
     {
-        AddFakeLogging(builder, collector, minimumLevel);
+        // Both checked before anything is registered, so a call with a null argument leaves the builder unchanged.
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(collector);
+
+        // The tee first: the logging pipeline calls its providers in the order they were added, so a record that the
+        // collector holds has been written to the report already.
         AddTestOutputTee(builder);
+        AddFakeLogging(builder, collector, minimumLevel);
         return builder;
     }
 
