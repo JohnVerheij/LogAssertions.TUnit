@@ -79,7 +79,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="TUnit" Version="1.86.0" />
+    <PackageReference Include="TUnit" Version="1.87.0" />
   </ItemGroup>
 
   <!-- Each target framework gets the version of its own .NET release. -->
