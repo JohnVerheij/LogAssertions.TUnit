@@ -9,6 +9,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Time.Testing;
 
+[assembly: GenerateLogDefinitions(typeof(ReadmeSamples.OrderService))]
+
 namespace ReadmeSamples;
 
 /// <summary>The members every README sample can use.</summary>
@@ -145,6 +147,18 @@ public static class LogMessages
     /// <param name="orderId">The order.</param>
     public static void OrderStarted(ILogger logger, int orderId)
         => logger.Log(LogLevel.Information, new EventId(1200, "OrderStarted"), orderId, null, static (state, _) => state.ToString());
+}
+
+/// <summary>A service of the code under test with a <c>[LoggerMessage]</c> method, so the samples compile against the
+/// definitions the generator writes for it (<c>OrderServiceLogDefinitions</c>).</summary>
+public static partial class OrderService
+{
+    /// <summary>Logs a shipment.</summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="orderId">The order.</param>
+    /// <param name="city">The destination.</param>
+    [LoggerMessage(EventId = 1202, Level = LogLevel.Information, Message = "Order {OrderId} shipped to {City}")]
+    public static partial void LogOrderShipped(ILogger logger, int orderId, string city);
 }
 
 /// <summary>An exception of a transport the code under test uses.</summary>

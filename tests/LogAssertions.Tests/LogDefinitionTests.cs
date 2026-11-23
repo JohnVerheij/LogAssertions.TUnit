@@ -39,8 +39,21 @@ internal sealed class LogDefinitionTests
         await Assert.That(definition.Id.Name).IsEqualTo(nameof(CoreTestLogMessages.OrderPlaced));
         await Assert.That(definition.Level).IsEqualTo(LogLevel.Information);
         await Assert.That(definition.Template).IsEqualTo("Order {OrderId} placed by {Customer}");
-        await Assert.That(definition.Properties.Count).IsEqualTo(2);
-        await Assert.That(definition.Exception).IsNull();
+        await Assert.That(definition.PlaceholderNames).IsEquivalentTo(["OrderId", "Customer"]);
+    }
+
+    /// <summary>Verifies capture of a call keeps its identity, its values, and no exception.</summary>
+    /// <param name="cancellationToken">The test cancellation token.</param>
+    [Test]
+    public async Task CallCapturePopulatesFieldsAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var call = LogCall.Capture(log => CoreTestLogMessages.OrderPlaced(log, 5, "x"));
+
+        await Assert.That(call.Definition.Id.Id).IsEqualTo(400);
+        await Assert.That(call.Properties.Count).IsEqualTo(2);
+        await Assert.That(call.Exception).IsNull();
+        await Assert.That(call.ToString()).IsEqualTo(call.Definition.ToString());
     }
 
     /// <summary>Verifies the captured placeholder values are the formatted probe-argument strings.</summary>
@@ -49,8 +62,8 @@ internal sealed class LogDefinitionTests
     public async Task CaptureRecordsFormattedPlaceholderValuesAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var definition = LogDefinition.Capture(log => CoreTestLogMessages.OrderPlaced(log, 5, "x"));
-        var byKey = definition.Properties.ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal);
+        var call = LogCall.Capture(log => CoreTestLogMessages.OrderPlaced(log, 5, "x"));
+        var byKey = call.Properties.ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal);
 
         await Assert.That(byKey["OrderId"]).IsEqualTo("5");
         await Assert.That(byKey["Customer"]).IsEqualTo("x");
@@ -120,10 +133,10 @@ internal sealed class LogDefinitionTests
         CoreTestLogMessages.OrderPlaced(logger, 42, "alpha");
         CoreTestLogMessages.Failed(logger, new TimeoutException("late"));
 
-        var exactValues = LogDefinition.Capture(log => CoreTestLogMessages.OrderPlaced(log, 42, "alpha"));
-        var otherValues = LogDefinition.Capture(log => CoreTestLogMessages.OrderPlaced(log, 42, "beta"));
-        var exactException = LogDefinition.Capture(log => CoreTestLogMessages.Failed(log, new TimeoutException("late")));
-        var otherExceptionType = LogDefinition.Capture(log => CoreTestLogMessages.Failed(log, new InvalidOperationException("late")));
+        var exactValues = LogCall.Capture(log => CoreTestLogMessages.OrderPlaced(log, 42, "alpha"));
+        var otherValues = LogCall.Capture(log => CoreTestLogMessages.OrderPlaced(log, 42, "beta"));
+        var exactException = LogCall.Capture(log => CoreTestLogMessages.Failed(log, new TimeoutException("late")));
+        var otherExceptionType = LogCall.Capture(log => CoreTestLogMessages.Failed(log, new InvalidOperationException("late")));
 
         await Assert.That(collector.CountMatching(LogFilter.MatchingCall(exactValues))).IsEqualTo(1);
         await Assert.That(collector.CountMatching(LogFilter.MatchingCall(otherValues))).IsEqualTo(0);
@@ -141,8 +154,56 @@ internal sealed class LogDefinitionTests
 
         await Assert.That(LogFilter.Matching(definition).Description)
             .IsEqualTo("Definition OrderPlaced#400 \"Order {OrderId} placed by {Customer}\"");
-        await Assert.That(LogFilter.MatchingCall(definition).Description)
+        await Assert.That(LogFilter.MatchingCall(LogCall.Capture(log => CoreTestLogMessages.OrderPlaced(log, 0, ""))).Description)
             .Contains("with supplied argument values", StringComparison.Ordinal);
+    }
+
+    /// <summary>Verifies both <c>Create</c> forms: placeholder names read from the template, or taken as given.</summary>
+    /// <param name="cancellationToken">The test cancellation token.</param>
+    [Test]
+    public async Task CreateReadsOrTakesThePlaceholderNamesAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var read = LogDefinition.Create(new EventId(1, "A"), LogLevel.Warning, "{B} and {A,5} and {B:N2} and {{C}}");
+        var given = LogDefinition.Create(new EventId(2, "B"), null, "{X}", ["X", "extra"]);
+
+        await Assert.That(read.PlaceholderNames).IsEquivalentTo(["B", "A"]);
+        await Assert.That(read.Level).IsEqualTo(LogLevel.Warning);
+        await Assert.That(given.PlaceholderNames).IsEquivalentTo(["X", "extra"]);
+        await Assert.That(given.Level).IsNull();
+        await Assert.That(LogDefinition.Create(new EventId(3, "C"), null, null).PlaceholderNames).IsEmpty();
+    }
+
+    /// <summary>Verifies the argument checks of the explicit-names <c>Create</c>.</summary>
+    /// <param name="cancellationToken">The test cancellation token.</param>
+    [Test]
+    public async Task CreateWithNamesRejectsNullAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        await Assert.That(() => LogDefinition.Create(default, null, null, null!)).Throws<ArgumentNullException>();
+        await Assert.That(() => LogDefinition.Create(default, null, null, ["A", null!])).Throws<ArgumentException>();
+    }
+
+    /// <summary>Verifies an empty template is no template: on a created definition, on a captured one, and in matching
+    /// a record that carries an empty template or none.</summary>
+    /// <param name="cancellationToken">The test cancellation token.</param>
+    [Test]
+    public async Task EmptyTemplateIsNoTemplateAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var created = LogDefinition.Create(new EventId(9, "Plain"), LogLevel.Information, string.Empty);
+        var (collector, logger) = CreateCollectorAndLogger();
+#pragma warning disable CA1848, CA2254 // deliberate: a plain call with an empty template and one with no template at all
+        logger.Log(LogLevel.Information, new EventId(9, "Plain"), string.Empty);
+        logger.Log<object?>(LogLevel.Information, new EventId(9, "Plain"), null, null, static (_, _) => "rendered");
+        var captured = LogDefinition.Capture(static log => log.Log(LogLevel.Information, new EventId(9, "Plain"), string.Empty));
+#pragma warning restore CA1848, CA2254
+
+        await Assert.That(created.Template).IsNull();
+        await Assert.That(created.PlaceholderNames).IsEmpty();
+        await Assert.That(LogDefinition.Create(default, null, string.Empty, []).Template).IsNull();
+        await Assert.That(captured.Template).IsNull();
+        await Assert.That(collector.CountMatching(LogFilter.Matching(created))).IsEqualTo(2);
     }
 
     /// <summary>Verifies the null guards on the filter factories.</summary>

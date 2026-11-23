@@ -137,7 +137,17 @@ await Assert.That(collector).HasLogged()
     .WithMessageTemplate("Order {OrderId} processed").AtLeast(1);
 ```
 
-**Assert a `[LoggerMessage]` definition was logged by identity (v0.11.0+):** capture the definition once (argument values in the capture lambda are throwaway) and assert by identity: event ID, name, and template. Wording edits stop breaking the test; a renamed definition breaks at compile time:
+**Generate the definitions of your `[LoggerMessage]` methods (v0.17.0+):** name one type of the product assembly once, and the generator (it ships in the LogAssertions package) writes a `LogDefinition` per method at compile time, without reflection, in a class named after the type with `LogDefinitions` appended. It sees `public` and `protected` methods, and `internal` ones through `[InternalsVisibleTo]`:
+
+```csharp no-compile
+[assembly: GenerateLogDefinitions(typeof(OrderService))]
+```
+
+```csharp
+await Assert.That(collector).HasLogged().Matching(OrderServiceLogDefinitions.LogOrderShipped).Once();
+```
+
+**Assert a `[LoggerMessage]` definition was logged by identity (v0.11.0+):** take it from the generated definitions, or capture the definition once (argument values in the capture lambda are throwaway) and assert by identity: event ID, name, and template. Wording edits stop breaking the test; a renamed definition breaks at compile time:
 
 ```csharp
 private static readonly LogDefinition OrderShipped =
@@ -154,7 +164,7 @@ await Assert.That(collector).HasLogged()
     .MatchingCall(log => LogMessages.OrderShipped(log, 42, "NYC")).Once();
 ```
 
-A `private` `[LoggerMessage]` method can't be captured (the capture calls it): match its records with `WithEventId(int)` / `WithEventName(string)` instead, or promote it to `internal` plus `[InternalsVisibleTo]` for the test project; production code never references this package. The `HasLoggedOnly` gate allows definitions, so a method you allow there must be `internal`. **Definitions you assert on must not live on a generic type** (Roslynator RCS1158 fires once they are non-private): host them in a non-generic `static partial class`.
+A `private` `[LoggerMessage]` method can't be captured (the capture calls it) or generated (it is not in the reference assembly): match its records with `WithEventId(int)` / `WithEventName(string)` instead, or promote it to `internal` plus `[InternalsVisibleTo]` for the test project; production code never references this package. The `HasLoggedOnly` gate allows definitions, so a method you allow there must be `internal`. **Definitions you assert on must not live on a generic type** (Roslynator RCS1158 fires once they are non-private): host them in a non-generic `static partial class`.
 
 **Pin the log contract (v0.14.0+):** `LogContractRenderer.Render(definitions)` (in `LogAssertions.Render`) writes one deterministic line per definition, so with `MatchesSnapshot()` a renamed placeholder or a reworded template shows as a diff:
 

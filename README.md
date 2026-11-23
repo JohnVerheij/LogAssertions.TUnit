@@ -43,6 +43,7 @@ A TUnit-native fluent log-assertion DSL on top of `Microsoft.Extensions.Logging.
   - [Scope filters](#scope-filters)
   - [Identity filters (category, event)](#identity-filters-category-event)
   - [Typed definition filters (`Matching`, `MatchingCall`) (v0.11.0+)](#typed-definition-filters-matching-matchingcall-v0110)
+    - [Generated definitions (v0.17.0+)](#generated-definitions-v0170)
     - [Where your `[LoggerMessage]` definitions must live](#where-your-loggermessage-definitions-must-live)
   - [Escape hatch](#escape-hatch)
   - [Combinator chain methods (`MatchingAny`, `MatchingAll`, `Not`, `WithFilter`)](#combinator-chain-methods-matchingany-matchingall-not-withfilter)
@@ -121,7 +122,7 @@ This repo ships **two** NuGet packages:
 
 | Package | Purpose | Depends on |
 |---|---|---|
-| [`LogAssertions`](https://www.nuget.org/packages/LogAssertions/) | Framework-agnostic core: `ILogRecordFilter` + `LogFilter` + rendering (`LogSnapshotRenderer`, `LogContractRenderer`) + collector inspection extensions + event-driven waits (`WaitForLogAsync`) + `LogCollectorBuilder` and `LogCapture` | `Microsoft.Extensions.Diagnostics.Testing` |
+| [`LogAssertions`](https://www.nuget.org/packages/LogAssertions/) | Framework-agnostic core: `ILogRecordFilter` + `LogFilter` + `LogDefinition` and `LogCall` + the log-definition generator (`[assembly: GenerateLogDefinitions]`) + rendering (`LogSnapshotRenderer`, `LogContractRenderer`) + collector inspection extensions + event-driven waits (`WaitForLogAsync`) + `LogCollectorBuilder` and `LogCapture` | `Microsoft.Extensions.Diagnostics.Testing` |
 | [`LogAssertions.TUnit`](https://www.nuget.org/packages/LogAssertions.TUnit/) | TUnit-specific entry points: `HasLogged()`, `HasNotLogged()`, `HasLoggedSequence()`, `HasLoggedOnly()`, `WillLog()` and shorthands; the test-output tee and the failure dump | `LogAssertions` + `TUnit.Assertions` + `TUnit.Core` |
 
 You install `LogAssertions.TUnit`; `LogAssertions` comes transitively. Both are safe to reference from a shared test-support library (for example one that wires `AddTeedFakeLogging` for several test projects): `LogAssertions.TUnit` depends on `TUnit.Assertions` and `TUnit.Core`, not on the `TUnit` meta-package, so the library does not turn into a test project. Adapters for other test frameworks (NUnit, xUnit, MSTest) are not planned; the family targets TUnit.
@@ -546,7 +547,8 @@ await Assert.That(collector).HasLogged().WithEventIdIn(1201, 1202).Exactly(2);
 ### Typed definition filters (`Matching`, `MatchingCall`) (v0.11.0+)
 
 Assert that a specific `[LoggerMessage]` definition was emitted, by identity instead of by
-matching rendered message text. Capture the definition once (the capture lambda's argument
+matching rendered message text. Take the definitions from the generator
+([Generated definitions](#generated-definitions-v0170)), or capture each one once (the capture lambda's argument
 values are throwaway), store it in a `static readonly` field, and match it on any chain:
 
 ```csharp
@@ -574,6 +576,60 @@ await Assert.That(collector).HasLogged()
 There is deliberately **no** "matching all definitions" counterpart: a record carries exactly one
 identity, so requiring it to match two distinct definitions could never be satisfied. To narrow one
 definition further, chain the level, property, and exception filters after `Matching(...)`.
+
+#### Generated definitions (v0.17.0+)
+
+Instead of capturing each definition by hand, let the package generate them. Name one type of each product assembly
+once in the test project:
+
+```csharp no-compile
+[assembly: GenerateLogDefinitions(typeof(OrderService))]
+```
+
+For each type with `[LoggerMessage]` methods, the source generator adds an internal class to the test project, named
+after the type with `LogDefinitions` appended and in the type's namespace, with one `LogDefinition` field per method.
+The generator ships inside the LogAssertions package, so a project that references LogAssertions.TUnit has it:
+
+```csharp
+await Assert.That(collector).HasLogged().Matching(OrderServiceLogDefinitions.LogOrderShipped).Once();
+await Assert.That(collector).HasNotLogged().Matching(OrderServiceLogDefinitions.LogOrderShipped);
+```
+
+- It reads the attributes at compile time and writes each definition as literals: no capture call, no throwaway
+  arguments, no reflection. A renamed method breaks the test at compile time, like a renamed capture call.
+- A generated definition carries the identity the method's records carry, whichever of Microsoft's two logging
+  generators compiled the product (the one in Microsoft.Extensions.Logging.Abstractions, or the one in
+  Microsoft.Extensions.Telemetry, which replaces it where it is referenced). The event ID is the attribute's `EventId`,
+  or the ID the logging generator derives when the attribute sets none, as each version derives it: a hash of the event
+  name (Microsoft.Extensions.Logging.Abstractions 8.0 and later, Microsoft.Extensions.Telemetry 9.8 and later), -1
+  (Abstractions before 8.0), 0 (Telemetry before 8.2), or a hash of the C# text for the name (Telemetry 8.2 to 9.7).
+  The event name is the `EventName` as the record carries it (both generators paste it into their code as it is, so a
+  backslash escape in it takes effect), or the method name when it is empty or whitespace. The template is the message
+  as the record carries it: a method without a message has none (`null`), and with
+  Microsoft.Extensions.Logging.Abstractions before 11.0 a backslash escape in the message takes effect too. The level
+  is the attribute's; for a method that takes its level as a parameter, `Level` is `null`.
+- The placeholder names are the ones the record carries, in its order, including the parameters the template does not
+  use; with Microsoft.Extensions.Telemetry a data-classified parameter is left out, as that generator logs it for
+  redaction. One limit: with Microsoft.Extensions.Telemetry, a parameter marked `[TagName]` or `[TagProvider]` is
+  logged under other names, and those attributes are not compiled into the product; one marked `[LogProperties]` is
+  logged as the properties of its type, which the generator does not expand. The generated names then show the
+  parameter's own name. Matching is not affected; only `PlaceholderNames` and the contract line are.
+- The test project sees `public` and `protected` methods, and `internal` ones when the product names it in
+  `[InternalsVisibleTo]`. A `private` method is not in the reference assembly a test project compiles against: make it
+  `internal`. A test project that opts in its own assembly sees all of its own methods. When an assembly has no
+  `[LoggerMessage]` method the test project can see, the generator reports warning `LOGA001`.
+- A nested type joins the names with `_` (`Outer_InnerLogDefinitions`); a generic type adds `_` and its number of type
+  parameters (`Repository_1LogDefinitions`). Two methods of one type with the same name get no definition (warning
+  `LOGA002`), neither do two types that would generate the same class (warning `LOGA003`), nor a type whose generated
+  class name is taken, or a method named like the generated class (warning `LOGA004`). The warnings are reported at the
+  `GenerateLogDefinitions` attribute, so a `#pragma warning disable` around it, `NoWarn`, or `.editorconfig` can
+  silence them.
+- `LogContractRenderer.Render` takes generated definitions like captured ones.
+
+**Give each `[LoggerMessage]` method an explicit `EventId`.** Without one, Microsoft's generator derives the event ID
+from the method name (or the `EventName`), so renaming the method changes the ID that dashboards and log queries see.
+The generated definitions follow either way; an explicit ID keeps the event stable, and the test no longer depends on
+how Microsoft computes the number, which is not a public API.
 
 #### Where your `[LoggerMessage]` definitions must live
 
@@ -638,7 +694,7 @@ surface as a diff. Reach for the snapshot when you cannot enumerate what you car
 typed definitions when you can.
 
 How it works: `LogDefinition.Capture` invokes the lambda once against a private probe
-`FakeLogger` and records what it emitted. No reflection, no source generation; the probe
+`FakeLogger` and records what it emitted. No reflection; the probe
 collects every level, so `IsEnabled` gates inside generated code cannot suppress the capture. A
 lambda that logs zero or multiple records fails fast with an explanatory `ArgumentException`.
 
@@ -662,7 +718,7 @@ What this buys:
 Practical notes:
 
 - A definition declared `private` in production code is not invocable from the test project, so
-  `LogDefinition.Capture` cannot call it. Either match its records without the definition, by
+  `LogDefinition.Capture` cannot call it, and the generator cannot see it. Either match its records without the definition, by
   `WithEventId(int)` and `WithEventName(string)` on `HasLogged()` / `HasNotLogged()` (both are
   set by the `[LoggerMessage]` attribute and the method name), or promote it to `internal` and
   expose it via `[InternalsVisibleTo]` (production code never references this package: the
@@ -673,9 +729,11 @@ Practical notes:
 - Two definitions with the same method name and template (in different classes, both with
   generator-assigned event IDs) produce indistinguishable records; give one an explicit
   `EventId` when the distinction matters.
-- `LogFilter.Matching(LogDefinition)` and `LogFilter.MatchingCall(LogDefinition)` expose the
+- `LogFilter.Matching(LogDefinition)` and `LogFilter.MatchingCall(LogCall)` expose the
   same matching as composable filter objects for `WithFilter(...)` and `LogFilter.All` /
-  `Any` / `Not`.
+  `Any` / `Not`. Capture the call for the exact-call filter with `LogCall.Capture(log => ...)`
+  *(v0.17.0+; before, `LogDefinition.Capture`)*: a `LogCall` keeps the argument values and the
+  exception, a `LogDefinition` only the identity.
 
 ### Escape hatch
 
@@ -1362,7 +1420,7 @@ await Assert.That(rendered).MatchesSnapshot();
 
 ### Pin the log contract
 
-When dashboards, log parsers, or analysis scripts read a service's structured log, its contract is the set of event IDs, names, levels, message templates, and placeholder names. Renaming a placeholder breaks every reader without failing a test. `LogContractRenderer.Render(definitions)` (v0.14.0+, in `LogAssertions.Render`) writes one deterministic line per [captured definition](#typed-definition-filters-matching-matchingcall-v0110); composed with `MatchesSnapshot()`, the contract becomes a reviewed baseline, and a renamed placeholder or a reworded template shows as a diff:
+When dashboards, log parsers, or analysis scripts read a service's structured log, its contract is the set of event IDs, names, levels, message templates, and placeholder names. Renaming a placeholder breaks every reader without failing a test. `LogContractRenderer.Render(definitions)` (v0.14.0+, in `LogAssertions.Render`) writes one deterministic line per [definition](#typed-definition-filters-matching-matchingcall-v0110), generated or captured; composed with `MatchesSnapshot()`, the contract becomes a reviewed baseline, and a renamed placeholder or a reworded template shows as a diff:
 
 ```csharp
 using LogAssertions.Render;
@@ -1380,7 +1438,7 @@ await Assert.That(contract).MatchesSnapshot();
 1300 PaymentFailed Warning "Payment for order {OrderId} failed" OrderId
 ```
 
-Each line is the event ID, the event name (`?` when there is none), the level, the template in quotes (`<no template>` when the call carried none), and the placeholder names in template order. Lines are ordered by event ID, then name, template, and level, and then by the line itself, whatever the input order (so definitions that differ only in a placeholder the template does not contain keep a fixed order), and end in LF; there is no header line. In the template, the event name, and the placeholder names, `\`, `"`, CR, LF, and tab are escaped so each definition stays on one line. The renderer reads only the definitions' `Id`, `Level`, `Template`, and `Properties`: no reflection.
+Each line is the event ID, the event name (`?` when there is none), the level (`?` for a generated definition whose method takes the level as a parameter), the template in quotes (`<no template>` when there is none, an empty template included), and the placeholder names in template order. Lines are ordered by event ID, then name, template, and level, and then by the line itself, whatever the input order (so definitions that differ only in a placeholder the template does not contain keep a fixed order), and end in LF; there is no header line. In the template, the event name, and the placeholder names, `\`, `"`, CR, LF, and tab are escaped so each definition stays on one line. The renderer reads only the definitions' `Id`, `Level`, `Template`, and `PlaceholderNames`: no reflection.
 
 ### Pin the records other tools read
 
@@ -1483,7 +1541,7 @@ The current surface covers the common cases: composable filters, count terminato
 
 - **Filters:** time-based (`WithElapsedTime`, `WithTimestamp`, gaps between sequence steps), `DescribedAs` labels.
 - **Sequence:** `ThenImmediately`, `NotInterleaved`, `InOrder`, `HasNotLoggedSequence`, cursor control (`FromNewest` / `SinceLastAssert`).
-- **Bigger pieces:** a `[LoggerMessage]`-derived typed-assertion source generator and `ToVerifyString()` golden files. Adapters for other test frameworks are not planned; the family targets TUnit.
+- **Bigger pieces:** `ToVerifyString()` golden files. Adapters for other test frameworks are not planned; the family targets TUnit.
 
 Declined by design: an analyzer policing our own API, and silently injecting global usings via a package `.props` file. Out of scope for AOT: anonymous-object scope inspection and JSON matching.
 

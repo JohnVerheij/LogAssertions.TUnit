@@ -50,14 +50,15 @@ internal sealed class LogDefinitionMatchingTests
     {
         cancellationToken.ThrowIfCancellationRequested();
         var boom = new InvalidOperationException("boom");
-        var definition = LogDefinition.Capture(log => TestLogMessages.OperationFailed(log, boom));
+        var call = LogCall.Capture(log => TestLogMessages.OperationFailed(log, boom));
+        var definition = call.Definition;
 
         await Assert.That(definition.Id.Id).IsEqualTo(5);
         await Assert.That(definition.Id.Name).IsEqualTo(nameof(TestLogMessages.OperationFailed));
         await Assert.That(definition.Level).IsEqualTo(LogLevel.Error);
         await Assert.That(definition.Template).IsEqualTo("Operation failed");
-        await Assert.That(definition.Properties).IsEmpty();
-        await Assert.That(definition.Exception).IsSameReferenceAs(boom);
+        await Assert.That(call.Properties).IsEmpty();
+        await Assert.That(call.Exception).IsSameReferenceAs(boom);
     }
 
     /// <summary>Verifies a generator-assigned (omitted) event ID captures as a stable non-zero value with the method name.</summary>
@@ -312,7 +313,7 @@ internal sealed class LogDefinitionMatchingTests
     public async Task MatchingCallWithoutExceptionRejectsExceptionRecordsAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var withoutException = LogDefinition.Capture(TestLogMessages.StartedProcessing);
+        var withoutException = LogCall.Capture(TestLogMessages.StartedProcessing);
         var (collector, logger) = CreateCollectorAndLogger();
         TestLogMessages.OperationFailed(logger, new InvalidOperationException("boom"));
         TestLogMessages.StartedProcessing(logger);
@@ -365,10 +366,10 @@ internal sealed class LogDefinitionMatchingTests
     public async Task MatchingNullStateRecordsAndCountMismatchAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var nullState = LogDefinition.Capture(log => log.Log<object?>(
+        var nullState = LogCall.Capture(log => log.Log<object?>(
             LogLevel.Information, new EventId(77, "RawEvent"), null, null, (_, _) => "rendered"));
 
-        await Assert.That(nullState.Template).IsNull();
+        await Assert.That(nullState.Definition.Template).IsNull();
         await Assert.That(nullState.Properties).IsEmpty();
         await Assert.That(nullState.ToString()).IsEqualTo("RawEvent#77 \"<no template>\"");
 
@@ -379,7 +380,7 @@ internal sealed class LogDefinitionMatchingTests
 
         // Identity ignores placeholder values, so both records match; the exact-call form
         // rejects the second record on the placeholder-count mismatch.
-        await Assert.That(collector).HasLogged().Matching(nullState).Exactly(2);
+        await Assert.That(collector).HasLogged().Matching(nullState.Definition).Exactly(2);
         await Assert.That(collector).HasLogged().WithFilter(LogFilter.MatchingCall(nullState)).Once();
     }
 
@@ -392,14 +393,14 @@ internal sealed class LogDefinitionMatchingTests
     {
         cancellationToken.ThrowIfCancellationRequested();
 #pragma warning disable CA1848, CA1873 // deliberate: plain calls keep identity equal across exception shapes
-        var withException = LogDefinition.Capture(
+        var withException = LogCall.Capture(
             log => log.LogError(new TimeoutException("t"), "asym {A}", 1));
         var (collector, logger) = CreateCollectorAndLogger();
         logger.LogError("asym {A}", 1);
         logger.LogError(new InvalidOperationException("t"), "asym {A}", 1);
 #pragma warning restore CA1848, CA1873
 
-        await Assert.That(collector).HasLogged().Matching(withException).Exactly(2);
+        await Assert.That(collector).HasLogged().Matching(withException.Definition).Exactly(2);
         await Assert.That(collector).HasNotLogged().WithFilter(LogFilter.MatchingCall(withException));
     }
 

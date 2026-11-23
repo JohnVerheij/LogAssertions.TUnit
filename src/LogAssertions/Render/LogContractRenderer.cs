@@ -23,7 +23,8 @@ namespace LogAssertions.Render;
 /// </example>
 /// <remarks>
 /// <para>
-/// <b>Format.</b> Each line is the numeric event ID, the event name (<c>?</c> when the definition has none), the level,
+/// <b>Format.</b> Each line is the numeric event ID, the event name (<c>?</c> when the definition has none), the level
+/// (<c>?</c> when the logging method takes it as a parameter),
 /// the message template in double quotes (<c>&lt;no template&gt;</c> when the call carried none), and the placeholder
 /// names in template order, separated by commas, with <c>{OriginalFormat}</c> left out. A definition without
 /// placeholders ends after the template. In the template, the event name, and the placeholder names, <c>\</c>,
@@ -38,8 +39,11 @@ namespace LogAssertions.Render;
 /// </para>
 /// <para>
 /// <b>Sources.</b> The renderer reads only <see cref="LogDefinition.Id"/>, <see cref="LogDefinition.Level"/>,
-/// <see cref="LogDefinition.Template"/>, and <see cref="LogDefinition.Properties"/>, with no reflection. Capture each
-/// definition with <see cref="LogDefinition.Capture"/>; the argument values of the capture are not rendered.
+/// <see cref="LogDefinition.Template"/>, and <see cref="LogDefinition.PlaceholderNames"/>, with no reflection. Take the
+/// definitions from <see cref="GenerateLogDefinitionsAttribute"/> or <see cref="LogDefinition.Capture"/>; a generated
+/// and a captured definition of the same method render the same line, except the level of a method that takes it as
+/// a parameter (<c>?</c> generated, the capture call's level captured) and the limit the README lists for
+/// Microsoft.Extensions.Telemetry's tag attributes.
 /// </para>
 /// </remarks>
 public static class LogContractRenderer
@@ -94,7 +98,7 @@ public static class LogContractRenderer
         }
 
         sb.Append(' ')
-            .Append(definition.Level.ToString())
+            .Append(definition.Level?.ToString() ?? "?")
             .Append(' ');
 
         if (definition.Template is null)
@@ -119,57 +123,16 @@ public static class LogContractRenderer
         return sb.Append('\n').ToString();
     }
 
-    /// <summary>The definition's placeholder names (its <see cref="LogDefinition.Properties"/> keys) in template
-    /// order. The source generator stores them in another order, so they are ordered by where each first appears in
-    /// the template; a name the template does not contain keeps its captured position after those.</summary>
+    /// <summary>The definition's placeholder names (<see cref="LogDefinition.PlaceholderNames"/>) in template order.
+    /// A captured definition holds them in the order the logging code stored them, so they are ordered by where each
+    /// first appears in the template; a name the template does not contain keeps its position after those.</summary>
     /// <param name="definition">The definition.</param>
     /// <returns>The names in template order.</returns>
     private static IEnumerable<string> PlaceholderNames(LogDefinition definition)
     {
-        var positions = TemplatePositions(definition.Template ?? string.Empty);
-        return definition.Properties
-            .Select(static property => property.Key)
+        var positions = MessageTemplate.Positions(definition.Template ?? string.Empty);
+        return definition.PlaceholderNames
             .OrderBy(name => positions.TryGetValue(name, out var position) ? position : int.MaxValue);
-    }
-
-    /// <summary>Finds the position of the first occurrence of each placeholder in a message template: <c>{Name}</c>,
-    /// <c>{Name:format}</c>, or <c>{Name,alignment}</c>; an escaped brace (<c>{{</c>) starts no placeholder.</summary>
-    /// <param name="template">The message template.</param>
-    /// <returns>The placeholder names mapped to their order of first appearance.</returns>
-    private static Dictionary<string, int> TemplatePositions(string template)
-    {
-        var positions = new Dictionary<string, int>(StringComparer.Ordinal);
-        var index = 0;
-        while (IndexOf(template, '{', index) is var open and >= 0)
-        {
-            if (open + 1 < template.Length && template[open + 1] is '{')
-            {
-                index = open + 2;
-                continue;
-            }
-
-            var close = IndexOf(template, '}', open + 1);
-            if (close < 0)
-                break;
-
-            var nameEnd = template.IndexOfAny([',', ':'], open + 1, close - open - 1);
-            positions.TryAdd(template[(open + 1)..(nameEnd < 0 ? close : nameEnd)], positions.Count);
-            index = close + 1;
-        }
-
-        return positions;
-    }
-
-    /// <summary>Finds a character from a start index, ordinally. The span form compiles on every target framework: the
-    /// string overload that takes a start index gained a comparison parameter in .NET 11, and the analyzers then ask for it.</summary>
-    /// <param name="text">The text to search.</param>
-    /// <param name="value">The character to find.</param>
-    /// <param name="startIndex">The index to start at.</param>
-    /// <returns>The index of the character in <paramref name="text"/>, or -1.</returns>
-    private static int IndexOf(string text, char value, int startIndex)
-    {
-        var found = text.AsSpan(startIndex).IndexOf(value);
-        return found < 0 ? -1 : startIndex + found;
     }
 
     private static void AppendEscaped(StringBuilder sb, string template)

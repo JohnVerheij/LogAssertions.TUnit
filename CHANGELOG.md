@@ -15,6 +15,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-11-23: log definitions generated from [LoggerMessage]
+
+### BREAKING
+
+- **`LogDefinition.Properties`** was removed: a definition is the identity of a log call, and the argument values of a capture moved to `LogCall.Properties`. Migration: capture with `LogCall.Capture(...)` and read `call.Properties`; for the placeholder names alone, read `LogDefinition.PlaceholderNames`.
+- **`LogDefinition.Exception`** was removed, for the same reason. Migration: `LogCall.Capture(...)`, then `call.Exception`.
+- **`LogDefinition.Level`** changed from `LogLevel` to `LogLevel?`: a generated definition has no level when its method takes the level as a parameter. A captured definition still holds the level of the capture call. Migration: `definition.Level ?? ...`, or `definition.Level!.Value` where the definition is captured.
+- **`LogDefinition.Template`** is `null` for an empty template: an empty template is no template. `LogDefinition.Capture` of a `[LoggerMessage]` method without a message used to return `""` (Microsoft.Extensions.Logging.Abstractions writes an empty template; Microsoft.Extensions.Telemetry writes none), and `LogContractRenderer.Render` and `LogDefinition.ToString()` wrote `""` for it; it now returns `null`, and both write `<no template>`. `Matching` treats an empty template and none alike. Migration: regenerate a contract baseline that holds such a method, and review the diff.
+- **`LogFilter.MatchingCall`** takes a `LogCall` instead of a `LogDefinition`. A generated definition has no argument values, so passing one to the exact-call filter is a build error now, not a filter that never matches. The chain's `MatchingCall(log => ...)` is unchanged. Migration: `LogFilter.MatchingCall(LogDefinition.Capture(...))` becomes `LogFilter.MatchingCall(LogCall.Capture(...))`.
+
+### Added
+
+- **`[assembly: GenerateLogDefinitions(typeof(T))]`**: a source generator, shipped in the LogAssertions package, writes a `LogDefinition` for each `[LoggerMessage]` method of the assembly that contains `T`, at compile time and without reflection. For each type it adds an internal class `<Type>LogDefinitions` in the type's namespace with one field per method, so a test writes `HasLogged().Matching(OrderServiceLogDefinitions.LogOrderShipped)` without a capture lambda or throwaway arguments. A generated definition carries the identity the method's records carry, whichever of Microsoft's two logging generators compiled the product (Microsoft.Extensions.Logging.Abstractions or Microsoft.Extensions.Telemetry): the attribute's event ID, or, when it sets none, the ID the product's logging generator derives, as each version derives it (a hash of the event name; -1 before Microsoft.Extensions.Logging.Abstractions 8.0; 0 before Microsoft.Extensions.Telemetry 8.2; a hash of the C# text for the name in Telemetry 8.2 to 9.7); the event name as the record carries it (a backslash escape in it takes effect, with either generator), or the method name when it is empty or whitespace; the template as the record carries it (with Microsoft.Extensions.Logging.Abstractions before 11.0 a backslash escape in the message takes effect); and the placeholder names in the record's order, including the parameters the template does not use (with Microsoft.Extensions.Telemetry, not a data-classified one). With Microsoft.Extensions.Telemetry, a `[TagName]`, `[TagProvider]` or `[LogProperties]` parameter keeps its own name in `PlaceholderNames` (the first two are not compiled into the product, and the generator does not expand the properties of the third); matching is not affected. A project that references only LogAssertions.TUnit gets the generator too. The generator sees public and protected methods, and internal ones when the product names the test project in `InternalsVisibleTo`; a private method is not in the reference assembly a test project compiles against, and the generator applies the same rule to a project reference in an IDE, so the editor and the build agree.
+- **Generator warnings `LOGA001` to `LOGA004`**, reported at the `GenerateLogDefinitions` attribute: an opted-in assembly has no `[LoggerMessage]` method the test project can see; two methods of a type share a name, so neither gets a definition; two types would generate the same class, so neither does; a generated name is taken (a type the test project sees already has the class name, or a method is named like the class), so it is left out.
+- **`LogDefinition.Create(EventId, LogLevel?, string?)`**: builds a definition from its parts, reading the placeholder names from the template, for a record whose logging code a test cannot call.
+- **`LogDefinition.Create(EventId, LogLevel?, string?, IEnumerable<string>)`**: the same with the placeholder names as given. The generated definitions use it.
+- **`LogDefinition.PlaceholderNames`**: the names of the placeholder values a record of the definition carries.
+- **`LogCall`**: one captured log call, `LogCall.Capture(log => ...)`, with its `Definition`, `Properties`, and `Exception`, for `LogFilter.MatchingCall`.
+
+### Changed
+
+- **`LogContractRenderer.Render`** writes `?` as the level of a definition without one (a generated definition whose method takes the level as a parameter). Lines of captured definitions are unchanged.
+- **README:** a section on the generated definitions, and the recommendation to give each `[LoggerMessage]` method an explicit `EventId`, so a renamed method keeps its event ID.
+
 ## [0.16.0] - 2026-11-17: the not-teed line names its records
 
 ### Changed
@@ -455,7 +479,8 @@ Documentation-only release. No API or behavior change.
 - **Failure-message snapshot rendering** with 4-character level abbreviations matching the `Microsoft.Extensions.Logging` console formatter (`trce`, `dbug`, `info`, `warn`, `fail`, `crit`, `none`), indented `props:` line listing each record's structured properties (excluding the `{OriginalFormat}` entry, already implied by the message line), indented `scope:` line rendering each active scope's content as `key=value` pairs (or `ToString()` for opaque scopes), and indented `exception:` line with type name and message.
 - **`.And` / `.Or`** chaining via TUnit's `Assertion<T>` base class.
 
-[unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.16.0...HEAD
+[unreleased]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.15.1...v0.16.0
 [0.15.1]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.15.0...v0.15.1
 [0.15.0]: https://github.com/JohnVerheij/LogAssertions.TUnit/compare/v0.14.1...v0.15.0

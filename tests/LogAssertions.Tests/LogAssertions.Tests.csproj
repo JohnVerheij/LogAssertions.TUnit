@@ -23,7 +23,7 @@
 
   <ItemGroup>
     <!-- Alphabetical per dpfa Proj0015. Microsoft.CodeAnalysis.CSharp compiles a snippet against the core in a test,
-         to pin the build error a deconstruction of LogCapture reports. -->
+         to pin the build error a deconstruction of LogCapture reports, and drives the log-definition generator. -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" />
     <PackageReference Include="TUnit" />
@@ -31,6 +31,12 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/LogAssertions/LogAssertions.csproj" />
+    <!-- The generator runs on this project (Analyzer) and its unit tests drive it directly (the referenced assembly).
+         The two fixtures are the product-style assemblies it generates definitions for, one per Microsoft logging
+         generator. -->
+    <ProjectReference Include="../../src/LogAssertions.Generator/LogAssertions.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
+    <ProjectReference Include="../LogAssertions.Generator.Fixture/LogAssertions.Generator.Fixture.csproj" />
+    <ProjectReference Include="../LogAssertions.Generator.Fixture.Extensions/LogAssertions.Generator.Fixture.Extensions.csproj" />
   </ItemGroup>
 
 </Project>

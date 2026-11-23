@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The source generator behind [assembly: GenerateLogDefinitions(typeof(T))]. It ships inside the LogAssertions
+    package under analyzers/dotnet/cs and is not a package of its own. netstandard2.0 is the target every C# compiler
+    loads a generator from. Microsoft.CodeAnalysis.CSharp is pinned below the central version on purpose: a compiler
+    loads a generator only when the generator references a Roslyn version at or below its own, and the oldest SDK the
+    family supports (.NET 10) ships Roslyn 5.0.
+  -->
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>LogAssertions.Generator</RootNamespace>
+    <AssemblyName>LogAssertions.Generator</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <IsPublishable>false</IsPublishable>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- The DLL ships in the LogAssertions package, so its symbols go inside it: the package's symbol package holds only
+         lib/ assemblies, and the NuGet package validation requires symbols and SourceLink for every assembly. -->
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Alphabetical per dpfa Proj0015 -->
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" VersionOverride="4.12.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The generator reads attributes through Roslyn symbols; the banned list keeps reflection out of it too. -->
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)../../BannedSymbols.txt" />
+    <!-- Analyzer release tracking (RS2008): the IDs of the diagnostics the generator reports. -->
+    <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
+    <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="LogAssertions.Tests" />
+  </ItemGroup>
+
+</Project>

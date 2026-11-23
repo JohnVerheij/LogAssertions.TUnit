@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The sources of LogAssertions.Generator.Fixture, compiled with the logging generator of Microsoft.Extensions.Telemetry
+    (Microsoft.Gen.Logging, here through Microsoft.Extensions.Diagnostics.Testing), which replaces the generator of
+    Microsoft.Extensions.Logging.Abstractions where it is referenced and writes some records differently. EXTENSIONS_FIXTURE
+    moves the types to their own namespace, so the generated definitions of both fixtures can live in one test project.
+  -->
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
+    <RootNamespace>LogAssertions.Generator.Fixture.Extensions</RootNamespace>
+    <AssemblyName>LogAssertions.Generator.Fixture.Extensions</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <IsPublishable>false</IsPublishable>
+    <DefineConstants>$(DefineConstants);EXTENSIONS_FIXTURE</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../LogAssertions.Generator.Fixture/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="LogAssertions.Tests" />
+  </ItemGroup>
+
+</Project>

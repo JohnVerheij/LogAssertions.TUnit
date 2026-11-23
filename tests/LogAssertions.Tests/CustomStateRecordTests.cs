@@ -36,13 +36,15 @@ internal sealed class CustomStateRecordTests
     public async Task Capture_OfACustomStateCall_MatchesItsRecords(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var definition = LogDefinition.Capture(Write);
+        var call = LogCall.Capture(Write);
+        var definition = call.Definition;
         var record = LogCustomState();
 
         await Assert.That(definition.Template).IsNull();
-        await Assert.That(definition.Properties.Count).IsEqualTo(0);
+        await Assert.That(definition.PlaceholderNames.Count).IsEqualTo(0);
+        await Assert.That(call.Properties.Count).IsEqualTo(0);
         await Assert.That(LogFilter.Matching(definition).Matches(record)).IsTrue();
-        await Assert.That(LogFilter.MatchingCall(definition).Matches(record)).IsTrue();
+        await Assert.That(LogFilter.MatchingCall(call).Matches(record)).IsTrue();
     }
 
     /// <summary>Logs one record with a string as its state, and returns it.</summary>

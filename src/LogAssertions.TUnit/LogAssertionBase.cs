@@ -294,10 +294,11 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     /// Filters to records produced by the given <paramref name="definition"/>: equal event ID
     /// (numeric ID plus name) and equal message template. Argument values and level are not
     /// compared: chain <c>WithProperty</c> to pin specific placeholder values and <c>AtLevel</c>
-    /// when the level matters. Capture the definition once in a <c>static readonly</c> field via
-    /// <see cref="LogDefinition.Capture"/> (the capture lambda's argument values are throwaway).
+    /// when the level matters. Take the definition from the generated definitions
+    /// (<see cref="GenerateLogDefinitionsAttribute"/>), or capture it once in a <c>static readonly</c>
+    /// field via <see cref="LogDefinition.Capture"/> (the capture lambda's argument values are throwaway).
     /// </summary>
-    /// <param name="definition">The captured definition. Must be non-null.</param>
+    /// <param name="definition">The definition. Must be non-null.</param>
     /// <returns>This assertion for chaining.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
     public TSelf Matching(LogDefinition definition)
@@ -333,11 +334,11 @@ public abstract class LogAssertionBase<TSelf> : Assertion<FakeLogCollector>
     /// <returns>This assertion for chaining.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="call"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">The supplied delegate logged zero or multiple records
-    /// (thrown by <see cref="LogDefinition.Capture"/>).</exception>
+    /// (thrown by <see cref="LogCall.Capture"/>).</exception>
     public TSelf MatchingCall(Action<ILogger> call)
     {
         ArgumentNullException.ThrowIfNull(call);
-        var captured = LogDefinition.Capture(call);
+        var captured = LogCall.Capture(call);
         AddFilter(LogFilter.MatchingCall(captured));
         Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".MatchingCall({Lit(captured)})");
         return Self;

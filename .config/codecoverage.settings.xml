@@ -23,11 +23,13 @@
 -->
 <Configuration>
   <CodeCoverage>
-    <!-- Only instrument the production assembly. Test DLL and third-party packages are
-         out of scope for coverage accounting. -->
+    <!-- Only instrument the production assemblies: the two packages and the log-definition generator the core
+         package ships. Test DLLs, the generator's fixture assembly, and third-party packages are out of scope for
+         coverage accounting. -->
     <ModulePaths>
       <Include>
         <ModulePath>.*LogAssertions\.dll$</ModulePath>
+        <ModulePath>.*LogAssertions\.Generator\.dll$</ModulePath>
         <ModulePath>.*LogAssertions\.TUnit\.dll$</ModulePath>
       </Include>
     </ModulePaths>
