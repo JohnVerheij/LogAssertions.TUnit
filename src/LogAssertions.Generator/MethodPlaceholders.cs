@@ -125,19 +125,22 @@ internal static class MethodPlaceholders
         => product.KeepsVerbatimAt && IsWrittenWithAt(parameter) ? "@" + parameter.Name : parameter.Name;
 
     /// <summary>
-    /// Returns whether a parameter is written with a leading <c>@</c>. In source, the parameter's location spans its
-    /// identifier as written, which is one character longer than the name when the <c>@</c> leads it (a Unicode escape in
-    /// an identifier lengthens it by at least five, so an identifier with both an <c>@</c> and an escape counts as written
-    /// without the <c>@</c>). From metadata, when its name is a reserved keyword.
+    /// Returns whether a parameter is written with a leading <c>@</c>. In source, as its identifier token is written
+    /// (also with a Unicode escape after the <c>@</c>, as in <c>@\u0076alue</c>), read from the syntax tree the
+    /// compilation holds. From metadata, and for a tree whose root is not at hand (an IDE can drop one), when its name is
+    /// a reserved keyword, which C# allows only with the <c>@</c>.
     /// </summary>
     /// <param name="parameter">The parameter.</param>
     /// <returns><see langword="true"/> for a verbatim name.</returns>
     private static bool IsWrittenWithAt(IParameterSymbol parameter)
     {
-        var location = parameter.Locations.FirstOrDefault(static l => l.IsInSource);
-        return location is not null
-            ? location.SourceSpan.Length == parameter.Name.Length + 1
-            : SyntaxFacts.GetKeywordKind(parameter.Name) is not SyntaxKind.None;
+        foreach (var location in parameter.Locations)
+        {
+            if (location.SourceTree?.TryGetRoot(out var root) is true)
+                return root.FindToken(location.SourceSpan.Start).Text.StartsWith("@", StringComparison.Ordinal);
+        }
+
+        return SyntaxFacts.GetKeywordKind(parameter.Name) is not SyntaxKind.None;
     }
 
     /// <summary>Returns whether a parameter is a value: an ordinary parameter always; the logger and the level when the

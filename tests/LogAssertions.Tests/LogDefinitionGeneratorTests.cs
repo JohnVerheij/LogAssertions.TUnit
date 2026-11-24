@@ -544,7 +544,8 @@ internal sealed class LogDefinitionGeneratorTests
     /// later: the generator's own state type names them with the <c>@</c>, after the placeholder spelled like that code
     /// name when there is one; <c>LoggerMessage.Define</c> after the template. From a referenced assembly only a reserved
     /// keyword is known to be written with the <c>@</c> (the compiled name does not record it); in the test project's own
-    /// assembly the declaration shows it, and a Unicode escape is no <c>@</c>.</summary>
+    /// assembly the declaration's token shows it, also with a Unicode escape after the <c>@</c>, while an escape alone is
+    /// no <c>@</c>.</summary>
     /// <param name="cancellationToken">The test cancellation token.</param>
     [Test]
     public async Task VerbatimParametersKeepTheirAtInOwnStateAsync(CancellationToken cancellationToken)
@@ -586,6 +587,9 @@ internal sealed class LogDefinitionGeneratorTests
 
                     [LoggerMessage(EventId = 6, Message = "Escaped {Value}")]
                     internal static void Escaped(ILogger logger, LogLevel level, string \u0076alue) { }
+
+                    [LoggerMessage(EventId = 7, Message = "Escaped verbatim {Other}")]
+                    internal static void EscapedVerbatim(ILogger logger, LogLevel level, string @\u0076alue) { }
                 }
                 """,
                 GeneratorHarness.FakeLogging(10)),
@@ -598,8 +602,9 @@ internal sealed class LogDefinitionGeneratorTests
         await Assert.That(product80).Contains("new string[] { \"Event\" }", StringComparison.Ordinal);
         await Assert.That(product80).Contains("new string[] { \"Value\" }", StringComparison.Ordinal);
         var own = ownRun.Sources["OwnLogLogDefinitions.g.cs"];
-        await Assert.That(own).Contains("new string[] { \"@value\" }", StringComparison.Ordinal);
-        await Assert.That(own).Contains("new string[] { \"Value\" }", StringComparison.Ordinal);
+        await Assert.That(own).Contains("\"Own {Value}\",\n            new string[] { \"@value\" }", StringComparison.Ordinal);
+        await Assert.That(own).Contains("\"Escaped {Value}\",\n            new string[] { \"Value\" }", StringComparison.Ordinal);
+        await Assert.That(own).Contains("\"Escaped verbatim {Other}\",\n            new string[] { \"@value\" }", StringComparison.Ordinal);
     }
 
     /// <summary>Verifies that against the logging abstractions before 8.0 a parameter written with a leading <c>@</c> is
