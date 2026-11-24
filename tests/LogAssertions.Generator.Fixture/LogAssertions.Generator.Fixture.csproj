@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    A product-style assembly for the log-definition generator's exact-reference tests. Its [LoggerMessage] methods go
+    through the logging generator of Microsoft.Extensions.Logging.Abstractions (the one most products use), once per
+    target framework, and LogAssertions.Tests compares the definitions generated from this assembly's metadata with the
+    records the methods log. It takes the abstractions through Microsoft.Extensions.Hosting.Abstractions, which brings no
+    other logging generator. LogAssertions.Generator.Fixture.Extensions compiles the same sources with the generator of
+    Microsoft.Extensions.Telemetry (Microsoft.Gen.Logging), which replaces this one where it is referenced.
+  -->
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
+    <RootNamespace>LogAssertions.Generator.Fixture</RootNamespace>
+    <AssemblyName>LogAssertions.Generator.Fixture</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <IsPublishable>false</IsPublishable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="LogAssertions.Tests" />
+  </ItemGroup>
+
+</Project>

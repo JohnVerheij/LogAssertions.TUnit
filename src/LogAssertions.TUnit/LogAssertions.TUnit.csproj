@@ -11,8 +11,8 @@
     <IsPackable>true</IsPackable>
     <PackageId>LogAssertions.TUnit</PackageId>
     <ProductName>LogAssertions.TUnit</ProductName>
-    <Version>0.16.0</Version>
-    <PackageValidationBaselineVersion>0.15.1</PackageValidationBaselineVersion>
+    <Version>0.17.0</Version>
+    <PackageValidationBaselineVersion>0.16.0</PackageValidationBaselineVersion>
     <Authors>John Verheij</Authors>
     <Copyright>Copyright (c) 2026 John Verheij</Copyright>
     <Description>TUnit-native fluent log-assertion DSL using [AssertionExtension] over Microsoft.Extensions.Logging.Testing.FakeLogCollector. Provides Assert.That(collector).HasLogged()/HasNotLogged()/HasLoggedSequence()/HasLoggedOnly() with filter and terminator chaining, the event-driven WillLog() wait for background work, a live tee of each record into the test report, and a dump of the captured records when a test does not pass; emits a captured-records snapshot in failure messages.</Description>
@@ -71,8 +71,11 @@
 
   <ItemGroup>
     <!-- Framework-agnostic core lives in the LogAssertions package. The ProjectReference
-         is rewritten to a PackageReference on LogAssertions at pack time. -->
-    <ProjectReference Include="../LogAssertions/LogAssertions.csproj" />
+         is rewritten to a PackageReference on LogAssertions at pack time. PrivateAssets leaves analyzers out of the
+         default (contentfiles;analyzers;build), so the dependency does not exclude the core's analyzers and its
+         log-definition generator reaches a project that references only LogAssertions.TUnit; build stays private, as
+         before. -->
+    <ProjectReference Include="../LogAssertions/LogAssertions.csproj" PrivateAssets="contentfiles;build" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,6 +1,9 @@
 <Solution>
   <Project Path="src/LogAssertions/LogAssertions.csproj" />
+  <Project Path="src/LogAssertions.Generator/LogAssertions.Generator.csproj" />
   <Project Path="src/LogAssertions.TUnit/LogAssertions.TUnit.csproj" />
+  <Project Path="tests/LogAssertions.Generator.Fixture/LogAssertions.Generator.Fixture.csproj" />
+  <Project Path="tests/LogAssertions.Generator.Fixture.Extensions/LogAssertions.Generator.Fixture.Extensions.csproj" />
   <Project Path="tests/LogAssertions.Tests/LogAssertions.Tests.csproj" />
   <Project Path="tests/LogAssertions.TUnit.SnapshotTests/LogAssertions.TUnit.SnapshotTests.csproj" />
   <Project Path="tests/LogAssertions.TUnit.Tests/LogAssertions.TUnit.Tests.csproj" />

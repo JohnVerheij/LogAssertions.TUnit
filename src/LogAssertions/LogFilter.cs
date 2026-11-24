@@ -119,7 +119,8 @@ public static class LogFilter
     /// plus name) and equal message template. Argument values, level, exception, category, and
     /// scopes are not compared; compose further filters for those.
     /// </summary>
-    /// <param name="definition">The captured definition (see <see cref="LogDefinition.Capture"/>). Must be non-null.</param>
+    /// <param name="definition">The definition (generated, see <see cref="GenerateLogDefinitionsAttribute"/>, or captured,
+    /// see <see cref="LogDefinition.Capture"/>). Must be non-null.</param>
     /// <returns>A filter accepting records carrying the definition's identity.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
     public static ILogRecordFilter Matching(LogDefinition definition)
@@ -165,11 +166,11 @@ public static class LogFilter
     /// placeholder value (formatted strings, order-insensitive) plus the exception (both absent,
     /// or same runtime type and equal message). Level is not compared.
     /// </summary>
-    /// <param name="capturedCall">The captured call (see <see cref="LogDefinition.Capture"/>,
-    /// invoked with the exact argument values to assert). Must be non-null.</param>
+    /// <param name="capturedCall">The captured call (see <see cref="LogCall.Capture"/>, invoked with the exact argument
+    /// values to assert). Must be non-null.</param>
     /// <returns>A filter accepting records that match the captured call exactly.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="capturedCall"/> is <see langword="null"/>.</exception>
-    public static ILogRecordFilter MatchingCall(LogDefinition capturedCall)
+    public static ILogRecordFilter MatchingCall(LogCall capturedCall)
     {
         ArgumentNullException.ThrowIfNull(capturedCall);
         return new PredicateFilter(capturedCall.MatchesCall,

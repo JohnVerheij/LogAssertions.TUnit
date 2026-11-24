@@ -35,6 +35,8 @@ For larger ideas (new entry points, breaking changes, cross-cutting refactors), 
 ## Tests
 
 - Tests live in `tests/LogAssertions.TUnit.Tests/` (main behavior), `tests/LogAssertions.Tests/` (framework-agnostic core, no TUnit reference), and `tests/LogAssertions.TUnit.SnapshotTests/` (public API surface pin via `MatchesSnapshot()`).
+- The log-definition generator (`src/LogAssertions.Generator/`, shipped inside the LogAssertions package) is tested in `tests/LogAssertions.Tests/`: unit tests drive it on in-memory product assemblies, and exact-reference tests compare the definitions it generates from two product-style assemblies with the records their methods log, on every target framework. `tests/LogAssertions.Generator.Fixture/` compiles its `[LoggerMessage]` methods with the logging generator of Microsoft.Extensions.Logging.Abstractions, and `tests/LogAssertions.Generator.Fixture.Extensions/` compiles the same sources with the one of Microsoft.Extensions.Telemetry, which replaces it where it is referenced. A new `[LoggerMessage]` shape gets a fixture method and a reference case in both case lists.
+- The LogAssertions package takes the generator DLL from its build output: a pack that builds builds the generator first, and CI packs with `--no-build` after the solution build.
 - Each public method on the assertion classes should have at least one test covering its happy path and at least one covering an invalid-input path.
 - Tests use TUnit's `[Test]` and the project's own assertion style (we eat our own dog food where possible).
 - Add `[Category("Smoke")]` to tests that should run in the pre-commit / fast feedback loop.
@@ -58,7 +60,7 @@ Versioning follows [Semantic Versioning](https://semver.org/):
 - `0.x.y` while the API is evolving: minor bumps may include breaking changes.
 - `1.0.0` and beyond: breaking changes only on major-version bumps.
 
-Releases are published to NuGet via a tagged commit on `main`. The `<Version>` in `LogAssertions.TUnit.csproj` is the source of truth for the package version.
+Releases are published to NuGet via a tagged commit on `main`. The `<Version>` in `LogAssertions.TUnit.csproj` is the source of truth for the package version; `LogAssertions.csproj` and the generator's `LogAssertions.Generator.csproj` carry the same version.
 
 ## Code of conduct
 

@@ -25,6 +25,12 @@ namespace LogAssertions
         public static System.Threading.Tasks.Task<Microsoft.Extensions.Logging.Testing.FakeLogRecord> WaitForLogAsync(this Microsoft.Extensions.Logging.Testing.FakeLogCollector collector, System.Func<Microsoft.Extensions.Logging.Testing.FakeLogRecord, bool> predicate, System.Threading.CancellationToken cancellationToken) { }
         public static System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord>> WaitForLogsAsync(this Microsoft.Extensions.Logging.Testing.FakeLogCollector collector, LogAssertions.ILogRecordFilter filter, int count, System.Threading.CancellationToken cancellationToken) { }
     }
+    [System.AttributeUsage(System.AttributeTargets.Assembly, AllowMultiple=true)]
+    public sealed class GenerateLogDefinitionsAttribute : System.Attribute
+    {
+        public GenerateLogDefinitionsAttribute(System.Type typeInAssembly) { }
+        public System.Type TypeInAssembly { get; }
+    }
     public interface ILogRecordFilter
     {
         string Description { get; }
@@ -35,6 +41,14 @@ namespace LogAssertions
         public static void AppendCapturedRecords(System.Text.StringBuilder sb, System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord> snapshot) { }
         public static void AppendCapturedRecords(System.Text.StringBuilder sb, System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.Logging.Testing.FakeLogRecord> snapshot, LogAssertions.DumpVerbosity verbosity) { }
         public static string LevelAbbreviation(Microsoft.Extensions.Logging.LogLevel level) { }
+    }
+    public sealed class LogCall
+    {
+        public LogAssertions.LogDefinition Definition { get; }
+        public System.Exception? Exception { get; }
+        public System.Collections.Generic.IReadOnlyList<System.Collections.Generic.KeyValuePair<string, string?>> Properties { get; }
+        public override string ToString() { }
+        public static LogAssertions.LogCall Capture(System.Action<Microsoft.Extensions.Logging.ILogger> invocation) { }
     }
     public sealed class LogCapture : Microsoft.Extensions.Logging.ILoggerFactory, System.IAsyncDisposable, System.IDisposable
     {
@@ -52,13 +66,14 @@ namespace LogAssertions
     }
     public sealed class LogDefinition
     {
-        public System.Exception? Exception { get; }
         public Microsoft.Extensions.Logging.EventId Id { get; }
-        public Microsoft.Extensions.Logging.LogLevel Level { get; }
-        public System.Collections.Generic.IReadOnlyList<System.Collections.Generic.KeyValuePair<string, string?>> Properties { get; }
+        public Microsoft.Extensions.Logging.LogLevel? Level { get; }
+        public System.Collections.Generic.IReadOnlyList<string> PlaceholderNames { get; }
         public string? Template { get; }
         public override string ToString() { }
         public static LogAssertions.LogDefinition Capture(System.Action<Microsoft.Extensions.Logging.ILogger> invocation) { }
+        public static LogAssertions.LogDefinition Create(Microsoft.Extensions.Logging.EventId id, Microsoft.Extensions.Logging.LogLevel? level, string? template) { }
+        public static LogAssertions.LogDefinition Create(Microsoft.Extensions.Logging.EventId id, Microsoft.Extensions.Logging.LogLevel? level, string? template, System.Collections.Generic.IEnumerable<string> placeholderNames) { }
     }
     public static class LogFilter
     {
@@ -74,7 +89,7 @@ namespace LogAssertions
         public static LogAssertions.ILogRecordFilter Matching(LogAssertions.LogDefinition definition) { }
         public static LogAssertions.ILogRecordFilter Matching(System.Text.RegularExpressions.Regex pattern) { }
         public static LogAssertions.ILogRecordFilter MatchingAny(LogAssertions.LogDefinition definition, params LogAssertions.LogDefinition[] moreDefinitions) { }
-        public static LogAssertions.ILogRecordFilter MatchingCall(LogAssertions.LogDefinition capturedCall) { }
+        public static LogAssertions.ILogRecordFilter MatchingCall(LogAssertions.LogCall capturedCall) { }
         public static LogAssertions.ILogRecordFilter Not(LogAssertions.ILogRecordFilter filter) { }
         public static LogAssertions.ILogRecordFilter Where(System.Func<Microsoft.Extensions.Logging.Testing.FakeLogRecord, bool> predicate) { }
         public static LogAssertions.ILogRecordFilter WithCategory(string category) { }

@@ -51,9 +51,9 @@ A **coordinated disclosure** (public CVE filing + advisory + patched release) is
 
 | Version line | Status | Receives security fixes |
 |---|---|---|
-| `0.16.x` | **Current** | ✅ Yes |
-| `0.15.x` | Previous stable | ✅ Yes (security fixes only; no new features) |
-| `< 0.15.0` | Older | ❌ No |
+| `0.17.x` | **Current** | ✅ Yes |
+| `0.16.x` | Previous stable | ✅ Yes (security fixes only; no new features) |
+| `< 0.16.0` | Older | ❌ No |
 
 Both packages (`LogAssertions` and `LogAssertions.TUnit`) version in lockstep, so each line covers both. This table is updated alongside each release that bumps the current line. Coverage of older lines for security-only fixes follows the [TFM policy](CONVENTIONS.md#tfm-policy): when the package drops an end-of-life target framework, security fixes for the previous line continue to ship for one minor cycle.
 
@@ -61,7 +61,7 @@ Both packages (`LogAssertions` and `LogAssertions.TUnit`) version in lockstep, s
 
 In scope:
 
-- The shipped `LogAssertions` and `LogAssertions.TUnit` NuGet packages
+- The shipped `LogAssertions` and `LogAssertions.TUnit` NuGet packages, including the source generator in the `LogAssertions` package, which runs inside the compiler and the IDE of every project that references it
 - The build pipeline (release workflows, signing, NuGet publishing chain) and supply-chain integrity of the packages
 - The shipped SBOMs (SPDX 3.0 in nupkg, CycloneDX 1.6 sibling artifact)
 - The SLSA build-provenance attestations and Sigstore-signed SBOM attestations
