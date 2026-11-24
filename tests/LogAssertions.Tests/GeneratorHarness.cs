@@ -142,6 +142,18 @@ internal static class GeneratorHarness
     internal static CSharpCompilation ConsumerWithoutLogging(string source, params MetadataReference[] products)
         => Consumer(source, WithoutLogging(PlatformReferences), products);
 
+    /// <summary>Creates a consumer compilation on a stand-in for the logging abstractions and without
+    /// Microsoft.Extensions.Telemetry, for the consumer's own <c>[LoggerMessage]</c> methods as the generator of that
+    /// logging abstractions version writes them.</summary>
+    /// <param name="source">The consumer source, with its own methods and the opt-in attributes.</param>
+    /// <param name="logging">The stand-in, from <see cref="FakeLogging"/>.</param>
+    /// <returns>The compilation.</returns>
+    internal static CSharpCompilation ConsumerOn(string source, MetadataReference logging)
+        => Consumer(
+            source,
+            [.. WithoutLogging(PlatformReferences).Where(static r => !string.Equals(Path.GetFileName(r.Display), "Microsoft.Extensions.Telemetry.Abstractions.dll", StringComparison.OrdinalIgnoreCase))],
+            [logging]);
+
     /// <summary>Leaves the logging abstractions out of a set of references.</summary>
     /// <param name="references">The references.</param>
     /// <returns>The references without the logging abstractions.</returns>
@@ -169,6 +181,9 @@ internal static class GeneratorHarness
         GeneratorDriver driver = CSharpGeneratorDriver.Create(new LogDefinitionGenerator());
         driver = driver.RunGeneratorsAndUpdateCompilation(consumer, out var output, out _, cancellationToken);
         var result = driver.GetRunResult().Results.Single();
+        if (result.Exception is not null)
+            throw new InvalidOperationException("The generator threw.", result.Exception);
+
         return new GeneratorRun(
             result.GeneratedSources.ToDictionary(static s => s.HintName, static s => s.SourceText.ToString(), StringComparer.Ordinal),
             result.Diagnostics,

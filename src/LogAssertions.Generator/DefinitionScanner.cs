@@ -51,7 +51,7 @@ internal static class DefinitionScanner
     }
 
     /// <summary>Writes one source per generated class, leaving out two types that would generate the same class
-    /// (LOGA003) and a class whose name a type the compilation sees already has (LOGA004).</summary>
+    /// (LOGA003) and a class whose name a type the compilation sees, or a namespace, already has (LOGA004).</summary>
     /// <param name="compilation">The compilation of the test project, without generated sources.</param>
     /// <param name="types">The definitions of every type.</param>
     /// <param name="diagnostics">Receives the diagnostics.</param>
@@ -74,8 +74,7 @@ internal static class DefinitionScanner
                 diagnostics.Add(new DiagnosticInfo(
                     GeneratorDiagnostics.DuplicateClassName.Id, type.OptInLocation, type.TypeDisplay, members[1].TypeDisplay, group.Key));
             }
-            else if (compilation.GetTypesByMetadataName(QualifiedName(type.HintNamespace, type.ClassName))
-                .Any(existing => compilation.IsSymbolAccessibleWithin(existing, compilation.Assembly)))
+            else if (IsTaken(compilation, QualifiedName(type.HintNamespace, type.ClassName)))
             {
                 diagnostics.Add(new DiagnosticInfo(GeneratorDiagnostics.NameTaken.Id, type.OptInLocation, group.Key, type.TypeDisplay));
             }
@@ -88,6 +87,27 @@ internal static class DefinitionScanner
         return sources.ToImmutable();
     }
 
+    /// <summary>Returns whether the full name of a generated class is taken: a type the compilation sees has it, or a
+    /// namespace of the compilation or of a reference does (a class and a namespace cannot share a full name).</summary>
+    /// <param name="compilation">The compilation of the test project.</param>
+    /// <param name="fullName">The class's full name, its namespace in plain identifiers.</param>
+    /// <returns><see langword="true"/> when the name is taken.</returns>
+    private static bool IsTaken(Compilation compilation, string fullName)
+    {
+        if (compilation.GetTypesByMetadataName(fullName).Any(existing => compilation.IsSymbolAccessibleWithin(existing, compilation.Assembly)))
+            return true;
+
+        INamespaceSymbol? current = compilation.GlobalNamespace;
+        foreach (var part in fullName.Split('.'))
+        {
+            current = current.GetMembers(part).OfType<INamespaceSymbol>().FirstOrDefault();
+            if (current is null)
+                return false;
+        }
+
+        return true;
+    }
+
     /// <summary>Returns the distinct assemblies the compilation names in <c>[assembly: GenerateLogDefinitions]</c>, in
     /// the order of the attributes, each with the location of the first attribute that names it.</summary>
     /// <param name="compilation">The compilation.</param>
@@ -97,10 +117,7 @@ internal static class DefinitionScanner
         var optIns = new List<(IAssemblySymbol Assembly, LocationInfo? Location)>();
         foreach (var attribute in compilation.Assembly.GetAttributes())
         {
-            if (IsAttribute(attribute.AttributeClass, LogAssertionsNamespace, "GenerateLogDefinitionsAttribute")
-                && attribute.ConstructorArguments.Length is 1
-                && attribute.ConstructorArguments[0].Value is ITypeSymbol type
-                && ElementType(type).ContainingAssembly is { } assembly
+            if (OptedInAssembly(attribute) is { } assembly
                 && !optIns.Exists(o => SymbolEqualityComparer.Default.Equals(o.Assembly, assembly)))
             {
                 optIns.Add((assembly, LocationInfo.Of(attribute.ApplicationSyntaxReference)));
@@ -109,6 +126,19 @@ internal static class DefinitionScanner
 
         return optIns;
     }
+
+    /// <summary>Returns the assembly an assembly attribute opts in: for <c>GenerateLogDefinitions(typeof(T))</c>, the
+    /// assembly that contains <c>T</c> (an array's element type). A type that does not resolve opts in nothing: its
+    /// error type would name the test project.</summary>
+    /// <param name="attribute">The assembly attribute.</param>
+    /// <returns>The assembly, or <see langword="null"/>.</returns>
+    private static IAssemblySymbol? OptedInAssembly(AttributeData attribute)
+        => IsAttribute(attribute.AttributeClass, LogAssertionsNamespace, "GenerateLogDefinitionsAttribute")
+            && attribute.ConstructorArguments.Length is 1
+            && attribute.ConstructorArguments[0].Value is ITypeSymbol type
+            && ElementType(type) is { TypeKind: not TypeKind.Error, ContainingAssembly: { } assembly }
+            ? assembly
+            : null;
 
     /// <summary>Collects the definitions of the types in a namespace and its nested namespaces.</summary>
     /// <param name="ns">The namespace.</param>
@@ -134,7 +164,9 @@ internal static class DefinitionScanner
     private static void CollectType(INamedTypeSymbol type, AssemblyScan scan)
     {
         var methods = new List<MethodDefinition>();
-        foreach (var method in type.GetMembers().OfType<IMethodSymbol>().Where(scan.Sees))
+        // Only ordinary methods: the attribute may also sit on an accessor or an operator, which both Microsoft
+        // generators ignore (they read method declarations), so such a member logs nothing.
+        foreach (var method in type.GetMembers().OfType<IMethodSymbol>().Where(m => m.MethodKind is MethodKind.Ordinary && scan.Sees(m)))
         {
             if (LoggerMessage(method) is { } attribute)
                 methods.Add(Read(method, attribute, scan.Product));

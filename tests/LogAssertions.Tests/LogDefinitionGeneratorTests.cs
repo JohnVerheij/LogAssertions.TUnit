@@ -10,8 +10,8 @@ namespace LogAssertions.Tests;
 
 /// <summary>
 /// Unit tests of <see cref="LogDefinitionGenerator"/>: the generated source, the shapes the exact-reference fixture
-/// cannot hold (the global namespace, a reserved keyword as a method name, a level outside the enum), the three
-/// diagnostics, the no-reflection gate, and the equality the incremental pipeline relies on.
+/// cannot hold (the global namespace, a reserved keyword as a method name, a level outside the enum), the four
+/// diagnostics, the no-reflection gate, the assembly version, and the equality the incremental pipeline relies on.
 /// </summary>
 [Category("Generator")]
 [Timeout(60_000)]
@@ -141,12 +141,25 @@ internal sealed class LogDefinitionGeneratorTests
             cancellationToken);
         var text = string.Concat(run.Sources.Values);
 
-        await Assert.That(run.Sources.Count).IsEqualTo(4);
+        await Assert.That(run.Sources.Count).IsEqualTo(6);
         await Assert.That(run.Errors).IsEmpty();
         foreach (var banned in new[] { "System.Reflection", "typeof(", "GetType(", "GetMethod", "GetCustomAttribute", "Activator", "nameof(" })
         {
             await Assert.That(text).DoesNotContain(banned, StringComparison.Ordinal);
         }
+    }
+
+    /// <summary>Verifies the generator carries the version of the packages that ship it, so that each release has an
+    /// assembly identity of its own (a compiler server or an IDE that loaded one release's generator does not take
+    /// another's for it); its project file states the version separately from the packages'.</summary>
+    /// <param name="cancellationToken">The test cancellation token.</param>
+    [Test]
+    public async Task GeneratorVersionIsThePackageVersionAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        await Assert.That(typeof(LogDefinitionGenerator).Assembly.GetName().Version)
+            .IsEqualTo(typeof(LogDefinition).Assembly.GetName().Version);
     }
 
     /// <summary>Verifies a compilation without the opt-in gets nothing.</summary>
@@ -511,6 +524,9 @@ internal sealed class LogDefinitionGeneratorTests
             {
                 [LoggerMessage(EventId = 1, Message = "Items {@Items} for {Id}")]
                 public static void Items(NullLogger logger, LogLevel level, Exception error, int[] items, int id, string extra, Exception second) { }
+
+                [LoggerMessage(EventId = 2, Level = LogLevel.Error, Message = "Derived {Id}")]
+                public static void Derived(ILogger logger, InvalidOperationException failure, int id) { }
             }
             """);
         var run = GeneratorHarness.Run(
@@ -520,6 +536,195 @@ internal sealed class LogDefinitionGeneratorTests
         await Assert.That(run.Errors).IsEmpty();
         await Assert.That(run.Sources["NameLogLogDefinitions.g.cs"])
             .Contains("new string[] { \"items\", \"Id\", \"extra\", \"second\" }", StringComparison.Ordinal);
+        await Assert.That(run.Sources["NameLogLogDefinitions.g.cs"])
+            .Contains("\"Derived {Id}\",\n            new string[] { \"Id\" }", StringComparison.Ordinal);
+    }
+
+    /// <summary>Verifies the names of parameters written with a leading <c>@</c>, against the logging abstractions 8.0 and
+    /// later: the generator's own state type names them with the <c>@</c>, after the placeholder spelled like that code
+    /// name when there is one; <c>LoggerMessage.Define</c> after the template. From a referenced assembly only a reserved
+    /// keyword is known to be written with the <c>@</c> (the compiled name does not record it); in the test project's own
+    /// assembly the declaration shows it, and a Unicode escape is no <c>@</c>.</summary>
+    /// <param name="cancellationToken">The test cancellation token.</param>
+    [Test]
+    public async Task VerbatimParametersKeepTheirAtInOwnStateAsync(CancellationToken cancellationToken)
+    {
+        var product = GeneratorHarness.Product(
+            "Verbatim",
+            """
+            using Microsoft.Extensions.Logging;
+
+            public static class VerbatimLog
+            {
+                [LoggerMessage(EventId = 1, Message = "Verbatim {Event}")]
+                public static void Keyword(ILogger logger, LogLevel level, string @event, int @class) { }
+
+                [LoggerMessage(EventId = 2, Message = "At {@Event}")]
+                public static void AtPlaceholder(ILogger logger, LogLevel level, string @event) { }
+
+                [LoggerMessage(EventId = 3, Level = LogLevel.Information, Message = "Define {Event}")]
+                public static void Define(ILogger logger, string @event) { }
+
+                [LoggerMessage(EventId = 4, Message = "Contextual {Value}")]
+                public static void Contextual(ILogger logger, LogLevel level, string @value) { }
+            }
+            """);
+        var run = GeneratorHarness.Run(
+            GeneratorHarness.Consumer("[assembly: LogAssertions.GenerateLogDefinitions(typeof(VerbatimLog))]", product),
+            cancellationToken);
+        var ownRun = GeneratorHarness.Run(
+            GeneratorHarness.ConsumerOn(
+                """
+                using Microsoft.Extensions.Logging;
+
+                [assembly: LogAssertions.GenerateLogDefinitions(typeof(OwnLog))]
+
+                internal static class OwnLog
+                {
+                    [LoggerMessage(EventId = 5, Message = "Own {Value}")]
+                    internal static void Own(ILogger logger, LogLevel level, string @value) { }
+
+                    [LoggerMessage(EventId = 6, Message = "Escaped {Value}")]
+                    internal static void Escaped(ILogger logger, LogLevel level, string \u0076alue) { }
+                }
+                """,
+                GeneratorHarness.FakeLogging(10)),
+            cancellationToken);
+
+        await Assert.That(run.Errors).IsEmpty();
+        var product80 = run.Sources["VerbatimLogLogDefinitions.g.cs"];
+        await Assert.That(product80).Contains("new string[] { \"@event\", \"@class\" }", StringComparison.Ordinal);
+        await Assert.That(product80).Contains("new string[] { \"@Event\" }", StringComparison.Ordinal);
+        await Assert.That(product80).Contains("new string[] { \"Event\" }", StringComparison.Ordinal);
+        await Assert.That(product80).Contains("new string[] { \"Value\" }", StringComparison.Ordinal);
+        var own = ownRun.Sources["OwnLogLogDefinitions.g.cs"];
+        await Assert.That(own).Contains("new string[] { \"@value\" }", StringComparison.Ordinal);
+        await Assert.That(own).Contains("new string[] { \"Value\" }", StringComparison.Ordinal);
+    }
+
+    /// <summary>Verifies that against the logging abstractions before 8.0 a parameter written with a leading <c>@</c> is
+    /// named like any other: those generators look it up by its name.</summary>
+    /// <param name="cancellationToken">The test cancellation token.</param>
+    [Test]
+    public async Task VerbatimParametersBefore80AreNamedPlainAsync(CancellationToken cancellationToken)
+    {
+        var logging = GeneratorHarness.FakeLogging(7);
+        var product = GeneratorHarness.ProductOn(
+            "VerbatimOld",
+            """
+            using Microsoft.Extensions.Logging;
+
+            public static class OldVerbatimLog
+            {
+                [LoggerMessage(EventId = 1, Message = "Verbatim {Event}")]
+                public static void Keyword(ILogger logger, LogLevel level, string @event, int @class) { }
+            }
+            """,
+            logging);
+        var run = GeneratorHarness.Run(
+            GeneratorHarness.ConsumerWithoutLogging("[assembly: LogAssertions.GenerateLogDefinitions(typeof(OldVerbatimLog))]", product, logging),
+            cancellationToken);
+
+        await Assert.That(run.Sources["OldVerbatimLogLogDefinitions.g.cs"])
+            .Contains("new string[] { \"Event\", \"class\" }", StringComparison.Ordinal);
+    }
+
+    /// <summary>Verifies the generator's own state type for a template that repeats a placeholder (every occurrence counts
+    /// for <c>LoggerMessage.Define</c>), which names an <c>@</c> placeholder's value after its parameter, and a logger the
+    /// template names, which is a value.</summary>
+    /// <param name="cancellationToken">The test cancellation token.</param>
+    [Test]
+    public async Task RepeatedPlaceholderAndNamedLoggerAsync(CancellationToken cancellationToken)
+    {
+        var product = GeneratorHarness.Product(
+            "Repeated",
+            """
+            using Microsoft.Extensions.Logging;
+
+            public static class RepeatLog
+            {
+                [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "{@Value} and {@Value}")]
+                public static void Repeated(ILogger logger, int value) { }
+
+                [LoggerMessage(EventId = 2, Level = LogLevel.Information, Message = "{@Value} once")]
+                public static void Once(ILogger logger, int value) { }
+
+                [LoggerMessage(EventId = 3, Level = LogLevel.Information, Message = "Logger {Logger} for {X}")]
+                public static void NamedLogger(ILogger logger, int x) { }
+            }
+            """);
+        var run = GeneratorHarness.Run(
+            GeneratorHarness.Consumer("[assembly: LogAssertions.GenerateLogDefinitions(typeof(RepeatLog))]", product),
+            cancellationToken);
+
+        await Assert.That(run.Errors).IsEmpty();
+        var source = run.Sources["RepeatLogLogDefinitions.g.cs"];
+        await Assert.That(source).Contains("new string[] { \"value\" }", StringComparison.Ordinal);
+        await Assert.That(source).Contains("new string[] { \"@Value\" }", StringComparison.Ordinal);
+        await Assert.That(source).Contains("new string[] { \"Logger\", \"X\" }", StringComparison.Ordinal);
+    }
+
+    /// <summary>Verifies that the attribute on an accessor or an operator gives no definition: both Microsoft generators
+    /// read method declarations only, so such a member logs nothing.</summary>
+    /// <param name="cancellationToken">The test cancellation token.</param>
+    [Test]
+    public async Task AccessorsAndOperatorsGetNoDefinitionAsync(CancellationToken cancellationToken)
+    {
+        var product = GeneratorHarness.Product(
+            "Members",
+            """
+            using System;
+            using Microsoft.Extensions.Logging;
+
+            public sealed class MemberLog
+            {
+                public int Count { [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Getter")] get => 1; }
+
+                public event EventHandler? Changed { [LoggerMessage(EventId = 2, Level = LogLevel.Information, Message = "Adder")] add { } remove { } }
+
+                [LoggerMessage(EventId = 3, Level = LogLevel.Information, Message = "Operator")]
+                public static MemberLog operator +(MemberLog left, MemberLog right) => left;
+
+                [LoggerMessage(EventId = 4, Level = LogLevel.Information, Message = "Method")]
+                public static void Method(ILogger logger) { }
+            }
+            """);
+        var run = GeneratorHarness.Run(
+            GeneratorHarness.Consumer("[assembly: LogAssertions.GenerateLogDefinitions(typeof(MemberLog))]", product),
+            cancellationToken);
+
+        await Assert.That(run.Errors).IsEmpty();
+        var source = run.Sources["MemberLogLogDefinitions.g.cs"];
+        await Assert.That(source).Contains(" Method =", StringComparison.Ordinal);
+        await Assert.That(source).DoesNotContain("get_Count", StringComparison.Ordinal);
+        await Assert.That(source).DoesNotContain("add_Changed", StringComparison.Ordinal);
+        await Assert.That(source).DoesNotContain("op_Addition", StringComparison.Ordinal);
+    }
+
+    /// <summary>Verifies that an opt-in whose type does not resolve opts in nothing: not the test project, whose own
+    /// methods it would otherwise generate, and no LOGA001 next to the compiler's error.</summary>
+    /// <param name="cancellationToken">The test cancellation token.</param>
+    [Test]
+    public async Task UnresolvedOptInTypeOptsInNothingAsync(CancellationToken cancellationToken)
+    {
+        var run = GeneratorHarness.Run(
+            GeneratorHarness.Consumer(
+                """
+                using Microsoft.Extensions.Logging;
+
+                [assembly: LogAssertions.GenerateLogDefinitions(typeof(Missing))]
+
+                internal static class OwnLog
+                {
+                    [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Own")]
+                    internal static void Own(ILogger logger) { }
+                }
+                """),
+            cancellationToken);
+
+        await Assert.That(run.Errors.Select(static e => e.Id)).IsEquivalentTo(["CS0246"]);
+        await Assert.That(run.Sources).IsEmpty();
+        await Assert.That(run.Diagnostics).IsEmpty();
     }
 
     /// <summary>Verifies the diagnostics are reported at the opt-in attribute of the assembly they concern.</summary>
@@ -614,6 +819,66 @@ internal sealed class LogDefinitionGeneratorTests
             [
                 "The generated name 'OrderLogLogDefinitions' is already taken, so no log definitions are generated for 'Shop.OrderLog.OrderLogLogDefinitions'",
                 "The generated name 'Shop.CartLogLogDefinitions' is already taken, so no log definitions are generated for 'Shop.CartLog'",
+            ]);
+    }
+
+    /// <summary>Verifies LOGA004 for a class name a namespace already has, in the consumer or in the product: a class and a
+    /// namespace cannot share a full name. The other classes are generated.</summary>
+    /// <param name="cancellationToken">The test cancellation token.</param>
+    [Test]
+    public async Task NamespaceWithTheClassNameReportsLoga004Async(CancellationToken cancellationToken)
+    {
+        var product = GeneratorHarness.Product(
+            "NamespaceTaken",
+            """
+            using Microsoft.Extensions.Logging;
+
+            namespace Acme
+            {
+                public static class OrderLog
+                {
+                    [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Order")]
+                    public static void Order(ILogger logger) { }
+                }
+
+                public static class CartLog
+                {
+                    [LoggerMessage(EventId = 2, Level = LogLevel.Information, Message = "Cart")]
+                    public static void Cart(ILogger logger) { }
+                }
+
+                public static class StockLog
+                {
+                    [LoggerMessage(EventId = 3, Level = LogLevel.Information, Message = "Stock")]
+                    public static void Stock(ILogger logger) { }
+                }
+            }
+
+            namespace Acme.CartLogLogDefinitions
+            {
+                public static class Helper;
+            }
+            """);
+        var run = GeneratorHarness.Run(
+            GeneratorHarness.Consumer(
+                """
+                [assembly: LogAssertions.GenerateLogDefinitions(typeof(Acme.OrderLog))]
+
+                namespace Acme.OrderLogLogDefinitions.Nested
+                {
+                    internal static class Helper;
+                }
+                """,
+                product),
+            cancellationToken);
+
+        await Assert.That(run.Errors).IsEmpty();
+        await Assert.That(run.Sources.Keys).IsEquivalentTo(["Acme.StockLogLogDefinitions.g.cs"]);
+        await Assert.That(run.Diagnostics.Select(static d => d.GetMessage(System.Globalization.CultureInfo.InvariantCulture)))
+            .IsEquivalentTo(
+            [
+                "The generated name 'Acme.CartLogLogDefinitions' is already taken, so no log definitions are generated for 'Acme.CartLog'",
+                "The generated name 'Acme.OrderLogLogDefinitions' is already taken, so no log definitions are generated for 'Acme.OrderLog'",
             ]);
     }
 

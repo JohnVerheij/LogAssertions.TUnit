@@ -28,8 +28,8 @@ internal static class GeneratorDiagnostics
         isEnabledByDefault: true,
         description: "A generated definition is named after its method. Give each [LoggerMessage] method of a type its own name.");
 
-    /// <summary>A generated name is already taken: a type the compilation sees has the generated class's name, or a
-    /// method has it.</summary>
+    /// <summary>A generated name is already taken: a type the compilation sees or a namespace has the generated class's
+    /// full name, or a method has the class's name.</summary>
     internal static readonly DiagnosticDescriptor NameTaken = new(
         id: "LOGA004",
         title: "A generated name is taken",
@@ -37,7 +37,7 @@ internal static class GeneratorDiagnostics
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "A generated class is named after its type with LogDefinitions appended, and its fields after the methods. A type that already has the class's name, or a method named like the class, would not compile.");
+        description: "A generated class is named after its type with LogDefinitions appended, and its fields after the methods. A type or namespace that already has the class's full name, or a method named like the class, would not compile.");
 
     /// <summary>Two types would generate the same class.</summary>
     internal static readonly DiagnosticDescriptor DuplicateClassName = new(

@@ -16,8 +16,9 @@ namespace LogAssertions.Tests;
 /// <summary>
 /// Exact-reference tests of the log-definition generator: each definition generated from a fixture assembly's metadata
 /// must equal what the method's real record carries, as Microsoft's logging generator of the target framework wrote it.
-/// Every method runs through both Microsoft generators: the one of Microsoft.Extensions.Logging.Abstractions (the
-/// runtime fixture) and the one of Microsoft.Extensions.Telemetry (the extensions fixture). This is the guard on the
+/// Every method that both Microsoft generators compile runs through both: the one of
+/// Microsoft.Extensions.Logging.Abstractions (the runtime fixture) and the one of Microsoft.Extensions.Telemetry (the
+/// extensions fixture). This is the guard on the
 /// derived event ID and on the record shapes, which are those generators' internal code: when one changes, the tests
 /// of the affected generator and target framework fail.
 /// </summary>
@@ -49,10 +50,13 @@ internal sealed class GeneratedDefinitionReferenceTests
         yield return () => new ReferenceCase("Runtime/NoMessageWithParameter", Rt.FixtureLogMessagesLogDefinitions.NoMessageWithParameter, static log => Rt.FixtureLogMessages.NoMessageWithParameter(log, 5));
         yield return () => new ReferenceCase("Runtime/TwoUnusedParameters", Rt.FixtureLogMessagesLogDefinitions.TwoUnusedParameters, static log => Rt.FixtureLogMessages.TwoUnusedParameters(log, 1, 2, 3, 4));
         yield return () => new ReferenceCase("Runtime/LevelValueParameter", Rt.FixtureLogMessagesLogDefinitions.LevelValueParameter, static log => Rt.FixtureLogMessages.LevelValueParameter(log, 1, LogLevel.Debug));
+        yield return () => new ReferenceCase("Runtime/VerbatimParameters", Rt.FixtureLogMessagesLogDefinitions.VerbatimParameters, static log => Rt.FixtureLogMessages.VerbatimParameters(log, LogLevel.Warning, "e", 1), DynamicLevel: true);
+        yield return () => new ReferenceCase("Runtime/RepeatedAtPlaceholder", Rt.FixtureLogMessagesLogDefinitions.RepeatedAtPlaceholder, static log => Rt.FixtureLogMessages.RepeatedAtPlaceholder(log, 3));
+        yield return () => new ReferenceCase("Runtime/LoggerInTemplate", Rt.FixtureLogMessagesLogDefinitions.LoggerInTemplate, static log => Rt.FixtureLogMessages.LoggerInTemplate(log, 4));
         yield return () => new ReferenceCase("Runtime/Backslashes", Rt.FixtureLogMessagesLogDefinitions.Backslashes, static log => Rt.FixtureLogMessages.Backslashes(log, 1));
         yield return () => new ReferenceCase("Runtime/AtDefine", Rt.FixtureLogMessagesLogDefinitions.AtDefine, static log => Rt.FixtureLogMessages.AtDefine(log, "i", 2));
-        yield return () => new ReferenceCase("Runtime/AtDynamic", Rt.FixtureLogMessagesLogDefinitions.AtDynamic, static log => Rt.FixtureLogMessages.AtDynamic(log, LogLevel.Warning, "r"));
-        yield return () => new ReferenceCase("Runtime/LevelInTemplate", Rt.FixtureLogMessagesLogDefinitions.LevelInTemplate, static log => Rt.FixtureLogMessages.LevelInTemplate(log, LogLevel.Warning, 1));
+        yield return () => new ReferenceCase("Runtime/AtDynamic", Rt.FixtureLogMessagesLogDefinitions.AtDynamic, static log => Rt.FixtureLogMessages.AtDynamic(log, LogLevel.Warning, "r"), DynamicLevel: true);
+        yield return () => new ReferenceCase("Runtime/LevelInTemplate", Rt.FixtureLogMessagesLogDefinitions.LevelInTemplate, static log => Rt.FixtureLogMessages.LevelInTemplate(log, LogLevel.Warning, 1), DynamicLevel: true);
         yield return () => new ReferenceCase("Runtime/ExceptionInTemplate", Rt.FixtureLogMessagesLogDefinitions.ExceptionInTemplate, static log => Rt.FixtureLogMessages.ExceptionInTemplate(log, 1, new InvalidOperationException("boom")));
         yield return () => new ReferenceCase("Runtime/BackslashEventName", Rt.FixtureLogMessagesLogDefinitions.BackslashEventName, static log => Rt.FixtureLogMessages.BackslashEventName(log));
         yield return () => new ReferenceCase("Runtime/BackslashEventNameDerived", Rt.FixtureLogMessagesLogDefinitions.BackslashEventNameDerived, static log => Rt.FixtureLogMessages.BackslashEventNameDerived(log));
@@ -60,6 +64,10 @@ internal sealed class GeneratedDefinitionReferenceTests
         yield return () => new ReferenceCase("Runtime/NestedType", Rt.FixtureLogMessages_NestedLogDefinitions.InNestedType, static log => Rt.FixtureLogMessages.Nested.InNestedType(log, "x"));
         yield return () => new ReferenceCase("Runtime/InstanceMethod", Rt.InstanceLogMessagesLogDefinitions.Started, static log => new Rt.InstanceLogMessages(log).Started(3));
         yield return () => new ReferenceCase("Runtime/GenericType", Rt.GenericLogMessages_1LogDefinitions.InGenericType, static log => Rt.GenericLogMessages<int>.InGenericType(log, 5));
+        yield return () => new ReferenceCase("Runtime/ConstrainedException", Rt.ConstrainedLogMessages_3LogDefinitions.ExceptionParameter, static log => Rt.ConstrainedLogMessages<InvalidOperationException, ILogger, Rt.StructLogger>.ExceptionParameter(log, new InvalidOperationException("boom"), 1));
+        yield return () => new ReferenceCase("Runtime/ConstrainedLogger", Rt.ConstrainedLogMessages_3LogDefinitions.LoggerParameter, static log => Rt.ConstrainedLogMessages<InvalidOperationException, ILogger, Rt.StructLogger>.LoggerParameter(log, 2));
+        yield return () => new ReferenceCase("Runtime/ConstrainedValue", Rt.ConstrainedLogMessages_3LogDefinitions.ValueParameter, static log => Rt.ConstrainedLogMessages<InvalidOperationException, ILogger, Rt.StructLogger>.ValueParameter(default, log, 3));
+        yield return () => new ReferenceCase("Runtime/StructLoggerFirst", Rt.StructLoggerLogMessagesLogDefinitions.StructFirst, static log => Rt.StructLoggerLogMessages.StructFirst(default, log, 4));
     }
 
     /// <summary>Every method of the extensions fixture.</summary>
@@ -86,10 +94,13 @@ internal sealed class GeneratedDefinitionReferenceTests
         yield return () => new ReferenceCase("Extensions/NoMessageWithParameter", Ex.FixtureLogMessagesLogDefinitions.NoMessageWithParameter, static log => Ex.FixtureLogMessages.NoMessageWithParameter(log, 5));
         yield return () => new ReferenceCase("Extensions/TwoUnusedParameters", Ex.FixtureLogMessagesLogDefinitions.TwoUnusedParameters, static log => Ex.FixtureLogMessages.TwoUnusedParameters(log, 1, 2, 3, 4));
         yield return () => new ReferenceCase("Extensions/LevelValueParameter", Ex.FixtureLogMessagesLogDefinitions.LevelValueParameter, static log => Ex.FixtureLogMessages.LevelValueParameter(log, 1, LogLevel.Debug));
+        yield return () => new ReferenceCase("Extensions/VerbatimParameters", Ex.FixtureLogMessagesLogDefinitions.VerbatimParameters, static log => Ex.FixtureLogMessages.VerbatimParameters(log, LogLevel.Warning, "e", 1), DynamicLevel: true);
+        yield return () => new ReferenceCase("Extensions/RepeatedAtPlaceholder", Ex.FixtureLogMessagesLogDefinitions.RepeatedAtPlaceholder, static log => Ex.FixtureLogMessages.RepeatedAtPlaceholder(log, 3));
+        yield return () => new ReferenceCase("Extensions/LoggerInTemplate", Ex.FixtureLogMessagesLogDefinitions.LoggerInTemplate, static log => Ex.FixtureLogMessages.LoggerInTemplate(log, 4));
         yield return () => new ReferenceCase("Extensions/Backslashes", Ex.FixtureLogMessagesLogDefinitions.Backslashes, static log => Ex.FixtureLogMessages.Backslashes(log, 1));
         yield return () => new ReferenceCase("Extensions/AtDefine", Ex.FixtureLogMessagesLogDefinitions.AtDefine, static log => Ex.FixtureLogMessages.AtDefine(log, "i", 2));
-        yield return () => new ReferenceCase("Extensions/AtDynamic", Ex.FixtureLogMessagesLogDefinitions.AtDynamic, static log => Ex.FixtureLogMessages.AtDynamic(log, LogLevel.Warning, "r"));
-        yield return () => new ReferenceCase("Extensions/LevelInTemplate", Ex.FixtureLogMessagesLogDefinitions.LevelInTemplate, static log => Ex.FixtureLogMessages.LevelInTemplate(log, LogLevel.Warning, 1));
+        yield return () => new ReferenceCase("Extensions/AtDynamic", Ex.FixtureLogMessagesLogDefinitions.AtDynamic, static log => Ex.FixtureLogMessages.AtDynamic(log, LogLevel.Warning, "r"), DynamicLevel: true);
+        yield return () => new ReferenceCase("Extensions/LevelInTemplate", Ex.FixtureLogMessagesLogDefinitions.LevelInTemplate, static log => Ex.FixtureLogMessages.LevelInTemplate(log, LogLevel.Warning, 1), DynamicLevel: true);
         yield return () => new ReferenceCase("Extensions/ExceptionInTemplate", Ex.FixtureLogMessagesLogDefinitions.ExceptionInTemplate, static log => Ex.FixtureLogMessages.ExceptionInTemplate(log, 1, new InvalidOperationException("boom")));
         yield return () => new ReferenceCase("Extensions/BackslashEventName", Ex.FixtureLogMessagesLogDefinitions.BackslashEventName, static log => Ex.FixtureLogMessages.BackslashEventName(log));
         yield return () => new ReferenceCase("Extensions/BackslashEventNameDerived", Ex.FixtureLogMessagesLogDefinitions.BackslashEventNameDerived, static log => Ex.FixtureLogMessages.BackslashEventNameDerived(log));
@@ -99,12 +110,17 @@ internal sealed class GeneratedDefinitionReferenceTests
         yield return () => new ReferenceCase("Extensions/NestedType", Ex.FixtureLogMessages_NestedLogDefinitions.InNestedType, static log => Ex.FixtureLogMessages.Nested.InNestedType(log, "x"));
         yield return () => new ReferenceCase("Extensions/InstanceMethod", Ex.InstanceLogMessagesLogDefinitions.Started, static log => new Ex.InstanceLogMessages(log).Started(3));
         yield return () => new ReferenceCase("Extensions/GenericType", Ex.GenericLogMessages_1LogDefinitions.InGenericType, static log => Ex.GenericLogMessages<int>.InGenericType(log, 5));
+        yield return () => new ReferenceCase("Extensions/ConstrainedException", Ex.ConstrainedLogMessages_3LogDefinitions.ExceptionParameter, static log => Ex.ConstrainedLogMessages<InvalidOperationException, ILogger, Ex.StructLogger>.ExceptionParameter(log, new InvalidOperationException("boom"), 1));
+        yield return () => new ReferenceCase("Extensions/ConstrainedLogger", Ex.ConstrainedLogMessages_3LogDefinitions.LoggerParameter, static log => Ex.ConstrainedLogMessages<InvalidOperationException, ILogger, Ex.StructLogger>.LoggerParameter(log, 2));
+        yield return () => new ReferenceCase("Extensions/ConstrainedValue", Ex.ConstrainedLogMessages_3LogDefinitions.ValueParameter, static log => Ex.ConstrainedLogMessages<InvalidOperationException, ILogger, Ex.StructLogger>.ValueParameter(default, log, 3));
+        yield return () => new ReferenceCase("Extensions/StructLoggerFirst", Ex.StructLoggerLogMessagesLogDefinitions.StructFirst, static log => Ex.StructLoggerLogMessages.StructFirst(default, log, 4));
     }
 
     /// <summary>Verifies a generated definition renders the same contract line as the definition captured from the
-    /// method's real record: event ID, event name, level, template, and placeholder names. For a method that takes its
-    /// level as a parameter, the generated definition has no level and the captured one the probe call's, so the level is
-    /// left out of that comparison.</summary>
+    /// method's real record: event ID, event name, level, template, and placeholder names. A method that takes its level
+    /// as a parameter (recorded per case, not read from the generated definition) must generate no level, and the captured
+    /// one has the probe call's, so the level is left out of that comparison; every other method must generate the
+    /// captured level.</summary>
     /// <param name="reference">The fixture method.</param>
     /// <param name="cancellationToken">The test cancellation token.</param>
     [Test]
@@ -114,10 +130,11 @@ internal sealed class GeneratedDefinitionReferenceTests
     {
         cancellationToken.ThrowIfCancellationRequested();
         var captured = LogDefinition.Capture(reference.Invoke);
-        var expected = reference.Generated.Level is null
+        var expected = reference.DynamicLevel
             ? LogDefinition.Create(captured.Id, null, captured.Template, captured.PlaceholderNames)
             : captured;
 
+        await Assert.That(reference.Generated.Level is null).IsEqualTo(reference.DynamicLevel);
         await Assert.That(LogContractRenderer.Render([reference.Generated]))
             .IsEqualTo(LogContractRenderer.Render([expected]));
     }
@@ -189,9 +206,10 @@ internal sealed class GeneratedDefinitionReferenceTests
             var captured = LogDefinition.Capture(invoke);
 
             await Assert.That(generated.Level).IsNull();
-            await Assert.That(generated.Id).IsEqualTo(captured.Id);
+            await Assert.That(generated.Id.Id).IsEqualTo(captured.Id.Id);
+            await Assert.That(generated.Id.Name).IsEqualTo(captured.Id.Name);
             await Assert.That(generated.Template).IsEqualTo(captured.Template);
-            await Assert.That(generated.PlaceholderNames).IsEquivalentTo(captured.PlaceholderNames);
+            await Assert.That(string.Join(",", generated.PlaceholderNames)).IsEqualTo(string.Join(",", captured.PlaceholderNames));
             await Assert.That(LogContractRenderer.Render([generated]))
                 .IsEqualTo("1004 LevelParameter ? \"The level is a parameter {Value}\" Value\n");
         }
@@ -205,12 +223,13 @@ internal sealed class GeneratedDefinitionReferenceTests
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        await Assert.That(Rt.FixtureLogMessagesLogDefinitions.DerivedFromMethodName.Id)
-            .IsEqualTo(new EventId(Generator.EventIdHash.Of("DerivedFromMethodName"), "DerivedFromMethodName"));
-        await Assert.That(Rt.FixtureLogMessagesLogDefinitions.DerivedFromEventName.Id)
-            .IsEqualTo(new EventId(Generator.EventIdHash.Of("CustomEventName"), "CustomEventName"));
-        await Assert.That(Rt.FixtureLogMessagesLogDefinitions.EmptyEventName.Id)
-            .IsEqualTo(new EventId(Generator.EventIdHash.Of("EmptyEventName"), "EmptyEventName"));
+        // EventId.Equals compares the number only, so the name is asserted on its own.
+        await Assert.That(Rt.FixtureLogMessagesLogDefinitions.DerivedFromMethodName.Id.Id).IsEqualTo(Generator.EventIdHash.Of("DerivedFromMethodName"));
+        await Assert.That(Rt.FixtureLogMessagesLogDefinitions.DerivedFromMethodName.Id.Name).IsEqualTo("DerivedFromMethodName");
+        await Assert.That(Rt.FixtureLogMessagesLogDefinitions.DerivedFromEventName.Id.Id).IsEqualTo(Generator.EventIdHash.Of("CustomEventName"));
+        await Assert.That(Rt.FixtureLogMessagesLogDefinitions.DerivedFromEventName.Id.Name).IsEqualTo("CustomEventName");
+        await Assert.That(Rt.FixtureLogMessagesLogDefinitions.EmptyEventName.Id.Id).IsEqualTo(Generator.EventIdHash.Of("EmptyEventName"));
+        await Assert.That(Rt.FixtureLogMessagesLogDefinitions.EmptyEventName.Id.Name).IsEqualTo("EmptyEventName");
         await Assert.That(Generator.EventIdHash.Of("OrderShipped")).IsEqualTo(943003114);
         await Assert.That(Generator.EventIdHash.Of("OrderShippedEvent")).IsEqualTo(1918069794);
         await Assert.That(Generator.EventIdHash.Of("LevelParam")).IsEqualTo(741982794);

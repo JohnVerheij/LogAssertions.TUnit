@@ -98,7 +98,19 @@ internal static partial class FixtureLogMessages
     /// <summary>A level parameter next to a level in the attribute: the parameter is a value.</summary>
     [LoggerMessage(EventId = 1017, Level = LogLevel.Information, Message = "Level value {X}")]
     internal static partial void LevelValueParameter(ILogger logger, int x, LogLevel other);
+
+    /// <summary>Parameters written with a leading <c>@</c> (reserved keywords, one the template does not use), through
+    /// the generator's own state type (the level is a parameter): the generator of
+    /// Microsoft.Extensions.Logging.Abstractions 8.0 and later names them with the <c>@</c>.</summary>
+    [LoggerMessage(EventId = 1028, Message = "Verbatim {Event}")]
+    internal static partial void VerbatimParameters(ILogger logger, LogLevel level, string @event, int @class);
 #pragma warning restore SYSLIB1015
+
+    /// <summary>An <c>@</c> placeholder the template repeats: every occurrence counts, so the generator of
+    /// Microsoft.Extensions.Logging.Abstractions writes its own state type, which names the value after the
+    /// parameter.</summary>
+    [LoggerMessage(EventId = 1029, Level = LogLevel.Information, Message = "{@Value} and again {@Value}")]
+    internal static partial void RepeatedAtPlaceholder(ILogger logger, int value);
 
     /// <summary>A backslash escape and an escaped backslash in the message: the generator of
     /// Microsoft.Extensions.Logging.Abstractions copies the message into its own literal without escaping a backslash,
@@ -116,10 +128,10 @@ internal static partial class FixtureLogMessages
     [LoggerMessage(EventId = 1021, Message = "Dynamic {@Request}")]
     internal static partial void AtDynamic(ILogger logger, LogLevel level, string request);
 
-    // The next two name the level and the exception in the template, which both Microsoft generators warn against
-    // (SYSLIB1002, SYSLIB1013, LOGGEN000, LOGGEN009); products still compile with it, and the records then carry them as
-    // values, apart from the exception with Microsoft.Extensions.Telemetry.
-#pragma warning disable SYSLIB1002, SYSLIB1013, LOGGEN000, LOGGEN009
+    // The next three name the level, the exception and the logger in the template, which both Microsoft generators warn
+    // against (SYSLIB1002, SYSLIB1013, SYSLIB1018, LOGGEN000, LOGGEN009, LOGGEN014); products still compile with it, and
+    // the records then carry them as values, apart from the exception with Microsoft.Extensions.Telemetry.
+#pragma warning disable SYSLIB1002, SYSLIB1013, SYSLIB1018, LOGGEN000, LOGGEN009, LOGGEN014
 
     /// <summary>The level parameter named in the template.</summary>
     [LoggerMessage(EventId = 1022, Message = "At {level} for {A}")]
@@ -128,7 +140,11 @@ internal static partial class FixtureLogMessages
     /// <summary>The exception parameter named in the template.</summary>
     [LoggerMessage(EventId = 1023, Level = LogLevel.Error, Message = "Failed {ex} for {Id}")]
     internal static partial void ExceptionInTemplate(ILogger logger, int id, Exception ex);
-#pragma warning restore SYSLIB1002, SYSLIB1013, LOGGEN000, LOGGEN009
+
+    /// <summary>The logger parameter named in the template.</summary>
+    [LoggerMessage(EventId = 1030, Level = LogLevel.Information, Message = "Logger {logger} for {X}")]
+    internal static partial void LoggerInTemplate(ILogger logger, int x);
+#pragma warning restore SYSLIB1002, SYSLIB1013, SYSLIB1018, LOGGEN000, LOGGEN009, LOGGEN014
 
     /// <summary>A backslash escape in the event name: both generators copy the event name into their own literal without
     /// escaping a backslash, so the record's name carries a tab.</summary>

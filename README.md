@@ -610,10 +610,14 @@ await Assert.That(collector).HasNotLogged().Matching(OrderServiceLogDefinitions.
   is the attribute's; for a method that takes its level as a parameter, `Level` is `null`.
 - The placeholder names are the ones the record carries, in its order, including the parameters the template does not
   use; with Microsoft.Extensions.Telemetry a data-classified parameter is left out, as that generator logs it for
-  redaction. One limit: with Microsoft.Extensions.Telemetry, a parameter marked `[TagName]` or `[TagProvider]` is
-  logged under other names, and those attributes are not compiled into the product; one marked `[LogProperties]` is
-  logged as the properties of its type, which the generator does not expand. The generated names then show the
-  parameter's own name. Matching is not affected; only `PlaceholderNames` and the contract line are.
+  redaction. A logger, level or exception parameter that the template names is a value too (an exception not with
+  Microsoft.Extensions.Telemetry). Two limits, where the generated names show the parameter's own name: with
+  Microsoft.Extensions.Telemetry, a parameter marked `[TagName]` or `[TagProvider]` is logged under other names, and
+  those attributes are not compiled into the product, and one marked `[LogProperties]` is logged as the properties of
+  its type, which the generator does not expand; with Microsoft.Extensions.Logging.Abstractions 8.0 and later, a
+  parameter written with an `@` its name does not need (`@name`, unlike the keyword `@event`) can be logged under that
+  `@` name, which a compiled assembly does not record. Matching is not affected; only `PlaceholderNames` and the
+  contract line are.
 - The test project sees `public` and `protected` methods, and `internal` ones when the product names it in
   `[InternalsVisibleTo]`. A `private` method is not in the reference assembly a test project compiles against: make it
   `internal`. A test project that opts in its own assembly sees all of its own methods. When an assembly has no
@@ -621,7 +625,8 @@ await Assert.That(collector).HasNotLogged().Matching(OrderServiceLogDefinitions.
 - A nested type joins the names with `_` (`Outer_InnerLogDefinitions`); a generic type adds `_` and its number of type
   parameters (`Repository_1LogDefinitions`). Two methods of one type with the same name get no definition (warning
   `LOGA002`), neither do two types that would generate the same class (warning `LOGA003`), nor a type whose generated
-  class name is taken, or a method named like the generated class (warning `LOGA004`). The warnings are reported at the
+  class name is taken, by a type the test project sees or by a namespace, or a method named like the generated class
+  (warning `LOGA004`). The warnings are reported at the
   `GenerateLogDefinitions` attribute, so a `#pragma warning disable` around it, `NoWarn`, or `.editorconfig` can
   silence them.
 - `LogContractRenderer.Render` takes generated definitions like captured ones.
@@ -1438,11 +1443,11 @@ await Assert.That(contract).MatchesSnapshot();
 1300 PaymentFailed Warning "Payment for order {OrderId} failed" OrderId
 ```
 
-Each line is the event ID, the event name (`?` when there is none), the level (`?` for a generated definition whose method takes the level as a parameter), the template in quotes (`<no template>` when there is none, an empty template included), and the placeholder names in template order. Lines are ordered by event ID, then name, template, and level, and then by the line itself, whatever the input order (so definitions that differ only in a placeholder the template does not contain keep a fixed order), and end in LF; there is no header line. In the template, the event name, and the placeholder names, `\`, `"`, CR, LF, and tab are escaped so each definition stays on one line. The renderer reads only the definitions' `Id`, `Level`, `Template`, and `PlaceholderNames`: no reflection.
+Each line is the event ID, the event name (`?` when there is none), the level (`?` for a definition without one: a generated definition whose method takes the level as a parameter, or one created without a level), the template in quotes (`<no template>` when there is none, an empty template included), and the placeholder names in template order. Lines are ordered by event ID, then name, template, and level, and then by the line itself, whatever the input order (so definitions that differ only in a placeholder the template does not contain keep a fixed order), and end in LF; there is no header line. In the template, the event name, and the placeholder names, `\`, `"`, CR, LF, and tab are escaped so each definition stays on one line. The renderer reads only the definitions' `Id`, `Level`, `Template`, and `PlaceholderNames`: no reflection.
 
 ### Pin the records other tools read
 
-The contract above pins a whole set of [captured definitions](#typed-definition-filters-matching-matchingcall-v0110) as one reviewed baseline, with no values. It needs the definitions as `LogDefinition` values, so it cannot see a `[LoggerMessage]` method that is `private`. For one such record, pin its event name and its message template with the filters, in the test that makes the code log:
+The contract above pins a whole set of [definitions](#typed-definition-filters-matching-matchingcall-v0110), captured or generated, as one reviewed baseline, with no values. It needs the definitions as `LogDefinition` values, so it cannot see a `[LoggerMessage]` method that is `private`. For one such record, pin its event name and its message template with the filters, in the test that makes the code log:
 
 ```csharp
 await Assert.That(collector).HasLogged()
@@ -1519,7 +1524,8 @@ Per [SemVer](https://semver.org/), the `0.x` series is initial development: anyt
 - The five entry-point methods on `IAssertionSource<FakeLogCollector>`: `HasLogged()`, `HasNotLogged()`, `HasLoggedSequence()`, `HasLoggedOnly(floor)`, and `WillLog(timeout, cancellationToken)`.
 - The top-level shorthand entry points (`HasLoggedOnce`, `HasLoggedExactly`, `HasLoggedNothing`, `HasLoggedWarningOrAbove`, etc.) and `AssertAllAsync`.
 - The fluent chain methods on `HasLoggedAssertion`, `HasNotLoggedAssertion`, `HasLoggedSequenceAssertion`, `HasLoggedOnlyAssertion`, and `WillLogAssertion`: every named filter (`AtLevel`, `Containing`, `WithCategory`, `WithException`, `WithInnerException`, `WithInnerExceptionMessage`, `WithScopeProperty`, `WithScopeProperties`, etc.), every terminator (`Once`, `Exactly`, `Between`, `AtMostOncePer`, `GetMatch`, `GetMatches`, etc.), the sequence-step combinators (`Then`, `ThenAnyOrder`, `Step`), and the combinator methods (`WithFilter`, `MatchingAny`, `MatchingAll`, `Not`, `When`).
-- The `ILogRecordFilter` interface, the `LogFilter` static factory's public methods, and `LogDefinition`.
+- The `ILogRecordFilter` interface, the `LogFilter` static factory's public methods, `LogDefinition`, and `LogCall`.
+- `GenerateLogDefinitionsAttribute` and what the generator writes: one internal class per type, named `<Type>LogDefinitions` in the type's namespace, with one `LogDefinition` field per `[LoggerMessage]` method named after the method, and its warning IDs `LOGA001` to `LOGA004`.
 - `LogCapture` and the factories: `LogCollectorBuilder.Create` (with and without a `TimeProvider`) / `CreateDiscarding`, `TestOutputLogCollectorBuilder.CreateTeed` (with and without a `TimeProvider`) / `CreateTeedDiscarding`, and the `AddFakeLogging` / `AddTeedFakeLogging` builder extensions.
 - The `LogAssertionsTestLifetime` attribute.
 - The `FakeLogCollector` extension methods: `Filter`, `CountMatching`, `DumpTo`, `WaitForLogAsync`, `WaitForLogsAsync`, `DumpToTestOutput`, `DumpToTestOutputOnFailure`.

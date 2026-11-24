@@ -164,7 +164,7 @@ await Assert.That(collector).HasLogged()
     .MatchingCall(log => LogMessages.OrderShipped(log, 42, "NYC")).Once();
 ```
 
-A `private` `[LoggerMessage]` method can't be captured (the capture calls it) or generated (it is not in the reference assembly): match its records with `WithEventId(int)` / `WithEventName(string)` instead, or promote it to `internal` plus `[InternalsVisibleTo]` for the test project; production code never references this package. The `HasLoggedOnly` gate allows definitions, so a method you allow there must be `internal`. **Definitions you assert on must not live on a generic type** (Roslynator RCS1158 fires once they are non-private): host them in a non-generic `static partial class`.
+A `private` `[LoggerMessage]` method can't be captured (the capture calls it) or generated (it is not in the reference assembly): match its records with `WithEventId(int)` / `WithEventName(string)` instead, or promote it to `internal` plus `[InternalsVisibleTo]` for the test project; production code never references this package. The `HasLoggedOnly` gate allows definitions, so a method you allow there must be `internal`. **Where Roslynator's RCS1158 is enabled, definitions you assert on can't live on a generic type**: it fires once they are non-private, so host them in a non-generic `static partial class`. Without that rule a generic type works too: a capture closes it (`Repository<int>.LogSaved`), and the generated class carries its number of type parameters (`Repository_1LogDefinitions`).
 
 **Pin the log contract (v0.14.0+):** `LogContractRenderer.Render(definitions)` (in `LogAssertions.Render`) writes one deterministic line per definition, so with `MatchesSnapshot()` a renamed placeholder or a reworded template shows as a diff:
 

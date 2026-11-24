@@ -81,7 +81,7 @@ A test-framework adapter package needs to:
 
 ## Stability
 
-- The public surfaces above (`ILogRecordFilter`, `LogFilter`, `LogDefinition`, `LogAssertionRendering`, `LogCollectorBuilder`, `LogCapture`, the renderers, the extension methods on `FakeLogCollector`) are intended to stay stable. Before 1.0 a minor version can break them; every break is listed under **BREAKING** in the CHANGELOG with its migration.
+- The public surfaces above (`ILogRecordFilter`, `LogFilter`, `LogDefinition`, `LogCall`, `LogAssertionRendering`, `LogCollectorBuilder`, `LogCapture`, the renderers, the extension methods on `FakeLogCollector`), `GenerateLogDefinitionsAttribute` with the names the generator writes (`<Type>LogDefinitions`, one field per method) and its warning IDs `LOGA001` to `LOGA004` are intended to stay stable. Before 1.0 a minor version can break them; every break is listed under **BREAKING** in the CHANGELOG with its migration.
 - The output of `LogSnapshotRenderer` and `LogContractRenderer` is a pin-able contract: a change to it is listed as breaking.
 - The exact text format of failure-message snapshots rendered by `LogAssertionRendering` is **not stable**. May gain extra detail or change formatting in any release. Pin filter match counts and broad markers in tests, not exact failure text.
 

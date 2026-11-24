@@ -14,6 +14,9 @@
     <AssemblyName>LogAssertions.Generator</AssemblyName>
     <IsPackable>false</IsPackable>
     <IsPublishable>false</IsPublishable>
+    <!-- The version of the packages that ship it, so that each release has an assembly identity of its own: a compiler
+         server or an IDE that has loaded one release's generator does not take another release's for it. -->
+    <Version>0.17.0</Version>
     <IsRoslynComponent>true</IsRoslynComponent>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>

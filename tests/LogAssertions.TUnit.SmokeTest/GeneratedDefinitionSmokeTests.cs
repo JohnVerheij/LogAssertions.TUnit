@@ -22,7 +22,8 @@ internal sealed class GeneratedDefinitionSmokeTests
         var logger = logs.CreateLogger("Worker");
         SmokeLogMessages.Ready(logger, "w1");
 
-        await Assert.That(SmokeLogMessagesLogDefinitions.Ready.Id).IsEqualTo(new EventId(7, nameof(SmokeLogMessages.Ready)));
+        await Assert.That(SmokeLogMessagesLogDefinitions.Ready.Id.Id).IsEqualTo(7);
+        await Assert.That(SmokeLogMessagesLogDefinitions.Ready.Id.Name).IsEqualTo(nameof(SmokeLogMessages.Ready));
         await Assert.That(logs.Collector).HasLogged().Matching(SmokeLogMessagesLogDefinitions.Ready).Once();
     }
 }

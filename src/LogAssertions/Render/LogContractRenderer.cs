@@ -24,7 +24,8 @@ namespace LogAssertions.Render;
 /// <remarks>
 /// <para>
 /// <b>Format.</b> Each line is the numeric event ID, the event name (<c>?</c> when the definition has none), the level
-/// (<c>?</c> when the logging method takes it as a parameter),
+/// (<c>?</c> when the definition has none: its logging method takes the level as a parameter, or it was created without
+/// one),
 /// the message template in double quotes (<c>&lt;no template&gt;</c> when the call carried none), and the placeholder
 /// names in template order, separated by commas, with <c>{OriginalFormat}</c> left out. A definition without
 /// placeholders ends after the template. In the template, the event name, and the placeholder names, <c>\</c>,
@@ -42,8 +43,9 @@ namespace LogAssertions.Render;
 /// <see cref="LogDefinition.Template"/>, and <see cref="LogDefinition.PlaceholderNames"/>, with no reflection. Take the
 /// definitions from <see cref="GenerateLogDefinitionsAttribute"/> or <see cref="LogDefinition.Capture"/>; a generated
 /// and a captured definition of the same method render the same line, except the level of a method that takes it as
-/// a parameter (<c>?</c> generated, the capture call's level captured) and the limit the README lists for
-/// Microsoft.Extensions.Telemetry's tag attributes.
+/// a parameter (<c>?</c> generated, the capture call's level captured) and the placeholder-name limits the README
+/// lists (Microsoft.Extensions.Telemetry's tag attributes, and a needless <c>@</c> on a parameter name with
+/// Microsoft.Extensions.Logging.Abstractions 8.0 and later).
 /// </para>
 /// </remarks>
 public static class LogContractRenderer

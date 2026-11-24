@@ -36,6 +36,11 @@ internal sealed class ProductLogging
     /// backslash, so a backslash escape in it takes effect (see <see cref="LoggedTemplate"/>).</summary>
     internal bool LogsMessageAsWritten => Telemetry || AbstractionsMajor >= 11;
 
+    /// <summary>Whether the product's logging generator, in a state type of its own, names a parameter written with a
+    /// leading <c>@</c> (<c>@event</c>) by that code name: the generator of Microsoft.Extensions.Logging.Abstractions 8.0
+    /// and later.</summary>
+    internal bool KeepsVerbatimAt => !Telemetry && AbstractionsMajor >= 8;
+
     /// <summary>The version of Microsoft.Extensions.Telemetry.Abstractions the product references, or
     /// <see langword="null"/>.</summary>
     private Version? TelemetryVersion { get; }

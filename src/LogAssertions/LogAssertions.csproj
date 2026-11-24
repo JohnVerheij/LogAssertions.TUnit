@@ -15,7 +15,7 @@
     <PackageValidationBaselineVersion>0.16.0</PackageValidationBaselineVersion>
     <Authors>John Verheij</Authors>
     <Copyright>Copyright (c) 2026 John Verheij</Copyright>
-    <Description>Framework-agnostic core for fluent log assertions over Microsoft.Extensions.Logging.Testing.FakeLogCollector. Provides ILogRecordFilter + LogFilter composable filter primitives, the failure-message rendering, the FakeLogCollector inspection extensions (Filter, CountMatching, DumpTo), event-driven waits for background logs (WaitForLogAsync, WaitForLogsAsync on FakeLogCollector.GetLogsAsync), the LogCollectorBuilder factories (Create returns a LogCapture, CreateDiscarding), and deterministic renderers for snapshot baselines (LogSnapshotRenderer for captured records, LogContractRenderer for log definitions). Test-framework-specific entry points live in adapter packages (LogAssertions.TUnit); adapters for other test frameworks are not planned, as the family targets TUnit.</Description>
+    <Description>Framework-agnostic core for fluent log assertions over Microsoft.Extensions.Logging.Testing.FakeLogCollector. Provides ILogRecordFilter + LogFilter composable filter primitives, the failure-message rendering, the FakeLogCollector inspection extensions (Filter, CountMatching, DumpTo), event-driven waits for background logs (WaitForLogAsync, WaitForLogsAsync on FakeLogCollector.GetLogsAsync), the LogCollectorBuilder factories (Create returns a LogCapture, CreateDiscarding), deterministic renderers for snapshot baselines (LogSnapshotRenderer for captured records, LogContractRenderer for log definitions), and a source generator that writes a LogDefinition for each [LoggerMessage] method of an opted-in assembly ([assembly: GenerateLogDefinitions(typeof(T))]). Test-framework-specific entry points live in adapter packages (LogAssertions.TUnit); adapters for other test frameworks are not planned, as the family targets TUnit.</Description>
     <PackageTags>assertions;testing;logging;fakelogcollector;microsoft-extensions-logging;dotnet;aot</PackageTags>
     <PackageProjectUrl>https://logassertions.dev</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -82,16 +82,20 @@
 
   <ItemGroup>
     <!-- The source generator behind [assembly: GenerateLogDefinitions] ships in this package under analyzers/dotnet/cs,
-         where the compiler of every consuming project loads it. A project reference would make it a dependency of
-         this package, so pack takes the built file by path; the target below builds it first. -->
+         where the compiler of every consuming project loads it. The family's package analyzer rejects a project
+         reference to a Roslyn component (dpfa Proj1300), so pack takes the built file by path; the target below builds
+         it first. -->
     <None Include="../LogAssertions.Generator/bin/$(Configuration)/netstandard2.0/LogAssertions.Generator.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
   </ItemGroup>
 
-  <!-- A pack that builds (dotnet pack without no-build, a solution-level pack too) builds the generator before it collects
-       the package files, so the DLL it packs is current and present on a clean tree. A no-build pack, as in CI after the
+  <!-- A pack that builds (dotnet pack without no-build, a solution-level pack too) restores and builds the generator before
+       it collects the package files, so the DLL it packs is current and present on a clean tree. The restore comes first,
+       in an evaluation of its own (the session property is what restore itself sets): a pack of this project alone
+       restores only this project, as the generator is not a project reference. A no-build pack, as in CI after the
        solution build, takes the built file. The global properties of this project pass on, so a solution build reuses
        its own build of the generator. -->
   <Target Name="BuildLogDefinitionGenerator" BeforeTargets="GenerateNuspec" Condition="'$(NoBuild)' != 'true'">
+    <MSBuild Projects="../LogAssertions.Generator/LogAssertions.Generator.csproj" Targets="Restore" Properties="MSBuildRestoreSessionId=$([System.Guid]::NewGuid())" />
     <MSBuild Projects="../LogAssertions.Generator/LogAssertions.Generator.csproj" Targets="Build" />
   </Target>
 

@@ -39,7 +39,9 @@ internal sealed class LogDefinitionTests
         await Assert.That(definition.Id.Name).IsEqualTo(nameof(CoreTestLogMessages.OrderPlaced));
         await Assert.That(definition.Level).IsEqualTo(LogLevel.Information);
         await Assert.That(definition.Template).IsEqualTo("Order {OrderId} placed by {Customer}");
-        await Assert.That(definition.PlaceholderNames).IsEquivalentTo(["OrderId", "Customer"]);
+        // This project compiles its [LoggerMessage] methods with the generator of Microsoft.Extensions.Telemetry (it
+        // comes with Microsoft.Extensions.Diagnostics.Testing), whose records carry the values in reverse order.
+        await Assert.That(string.Join(",", definition.PlaceholderNames)).IsEqualTo("Customer,OrderId");
     }
 
     /// <summary>Verifies capture of a call keeps its identity, its values, and no exception.</summary>
@@ -167,9 +169,9 @@ internal sealed class LogDefinitionTests
         var read = LogDefinition.Create(new EventId(1, "A"), LogLevel.Warning, "{B} and {A,5} and {B:N2} and {{C}}");
         var given = LogDefinition.Create(new EventId(2, "B"), null, "{X}", ["X", "extra"]);
 
-        await Assert.That(read.PlaceholderNames).IsEquivalentTo(["B", "A"]);
+        await Assert.That(string.Join(",", read.PlaceholderNames)).IsEqualTo("B,A");
         await Assert.That(read.Level).IsEqualTo(LogLevel.Warning);
-        await Assert.That(given.PlaceholderNames).IsEquivalentTo(["X", "extra"]);
+        await Assert.That(string.Join(",", given.PlaceholderNames)).IsEqualTo("X,extra");
         await Assert.That(given.Level).IsNull();
         await Assert.That(LogDefinition.Create(new EventId(3, "C"), null, null).PlaceholderNames).IsEmpty();
     }

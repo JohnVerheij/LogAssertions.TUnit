@@ -61,7 +61,7 @@ Both packages (`LogAssertions` and `LogAssertions.TUnit`) version in lockstep, s
 
 In scope:
 
-- The shipped `LogAssertions` and `LogAssertions.TUnit` NuGet packages
+- The shipped `LogAssertions` and `LogAssertions.TUnit` NuGet packages, including the source generator in the `LogAssertions` package, which runs inside the compiler and the IDE of every project that references it
 - The build pipeline (release workflows, signing, NuGet publishing chain) and supply-chain integrity of the packages
 - The shipped SBOMs (SPDX 3.0 in nupkg, CycloneDX 1.6 sibling artifact)
 - The SLSA build-provenance attestations and Sigstore-signed SBOM attestations

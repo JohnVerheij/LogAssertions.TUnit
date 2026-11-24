@@ -39,7 +39,8 @@ namespace LogAssertions;
 /// A generated and a captured definition of the same <c>[LoggerMessage]</c> method carry the same identity: the event ID
 /// (the attribute's <c>EventId</c>, or the number Microsoft's logging generator derives from the event name when it is
 /// omitted), the event name, and the template, so they match the same records. Their placeholder names agree too, apart
-/// from the limit the README lists for Microsoft.Extensions.Telemetry's tag attributes.
+/// from the limits the README lists: Microsoft.Extensions.Telemetry's tag attributes, and a parameter written with an
+/// <c>@</c> its name does not need, with Microsoft.Extensions.Logging.Abstractions 8.0 and later.
 /// </para>
 /// <para>
 /// An empty template is no template: Microsoft's two logging generators write a method without a message as an empty
@@ -72,9 +73,10 @@ public sealed class LogDefinition
     /// the value Microsoft's logging generator derives from that name.</summary>
     public EventId Id { get; }
 
-    /// <summary>The level the definition logs at, or <see langword="null"/> when a generated definition's logging
-    /// method takes the level as a parameter. A captured definition holds the level of the capture call. Not part of
-    /// identity matching, so level constraints belong on the chain (<c>AtLevel</c> etc.).</summary>
+    /// <summary>The level the definition logs at, or <see langword="null"/> when it has none: a generated definition
+    /// whose logging method takes the level as a parameter, or one created without a level. A captured definition holds
+    /// the level of the capture call. Not part of identity matching, so level constraints belong on the chain
+    /// (<c>AtLevel</c> etc.).</summary>
     public LogLevel? Level { get; }
 
     /// <summary>The message template (the pre-substitution <c>{OriginalFormat}</c> value), or

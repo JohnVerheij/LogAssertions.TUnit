@@ -60,7 +60,7 @@ Versioning follows [Semantic Versioning](https://semver.org/):
 - `0.x.y` while the API is evolving: minor bumps may include breaking changes.
 - `1.0.0` and beyond: breaking changes only on major-version bumps.
 
-Releases are published to NuGet via a tagged commit on `main`. The `<Version>` in `LogAssertions.TUnit.csproj` is the source of truth for the package version.
+Releases are published to NuGet via a tagged commit on `main`. The `<Version>` in `LogAssertions.TUnit.csproj` is the source of truth for the package version; `LogAssertions.csproj` and the generator's `LogAssertions.Generator.csproj` carry the same version.
 
 ## Code of conduct
 
