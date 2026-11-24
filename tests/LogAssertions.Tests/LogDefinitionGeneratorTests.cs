@@ -887,6 +887,69 @@ internal sealed class LogDefinitionGeneratorTests
             ]);
     }
 
+    /// <summary>Verifies LOGA004 for a class whose namespace, or an enclosing one, is the full name of a type the test
+    /// project has: a type and a namespace cannot share a full name. The other classes are generated.</summary>
+    /// <param name="cancellationToken">The test cancellation token.</param>
+    [Test]
+    public async Task TypeNamedLikeAnEnclosingNamespaceReportsLoga004Async(CancellationToken cancellationToken)
+    {
+        var product = GeneratorHarness.Product(
+            "PrefixTaken",
+            """
+            using Microsoft.Extensions.Logging;
+
+            namespace Logging.Deep
+            {
+                public static class Messages
+                {
+                    [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Deep")]
+                    public static void Deep(ILogger logger) { }
+                }
+            }
+
+            namespace Store.Deep
+            {
+                public static class Items
+                {
+                    [LoggerMessage(EventId = 2, Level = LogLevel.Information, Message = "Items")]
+                    public static void Item(ILogger logger) { }
+                }
+            }
+
+            namespace Shop
+            {
+                public static class OrderLog
+                {
+                    [LoggerMessage(EventId = 3, Level = LogLevel.Information, Message = "Order")]
+                    public static void Order(ILogger logger) { }
+                }
+            }
+            """);
+        var run = GeneratorHarness.Run(
+            GeneratorHarness.Consumer(
+                """
+                [assembly: LogAssertions.GenerateLogDefinitions(typeof(Shop.OrderLog))]
+
+                internal static class Logging;
+
+                namespace Store
+                {
+                    internal static class Deep;
+                }
+                """,
+                product),
+            cancellationToken);
+
+        await Assert.That(run.Errors).IsEmpty();
+        await Assert.That(run.Sources.Keys).IsEquivalentTo(["Shop.OrderLogLogDefinitions.g.cs"]);
+        await Assert.That(run.Diagnostics.Select(static d => d.GetMessage(System.Globalization.CultureInfo.InvariantCulture)))
+            .IsEquivalentTo(
+            [
+                "The generated name 'Logging.Deep.MessagesLogDefinitions' is already taken, so no log definitions are generated for 'Logging.Deep.Messages'",
+                "The generated name 'Store.Deep.ItemsLogDefinitions' is already taken, so no log definitions are generated for 'Store.Deep.Items'",
+            ]);
+    }
+
     /// <summary>Verifies a backslash escape in the message of a product compiled against the logging abstractions before
     /// 11.0 takes effect in the template, as those generators wrote it, and a message that could not have compiled stays
     /// as written; from 11.0 the message is logged as written.</summary>

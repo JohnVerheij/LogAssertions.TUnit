@@ -625,8 +625,8 @@ await Assert.That(collector).HasNotLogged().Matching(OrderServiceLogDefinitions.
 - A nested type joins the names with `_` (`Outer_InnerLogDefinitions`); a generic type adds `_` and its number of type
   parameters (`Repository_1LogDefinitions`). Two methods of one type with the same name get no definition (warning
   `LOGA002`), neither do two types that would generate the same class (warning `LOGA003`), nor a type whose generated
-  class name is taken, by a type the test project sees or by a namespace, or a method named like the generated class
-  (warning `LOGA004`). The warnings are reported at the
+  class name is taken, by a type the test project sees or by a namespace, or whose namespace (or an enclosing one) is
+  the name of a type the test project sees, or a method named like the generated class (warning `LOGA004`). The warnings are reported at the
   `GenerateLogDefinitions` attribute, so a `#pragma warning disable` around it, `NoWarn`, or `.editorconfig` can
   silence them.
 - `LogContractRenderer.Render` takes generated definitions like captured ones.
@@ -1447,7 +1447,7 @@ Each line is the event ID, the event name (`?` when there is none), the level (`
 
 ### Pin the records other tools read
 
-The contract above pins a whole set of [definitions](#typed-definition-filters-matching-matchingcall-v0110), captured or generated, as one reviewed baseline, with no values. It needs the definitions as `LogDefinition` values, so it cannot see a `[LoggerMessage]` method that is `private`. For one such record, pin its event name and its message template with the filters, in the test that makes the code log:
+The contract above pins a whole set of [definitions](#typed-definition-filters-matching-matchingcall-v0110), captured or generated, as one reviewed baseline, with no values. It needs the definitions as `LogDefinition` values, so it cannot see a `private` `[LoggerMessage]` method of a product assembly the test project references (in its own assembly a test project sees all of its methods). For one such record, pin its event name and its message template with the filters, in the test that makes the code log:
 
 ```csharp
 await Assert.That(collector).HasLogged()

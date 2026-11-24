@@ -51,7 +51,8 @@ internal static class DefinitionScanner
     }
 
     /// <summary>Writes one source per generated class, leaving out two types that would generate the same class
-    /// (LOGA003) and a class whose name a type the compilation sees, or a namespace, already has (LOGA004).</summary>
+    /// (LOGA003) and a class whose name a type the compilation sees or a namespace already has, or one of whose
+    /// enclosing namespaces a type has (LOGA004).</summary>
     /// <param name="compilation">The compilation of the test project, without generated sources.</param>
     /// <param name="types">The definitions of every type.</param>
     /// <param name="diagnostics">Receives the diagnostics.</param>
@@ -88,14 +89,21 @@ internal static class DefinitionScanner
     }
 
     /// <summary>Returns whether the full name of a generated class is taken: a type the compilation sees has it, or a
-    /// namespace of the compilation or of a reference does (a class and a namespace cannot share a full name).</summary>
+    /// namespace of the compilation or of a reference does, or a type the compilation sees has the full name of one of the
+    /// class's enclosing namespaces (a type and a namespace cannot share a full name).</summary>
     /// <param name="compilation">The compilation of the test project.</param>
     /// <param name="fullName">The class's full name, its namespace in plain identifiers.</param>
     /// <returns><see langword="true"/> when the name is taken.</returns>
     private static bool IsTaken(Compilation compilation, string fullName)
     {
-        if (compilation.GetTypesByMetadataName(fullName).Any(existing => compilation.IsSymbolAccessibleWithin(existing, compilation.Assembly)))
+        if (HasVisibleType(compilation, fullName))
             return true;
+
+        for (var dot = fullName.IndexOf('.'); dot >= 0; dot = fullName.IndexOf('.', dot + 1))
+        {
+            if (HasVisibleType(compilation, fullName.Substring(0, dot)))
+                return true;
+        }
 
         INamespaceSymbol? current = compilation.GlobalNamespace;
         foreach (var part in fullName.Split('.'))
@@ -107,6 +115,14 @@ internal static class DefinitionScanner
 
         return true;
     }
+
+    /// <summary>Returns whether the compilation sees a type with the given full name: one of its own, or an accessible
+    /// one of a reference.</summary>
+    /// <param name="compilation">The compilation of the test project.</param>
+    /// <param name="fullName">The full name, its namespace in plain identifiers.</param>
+    /// <returns><see langword="true"/> when such a type exists.</returns>
+    private static bool HasVisibleType(Compilation compilation, string fullName)
+        => compilation.GetTypesByMetadataName(fullName).Any(existing => compilation.IsSymbolAccessibleWithin(existing, compilation.Assembly));
 
     /// <summary>Returns the distinct assemblies the compilation names in <c>[assembly: GenerateLogDefinitions]</c>, in
     /// the order of the attributes, each with the location of the first attribute that names it.</summary>
